@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SB Polangui | User Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./page-enhancements.css" />
+  </head>
+
+  <body data-page="user">
+    <div class="app-shell">
+
+      <!-- ════════════════════════════════
+           SIDEBAR
+      ════════════════════════════════ -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <img src="images/SB_logo.png" alt="SB Polangui" class="sidebar-logo-img"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+          <div class="sidebar-logo-circle" style="display:none">SB</div>
+          <div class="sidebar-title">
+            <span class="sidebar-title-small">User Portal</span>
+            <span class="sidebar-title-main">Sangguniang Bayan</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="sidebar-nav-label">Navigation</div>
+          <a href="#" class="nav-link nav-link-active" data-section="dashboard">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            </span>
+            <span>Dashboard</span>
+          </a>
+
+          <div class="sidebar-nav-label" style="margin-top:14px">Meetings</div>
+          <a href="#" class="nav-link" data-section="calendar">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <span>Meeting Calendar</span>
+          </a>
+          <a href="#" class="nav-link" data-section="my-meetings">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </span>
+            <span>My Meetings</span>
+          </a>
+        </nav>
+
+        <footer class="sidebar-footer">
+          <div class="sidebar-avatar sidebar-avatar-user" id="sidebar-avatar">U</div>
+          <div class="sidebar-footer-info">
+            <div class="sidebar-footer-name" id="sidebar-user">User</div>
+            <div class="sidebar-footer-role" id="sidebar-role">Councilor</div>
+          </div>
+        </footer>
+      </aside>
+
+      <!-- ════════════════════════════════
+           CONTENT AREA
+      ════════════════════════════════ -->
+      <div class="content-area">
+
+        <!-- TOPBAR -->
+        <header class="topbar">
+          <div class="topbar-left">
+            <div class="topbar-portal-badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              User Portal
+            </div>
+            <div class="topbar-divider"></div>
+            <div id="topbar-section-title" class="topbar-section-title">Dashboard</div>
+          </div>
+          <div class="topbar-right">
+            <button class="dark-toggle" id="dark-toggle-btn" title="Toggle dark mode">
+              <svg id="dark-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            </button>
+            <div style="position:relative">
+              <button class="notif-bell-btn" id="notif-bell" title="Notifications">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+              </button>
+              <span id="notif-badge"></span>
+              <div class="notif-panel" id="notif-panel">
+                <div class="notif-panel-header">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                  Notifications
+                </div>
+                <div id="notif-list"></div>
+              </div>
+            </div>
+            <button id="logout-btn" class="btn btn-danger btn-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Sign Out
+            </button>
+          </div>
+        </header>
+
+        <!-- MAIN SCROLL -->
+        <main class="main-scroll section-stack">
+
+          <!-- ══════════════════════════
+               DASHBOARD
+          ══════════════════════════ -->
+          <div id="section-dashboard" class="user-section active">
+
+            <!-- Welcome banner -->
+            <div class="welcome-banner">
+              <div class="welcome-banner-text">
+                <div class="welcome-banner-eyebrow">Good day</div>
+                <div class="welcome-banner-name" id="welcome-text">Welcome</div>
+                <div class="welcome-banner-sub">Here's a summary of your meeting activity.</div>
+              </div>
+              <div class="welcome-banner-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+            </div>
+
+            <!-- Stat cards -->
+            <div class="dash-stat-row">
+              <div class="dash-stat-card">
+                <div class="stat-accent-bar stat-accent-blue"></div>
+                <div class="stat-card-inner">
+                  <div class="stat-card-body">
+                    <div class="stat-label">Total Meetings</div>
+                    <div id="stat-total-meetings" class="stat-value">0</div>
+                    <div class="stat-sub">All your meetings</div>
+                  </div>
+                  <div class="stat-card-icon stat-icon-blue">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                </div>
+              </div>
+              <div class="dash-stat-card">
+                <div class="stat-accent-bar stat-accent-amber"></div>
+                <div class="stat-card-inner">
+                  <div class="stat-card-body">
+                    <div class="stat-label">Pending Requests</div>
+                    <div id="stat-pending-meetings" class="stat-value">0</div>
+                    <div class="stat-sub">Awaiting approval</div>
+                  </div>
+                  <div class="stat-card-icon stat-icon-amber">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  </div>
+                </div>
+              </div>
+              <div class="dash-stat-card">
+                <div class="stat-accent-bar stat-accent-purple"></div>
+                <div class="stat-card-inner">
+                  <div class="stat-card-body">
+                    <div class="stat-label">Next 7 Days</div>
+                    <div id="stat-upcoming-week" class="stat-value">0</div>
+                    <div class="stat-sub">Upcoming meetings</div>
+                  </div>
+                  <div class="stat-card-icon stat-icon-purple">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Charts row -->
+            <div class="dashboard-grid">
+              <div class="chart-card">
+                <div class="chart-card-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
+                  My Meetings by Status
+                </div>
+                <div class="donut-wrap">
+                  <svg id="user-donut-svg" class="donut-svg" width="130" height="130" viewBox="0 0 140 140">
+                    <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" stroke-width="22"/>
+                    <g id="user-donut-segments"></g>
+                    <text x="70" y="74" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor" id="user-donut-center-text">–</text>
+                  </svg>
+                  <div class="donut-legend" id="user-donut-legend"></div>
+                </div>
+              </div>
+              <div class="chart-card">
+                <div class="chart-card-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  My Meetings by Type
+                </div>
+                <div class="bar-chart" id="user-type-bar-chart">
+                  <div class="text-muted" style="font-size:0.82rem;padding:12px">No data yet.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upcoming meetings -->
+            <div class="chart-card">
+              <div class="chart-card-title">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Upcoming Meetings
+              </div>
+              <div class="upcoming-preview-list" id="dash-upcoming-list">
+                <div class="empty-state">
+                  <svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <p>No upcoming meetings.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent activity -->
+            <div class="chart-card">
+              <div class="chart-card-title">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Recent Activity
+              </div>
+              <div class="activity-list" id="user-activity-list">
+                <div class="empty-state">
+                  <svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <p>No recent activity.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══════════════════════════
+               MEETING CALENDAR
+          ══════════════════════════ -->
+          <div id="section-calendar" class="user-section">
+            <div class="page-header">
+              <div>
+                <div class="page-header-title">Meeting Calendar</div>
+                <div class="page-header-sub">Book meetings on weekdays (Mon–Fri) between 8:00 AM and 5:00 PM.</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  </div>
+                  <div>
+                    <div class="card-title">Monthly Calendar</div>
+                    <div class="card-subtitle">Click an available date to book a meeting slot.</div>
+                  </div>
+                </div>
+                <div class="calendar-legend">
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-yellow"></span> Pending</span>
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-green"></span> Approved</span>
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-red"></span> Cancelled / Rejected</span>
+                  <span class="calendar-legend-item"><span class="icon-dot" style="background:#fcd34d;border:1px solid #f59e0b"></span> PH Holiday</span>
+                  <span class="calendar-legend-item"><span style="width:8px;height:8px;border-radius:3px;background:#dc2626;display:inline-block;flex-shrink:0"></span> Full</span>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="calendar-header-row">
+                  <button id="calendar-prev" class="cal-nav-btn" title="Previous month">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <div class="calendar-month-label">
+                    <span id="calendar-month"></span>
+                    <span id="calendar-year"></span>
+                  </div>
+                  <button id="calendar-today" class="btn btn-ghost btn-sm" style="font-size:0.75rem;padding:5px 12px">Today</button>
+                  <button id="calendar-next" class="cal-nav-btn" title="Next month">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </div>
+                <div class="calendar-weekdays">
+                  <div class="calendar-weekday">Sun</div>
+                  <div class="calendar-weekday">Mon</div>
+                  <div class="calendar-weekday">Tue</div>
+                  <div class="calendar-weekday">Wed</div>
+                  <div class="calendar-weekday">Thu</div>
+                  <div class="calendar-weekday">Fri</div>
+                  <div class="calendar-weekday">Sat</div>
+                </div>
+                <div id="calendar-grid" class="calendar-grid"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══════════════════════════
+               MY MEETINGS
+          ══════════════════════════ -->
+          <div id="section-my-meetings" class="user-section">
+            <div class="page-header">
+              <div>
+                <div class="page-header-title">My Meetings</div>
+                <div class="page-header-sub">View, export, or request cancellation for your scheduled meetings.</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  </div>
+                  <div>
+                    <div class="card-title">All My Meetings</div>
+                    <div class="card-subtitle">Approved meetings can be exported as PDF.</div>
+                  </div>
+                </div>
+                <div class="search-bar-wrap">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input id="search-my-meetings" class="field" placeholder="Search meetings…" />
+                </div>
+              </div>
+              <div class="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="my-meetings-body">
+                    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">No meetings yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div id="my-meetings-pagination" class="pagination-row"></div>
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+
+    <!-- ── Booking modal ── -->
+    <div id="meeting-modal" class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="meeting-modal-title">Schedule Meeting</span>
+          </div>
+          <button id="meeting-modal-close" class="btn btn-ghost btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <form id="meeting-form">
+          <div class="modal-body section-stack">
+            <div class="form-grid-2">
+              <div>
+                <label for="meeting-event" class="field-label">Event Name *</label>
+                <input id="meeting-event" class="field" required placeholder="e.g. Committee Hearing" />
+              </div>
+              <div>
+                <label for="meeting-committee" class="field-label">Committee *</label>
+                <input id="meeting-committee" class="field" required placeholder="e.g. Ways and Means" />
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div>
+                <label for="meeting-councilor" class="field-label">Councilor *</label>
+                <input id="meeting-councilor" class="field" required />
+              </div>
+              <div>
+                <label for="meeting-researcher" class="field-label">Researcher *</label>
+                <input id="meeting-researcher" class="field" required />
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div>
+                <label for="meeting-date" class="field-label">Date *</label>
+                <input id="meeting-date" type="date" class="field" required />
+              </div>
+              <div>
+                <label for="meeting-time" class="field-label">Start Time *</label>
+                <select id="meeting-time" class="field" required></select>
+                <div id="time-slot-availability-hint" class="helper-text" style="margin-top:4px"></div>
+                <div class="calendar-lunch-block">Office hours: 8:00 AM – 5:00 PM</div>
+                <div id="meeting-end-preview" class="helper-text"></div>
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div>
+                <label for="meeting-duration" class="field-label">Duration *</label>
+                <select id="meeting-duration" class="field" required></select>
+                <div id="meeting-duration-hint" class="helper-text"></div>
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div>
+                <label for="meeting-type" class="field-label">Type of Meeting *</label>
+                <select id="meeting-type" class="field">
+                  <option value="Regular">Regular Session</option>
+                  <option value="Special">Special Session</option>
+                  <option value="Others">Others (Please Specify)</option>
+                </select>
+                <input id="meeting-type-other" class="field" placeholder="Please specify type of meeting..." style="display:none;margin-top:6px" />
+              </div>
+              <div>
+                <label for="meeting-venue" class="field-label">Venue *</label>
+                <select id="meeting-venue" class="field">
+                  <option value="SB Hall">SB Hall</option>
+                  <option value="Old SB Hall">Old SB Hall</option>
+                  <option value="ABC Hall">ABC Hall</option>
+                  <option value="Others">Others (Please Specify)</option>
+                </select>
+                <input id="meeting-venue-other" class="field" placeholder="Please specify venue..." style="display:none;margin-top:6px" />
+              </div>
+            </div>
+            <div>
+              <label for="meeting-notes" class="field-label">Notes</label>
+              <textarea id="meeting-notes" class="field" rows="3" style="resize:vertical" placeholder="Optional additional information…"></textarea>
+            </div>
+            <div id="meeting-form-message" class="helper-text" style="color:var(--color-danger)"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" id="meeting-cancel-btn" class="btn btn-ghost btn-sm">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
+              Save Schedule
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Mobile bottom nav -->
+    <nav class="bottom-nav">
+      <a href="#" class="bottom-nav-item bottom-nav-item-active" data-section="dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="#" class="bottom-nav-item" data-section="calendar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Calendar</span>
+      </a>
+      <a href="#" class="bottom-nav-item" data-section="my-meetings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>My Meetings</span>
+      </a>
+    </nav>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="./react-init.js"></script>
+    <script src="./config-PRIVATE-6e93a2d7.js"></script>
+    <script src="./firebase.js"></script>
+    <script src="./app.js"></script>
+
+    <!-- Section navigation -->
+    <script>
+      (function () {
+        var SECTION_TITLES = { dashboard: 'Dashboard', calendar: 'Meeting Calendar', 'my-meetings': 'My Meetings' };
+        function switchSection(key) {
+          document.querySelectorAll('.user-section').forEach(function (el) { el.classList.remove('active'); });
+          var target = document.getElementById('section-' + key);
+          if (target) target.classList.add('active');
+          document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
+            a.classList.toggle('nav-link-active', a.dataset.section === key);
+          });
+          document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
+            a.classList.toggle('bottom-nav-item-active', a.dataset.section === key);
+          });
+          var titleEl = document.getElementById('topbar-section-title');
+          if (titleEl) titleEl.textContent = SECTION_TITLES[key] || key;
+          try { sessionStorage.setItem('user_section', key); } catch(e) {}
+        }
+        document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
+          a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+        });
+        document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
+          a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+        });
+        document.addEventListener('DOMContentLoaded', function () { switchSection('dashboard'); });
+      })();
+    </script>
+
+    <!-- User dashboard charts -->
+    <script>
+      function renderUserDashboardCharts() {
+        var currentUser = null;
+        try { var raw = localStorage.getItem('sbp_current_user'); if (raw) currentUser = JSON.parse(raw); } catch(e) {}
+        var allMeetings = window.meetings || [];
+        var mine = allMeetings.filter(function(m) {
+          if (!currentUser) return false;
+          if (currentUser.role === 'Councilor') return m.councilor === currentUser.name || m.createdBy === currentUser.username;
+          if (currentUser.role === 'Researcher') return m.researcher === currentUser.name || m.createdBy === currentUser.username;
+          if (currentUser.role === 'Vice Mayor') return m.createdBy === currentUser.username;
+          return m.createdBy === currentUser.username;
+        });
+        var STATUS_COLORS = {
+          'Approved':'#16a34a','Pending':'#f59e0b','Cancelled':'#dc2626',
+          'Rejected':'#dc2626','Done':'#3b82f6','Cancellation Requested':'#f97316'
+        };
+        var statusCounts = {};
+        mine.forEach(function(m) { statusCounts[m.status] = (statusCounts[m.status] || 0) + 1; });
+        var statusKeys = Object.keys(statusCounts);
+        var total = mine.length || 1;
+        var segs = document.getElementById('user-donut-segments');
+        var legend = document.getElementById('user-donut-legend');
+        var center = document.getElementById('user-donut-center-text');
+        if (segs && legend) {
+          segs.innerHTML = ''; legend.innerHTML = '';
+          var r = 52, cx = 70, cy = 70, circ = 2 * Math.PI * r, offset = 0;
+          statusKeys.forEach(function(s) {
+            var pct = statusCounts[s] / total, dash = pct * circ, gap = circ - dash;
+            var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', r);
+            circle.setAttribute('fill', 'none'); circle.setAttribute('stroke', STATUS_COLORS[s] || '#9ca3af');
+            circle.setAttribute('stroke-width', '22');
+            circle.setAttribute('stroke-dasharray', dash + ' ' + gap);
+            circle.setAttribute('stroke-dashoffset', circ * 0.25 - offset);
+            segs.appendChild(circle); offset += dash;
+            var item = document.createElement('div');
+            item.className = 'donut-legend-item';
+            item.innerHTML = '<span class="donut-dot" style="background:' + (STATUS_COLORS[s] || '#9ca3af') + '"></span><span>' + s + ': <strong>' + statusCounts[s] + '</strong></span>';
+            legend.appendChild(item);
+          });
+          if (center) center.textContent = mine.length || '–';
+        }
+        var TYPE_COLORS = { 'Regular': '#1d4ed8', 'Special': '#7c3aed' };
+        var typeCounts = {};
+        mine.forEach(function(m) { var t = m.type || 'Other'; typeCounts[t] = (typeCounts[t] || 0) + 1; });
+        var typeKeys = Object.keys(typeCounts);
+        var typeMax = Math.max.apply(null, typeKeys.map(function(k){ return typeCounts[k]; })) || 1;
+        var typeChart = document.getElementById('user-type-bar-chart');
+        if (typeChart) {
+          typeChart.innerHTML = typeKeys.length
+            ? typeKeys.map(function(k) {
+                var pct = (typeCounts[k] / typeMax) * 100;
+                return '<div class="bar-group"><div class="bar" style="height:' + pct + '%;background:' + (TYPE_COLORS[k]||'#6b7280') + ';opacity:0.85;" data-val="' + typeCounts[k] + '"></div><div class="bar-label" title="' + k + '">' + k + '</div></div>';
+              }).join('')
+            : '<div class="text-muted" style="font-size:0.82rem;padding:12px">No data yet.</div>';
+        }
+        var todayStr = (function() { var d = new Date(); return d.toISOString().slice(0, 10); })();
+        var upcoming = mine.filter(function(m) { return m.date >= todayStr && m.status !== 'Cancelled' && m.status !== 'Rejected'; })
+          .sort(function(a, b) { return a.date.localeCompare(b.date); }).slice(0, 5);
+        var upcomingList = document.getElementById('dash-upcoming-list');
+        if (upcomingList) {
+          if (!upcoming.length) {
+            upcomingList.innerHTML = '<div class="empty-state"><svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><p>No upcoming meetings.</p></div>';
+          } else {
+            upcomingList.innerHTML = upcoming.map(function(m) {
+              var color = STATUS_COLORS[m.status] || '#9ca3af';
+              var dateDisplay = new Date(m.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+              return '<div class="upcoming-preview-item"><div><div class="upcoming-preview-name">' + (m.eventName || 'Meeting') + '</div><div class="upcoming-preview-meta">' + dateDisplay + ' · ' + (m.type || '') + ' · ' + (m.venue || '') + '</div></div><span class="badge badge-pill" style="background:' + color + ';color:#fff;font-size:0.7rem;padding:2px 10px;border-radius:999px;">' + m.status + '</span></div>';
+            }).join('');
+          }
+        }
+        var sorted = mine.slice().sort(function(a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); }).slice(0, 6);
+        var activityList = document.getElementById('user-activity-list');
+        if (activityList) {
+          if (!sorted.length) {
+            activityList.innerHTML = '<div class="empty-state"><svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>No recent activity.</p></div>';
+          } else {
+            activityList.innerHTML = sorted.map(function(m) {
+              var color = STATUS_COLORS[m.status] || '#9ca3af';
+              var when = m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' }) : m.date;
+              return '<div class="activity-item"><span class="activity-dot" style="background:' + color + '"></span><div><div class="activity-text"><strong>' + (m.eventName || 'Meeting') + '</strong> — ' + (m.status || '') + '</div><div class="activity-time">' + when + '</div></div></div>';
+            }).join('');
+          }
+        }
+      }
+      window.renderUserDashboardCharts = renderUserDashboardCharts;
+      var _userPollCount = 0;
+      function pollUserCharts() {
+        _userPollCount++;
+        if (window.meetings !== undefined || _userPollCount > 30) { renderUserDashboardCharts(); }
+        else { setTimeout(pollUserCharts, 200); }
+      }
+      document.addEventListener('DOMContentLoaded', function() { setTimeout(pollUserCharts, 400); });
+    </script>
+
+    <!-- Dark mode toggle -->
+    <script>
+      (function () {
+        var btn = document.getElementById('dark-toggle-btn');
+        var icon = document.getElementById('dark-icon');
+        var MOON = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+        var SUN = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+        function applyTheme(dark) {
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
+          if (icon) icon.innerHTML = dark ? SUN : MOON;
+          try { localStorage.setItem('sbp_dark', dark ? '1' : '0'); } catch(e) {}
+        }
+        applyTheme(localStorage.getItem('sbp_dark') === '1');
+        if (btn) btn.addEventListener('click', function() { applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark'); });
+      })();
+    </script>
+
+    <!-- Session timeout -->
+    <script>
+      (function() {
+        var TIMEOUT = 30 * 60 * 1000;
+        function refresh() { try { localStorage.setItem('sbp_session_expiry', Date.now() + TIMEOUT); } catch(e){} }
+        function check() {
+          var exp = parseInt(localStorage.getItem('sbp_session_expiry') || '0', 10);
+          if (exp && Date.now() > exp) {
+            localStorage.removeItem('sbp_current_user'); localStorage.removeItem('sbp_session_expiry');
+            window.location.href = './index.html?timeout=1';
+          }
+        }
+        refresh();
+        ['click','keypress','mousemove','touchstart'].forEach(function(e) { document.addEventListener(e, refresh, { passive: true }); });
+        setInterval(check, 60000);
+      })();
+    </script>
+  </body>
+</html>
