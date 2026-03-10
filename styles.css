@@ -1261,22 +1261,24 @@ body[data-page="login"] {
 @media (max-width: 768px) {
   .sidebar        { display: none; }
   .bottom-nav     { display: flex; }
-  .main-scroll    { padding: 16px 16px 80px; }
-  .topbar         { padding: 0 16px; }
+  .main-scroll    { padding: 14px 12px 80px; }
+  .topbar         { padding: 0 12px; }
   .card-header    { flex-direction: column; gap: 10px; }
   .stats-grid     { grid-template-columns: 1fr 1fr; }
   .user-form-grid { grid-template-columns: 1fr; }
-  .notif-panel    { width: 300px; right: -60px; }
+  .notif-panel    { width: calc(100vw - 24px); right: -60px; }
   .auth-card-inner{ padding: 28px 24px 24px; }
+  .modal-backdrop { padding: 14px; }
 }
 
 @media (max-width: 480px) {
-  .dash-stat-row         { grid-template-columns: 1fr; }
+  .dash-stat-row         { grid-template-columns: 1fr 1fr; }
   .auth-header           { flex-direction: column; text-align: center; align-items: center; }
   .auth-logo-wrapper img { width: 70px; height: 70px; }
-  .calendar-cell         { min-height: 52px; }
+  .calendar-cell         { min-height: 46px; }
   .auth-card-inner       { padding: 22px 18px 20px; }
   .auth-right-inner      { padding: 26px 20px 20px; }
   .auth-right-strip      { padding: 10px 20px; }
   .auth-welcome-title    { font-size: 1.25rem; }
+  .modal-backdrop        { padding: 12px; }
 }

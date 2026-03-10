@@ -585,14 +585,88 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
 /* ── RESPONSIVE ── */
 @media (max-width: 768px) {
   .sidebar          { display: none; }
-  .main-scroll      { padding: 16px 14px 80px; }
-  .topbar           { padding: 0 14px; }
-  .dash-stat-row    { grid-template-columns: 1fr 1fr; }
+  .main-scroll      { padding: 14px 12px 80px; }
+  .topbar           { padding: 0 12px; height: 54px; }
+  .topbar-portal-badge { display: none; }
+  .topbar-divider   { display: none; }
+  .topbar-right     { gap: 5px; }
+  .dark-toggle, .notif-bell-btn { width: 32px; height: 32px; }
+  #logout-btn       { height: 32px; padding: 0 10px; font-size: 0.7rem; }
+  #logout-btn svg   { display: none; }
+
+  .dash-stat-row    { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card-inner  { padding: 13px 14px 12px; }
+  .stat-value       { font-size: 1.7rem; }
+
+  .dashboard-grid   { grid-template-columns: 1fr; gap: 12px; }
+
+  /* Charts on mobile — give them proper height and make bars readable */
+  .bar-chart        { height: 130px; gap: 4px; }
+  .bar-label        { font-size: 0.55rem; }
+  .chart-wrap       { height: 160px; }
+  .donut-wrap       { flex-direction: column; align-items: center; gap: 14px; }
+  .donut-svg        { width: 110px; height: 110px; }
+  .donut-legend     { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 6px 12px; }
+  .donut-legend-item{ font-size: 0.72rem; }
+
   .filter-row       { flex-direction: column; align-items: stretch; }
   .filter-row .field{ width: 100%; min-width: 0; }
-  .card-header      { flex-direction: column; gap: 10px; }
-}
-@media (max-width: 480px) {
-  .dash-stat-row    { grid-template-columns: 1fr; }
+  .filter-row .search-bar-wrap { max-width: 100%; }
+
+  .card-header      { flex-direction: column; gap: 10px; align-items: stretch; }
+  .card-title-wrap  { gap: 9px; }
+
+  /* Calendar mobile */
+  .calendar-cell    { min-height: 58px; padding: 4px; }
+  .calendar-cell-date { font-size: 0.72rem; }
+  .calendar-badge   { font-size: 0.55rem; padding: 1px 4px; }
+  .calendar-legend  { gap: 8px; }
+  .calendar-legend-item { font-size: 0.65rem; }
+  .calendar-header-row { padding: 0 0 12px; }
+
+  /* Tables on mobile */
+  .table-wrapper    { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table             { min-width: 540px; }
+
+  /* Notif panel */
+  .notif-panel      { width: calc(100vw - 24px); right: -12px; max-height: 360px; }
+
+  /* Modal */
+  .modal            { border-radius: 14px; margin: 0; }
+  .modal-body       { padding: 14px 16px; }
+  .modal-footer     { padding: 10px 14px; }
+  .modal-header     { padding: 13px 16px; }
+  .form-grid-2      { grid-template-columns: 1fr; gap: 10px; }
+
+  /* Welcome banner */
   .welcome-banner   { padding: 16px 18px; }
+  .welcome-banner-name { font-size: 1rem; }
+  .welcome-banner-icon { display: none; }
+
+  /* Page header */
+  .page-header-title { font-size: 1.1rem; }
+  .topbar-section-title { font-size: 0.88rem; }
+}
+
+@media (max-width: 480px) {
+  .dash-stat-row    { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-value       { font-size: 1.5rem; }
+  .stat-label       { font-size: 0.6rem; }
+  .stat-sub         { display: none; }
+  .stat-card-inner  { padding: 11px 12px 10px; }
+  .stat-card-icon   { width: 36px; height: 36px; border-radius: 10px; }
+  .stat-card-icon svg { width: 16px; height: 16px; }
+
+  .chart-card       { padding: 14px 14px 12px; }
+  .bar-chart        { height: 110px; gap: 3px; }
+  .bar-label        { font-size: 0.5rem; }
+
+  /* Action buttons in tables — stack them */
+  .action-btn       { padding: 4px 8px; font-size: 0.65rem; }
+
+  .main-scroll      { padding: 12px 10px 80px; }
+  .section-stack    { gap: 12px; }
+
+  /* Bottom nav larger touch targets */
+  .bottom-nav-item  { padding: 10px 4px; font-size: 0.62rem; }
 }
