@@ -817,9 +817,7 @@ async function initLoginPage() {
     // Fix 14: Check mustChangePassword flag — force password change before proceeding
     if (account.mustChangePassword) {
       if (loginBtn) { loginBtn.classList.remove("loading"); loginBtn.disabled = false; }
-      // Store minimal session so the password modal can save
-      const tempUser = { id: account.id, username: account.username, role: account.role, name: account.name || account.username };
-      setCurrentUser(tempUser);
+      // Do NOT set a session yet — only set it after the password is successfully changed
       openForcePasswordChangeModal(account);
       return;
     }
@@ -1724,9 +1722,9 @@ function openDayScheduleModal(isoDate, readOnly) {
     </div>`;
   } else {
     const statusNote = isFullyBooked
-      ? `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#991b1b;font-weight:600;margin-bottom:10px";display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> This day is fully booked — no available time slots.</div>`
+      ? `<div style="background:#fee2e2;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#991b1b;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg> This day is fully booked — no available time slots.</div>`
       : approvedMeetings.length
-        ? `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#92400e;font-weight:500;margin-bottom:10px";display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Some slots are taken — check the timeline above before booking.</div>`
+        ? `<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 12px;font-size:0.8rem;color:#92400e;font-weight:500;margin-bottom:10px;display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Some slots are taken — check the timeline above before booking.</div>`
         : "";
 
     meetingListHtml = statusNote + `<div style="font-size:0.71rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);margin-bottom:8px">Meetings (${dayMeetings.length})</div>
@@ -1740,12 +1738,12 @@ function openDayScheduleModal(isoDate, readOnly) {
                 <div style="font-weight:600;font-size:0.85rem;color:${c.text};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.eventName || "Meeting"}</div>
                 <div style="font-size:0.75rem;color:${c.text};opacity:.85;margin-top:3px;display:flex;flex-wrap:wrap;gap:6px">
                   <span style="display:inline-flex;align-items:center;gap:3px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${timeRange}</span>
-                  <span style="display:inline-flex;align-items:center;gap:3px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${m.durationHours || SLOT_DURATION_HOURS}h</span>
+                  <span style="display:inline-flex;align-items:center;gap:3px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><path d="M12 7v5l3 3"/></svg>${m.durationHours || SLOT_DURATION_HOURS}h</span>
                   ${m.venue ? `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>${m.venue}</span>` : ""}
                 </div>
-                ${m.councilor ? `<div style="font-size:0.72rem;color:${c.text};opacity:.7;margin-top:3px" style=\"display:flex;align-items:center;gap:3px\"><svg width=\"11\" height=\"11\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\"><circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 20c0-4 3.6-7 8-7s8 3 8 7\"/></svg>${m.councilor}</div>` : ""}
-                ${m.committee ? `<div style="font-size:0.72rem;color:${c.text};opacity:.7" style=\"display:flex;align-items:center;gap:3px\"><svg width=\"11\" height=\"11\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\"><rect x=\"2\" y=\"7\" width=\"20\" height=\"14\" rx=\"1\"/><path d=\"M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2\"/></svg>${m.committee}</div>` : ""}
-                ${m.adminNote ? `<div style="font-size:0.7rem;color:${c.text};opacity:.65;margin-top:4px;font-style:italic" style=\"display:flex;align-items:center;gap:3px\"><svg width=\"10\" height=\"10\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\"><path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z\"/></svg>${m.adminNote}</div>` : ""}
+                ${m.councilor ? `<div style="font-size:0.72rem;color:${c.text};opacity:.7;margin-top:3px;display:flex;align-items:center;gap:3px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${m.councilor}</div>` : ""}
+                ${m.committee ? `<div style="font-size:0.72rem;color:${c.text};opacity:.7;display:flex;align-items:center;gap:3px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="7" width="20" height="14" rx="1"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>${m.committee}</div>` : ""}
+                ${m.adminNote ? `<div style="font-size:0.7rem;color:${c.text};opacity:.65;margin-top:4px;font-style:italic;display:flex;align-items:center;gap:3px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>${m.adminNote}</div>` : ""}
               </div>
               <span style="flex-shrink:0;font-size:0.68rem;font-weight:700;background:white;color:${c.text};border:1px solid ${c.border};padding:2px 8px;border-radius:999px;white-space:nowrap">${m.status}</span>
             </div>
@@ -1798,7 +1796,7 @@ function buildTimelineHTML(isoDate, dayMeetings) {
   const ticks = [];
   for (let h = WORK_START_HOUR; h <= WORK_END_HOUR; h++) {
     ticks.push(`<div style="position:absolute;left:${pct(h*60)}%;top:0;bottom:0;border-left:1px dashed rgba(0,0,0,0.1);pointer-events:none"></div>
-      <div style="position:absolute;left:${pct(h*60)}%;top:calc(100% + 3px);font-size:0.58rem;color:var(--color-text-muted);transform:translateX(-50%)">${h <= 12 ? h : h-12}${h < 12 ? 'a' : 'p'}</div>`);
+      <div style="position:absolute;left:${pct(h*60)}%;top:calc(100% + 3px);font-size:0.58rem;color:var(--color-text-muted);transform:translateX(-50%)">${h < 12 ? h + 'a' : h === 12 ? '12p' : (h - 12) + 'p'}</div>`);
   }
 
   // Approved blocks (solid red)
@@ -2087,11 +2085,11 @@ function updateTimeSlotAvailabilityHint(options, isoDate) {
   const available = options.filter(o => !o.disabled).length;
   if (!isoDate) { hint.innerHTML = ""; return; }
   if (blocked === 0) {
-    hint.innerHTML = `<span style="color:#16a34a;font-size:0.72rem";display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>All time slots available for this date</span>`;
+    hint.innerHTML = `<span style="color:#16a34a;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>All time slots available for this date</span>`;
   } else if (available === 0) {
-    hint.innerHTML = `<span style="color:#dc2626;font-size:0.72rem;font-weight:600";display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>No available time slots — this day is fully booked</span>`;
+    hint.innerHTML = `<span style="color:#dc2626;font-size:0.72rem;font-weight:600;display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>No available time slots — this day is fully booked</span>`;
   } else {
-    hint.innerHTML = `<span style="color:#f59e0b;font-size:0.72rem";display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${blocked} slot(s) blocked by approved meetings — grayed options are unavailable</span>`;
+    hint.innerHTML = `<span style="color:#f59e0b;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${blocked} slot(s) blocked by approved meetings — grayed options are unavailable</span>`;
   }
 }
 

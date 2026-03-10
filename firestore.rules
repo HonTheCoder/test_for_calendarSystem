@@ -1,35 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function isSignedIn() { return request.auth != null; }
-    function isAdmin() { return request.auth != null && request.auth.token.admin == true; }
+
+    // NOTE: This app uses its own username/password login stored in Firestore,
+    // NOT Firebase Authentication. So request.auth is always null.
+    // Security is enforced by these rules + Firebase App Check.
 
     match /admin_audit_logs/{doc} {
-      allow create: if isAdmin();
-      allow read: if isAdmin();
-      allow update, delete: if false;
+      // Only accessible via server-side Cloud Functions
+      allow read, write: if false;
     }
 
     match /users/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin();
-      allow update: if isAdmin() || (isSignedIn() && !('role' in request.resource.data.diff(resource.data).changedKeys()) && !('isAdmin' in request.resource.data.diff(resource.data).changedKeys()));
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if true;
+      // Allow password/mustChangePassword updates, but block role changes from client
+      allow update: if !('role' in request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if false;
     }
 
     match /meetings/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if true;
+      allow create: if true;
+      // Admins and users both need to update (approve/reject/cancel/cancellation request)
+      allow update: if true;
+      allow delete: if false;
     }
 
     match /calendar_history/{docId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin();
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if false;
     }
 
+    // Block everything else
     match /{document=**} {
       allow read: if false;
       allow write: if false;
