@@ -39,27 +39,6 @@
             <span>Dashboard</span>
           </a>
 
-          <div class="sidebar-nav-label" style="margin-top:14px">Management</div>
-          <a href="#" class="nav-link" data-section="user-management">
-            <span class="nav-link-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-            </span>
-            <span>User Management</span>
-          </a>
-          <a href="#" class="nav-link" data-section="meeting-logs">
-            <span class="nav-link-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </span>
-            <span>Meeting Logs</span>
-            <span class="nav-notif-badge" id="pending-badge">0</span>
-          </a>
-          <a href="#" class="nav-link" data-section="admin-management">
-            <span class="nav-link-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </span>
-            <span>Admin Management</span>
-          </a>
-
           <div class="sidebar-nav-label" style="margin-top:14px">Communications</div>
           <a href="#" class="nav-link" data-section="announcements">
             <span class="nav-link-icon">
@@ -67,6 +46,27 @@
             </span>
             <span>Announcements</span>
             <span class="nav-notif-badge" id="announce-count-badge" style="display:none">0</span>
+          </a>
+
+          <div class="sidebar-nav-label" style="margin-top:14px">User Management</div>
+          <a href="#" class="nav-link" data-section="meeting-logs">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <span>Meeting Logs</span>
+            <span class="nav-notif-badge" id="pending-badge">0</span>
+          </a>
+          <a href="#" class="nav-link" data-section="user-management">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </span>
+            <span>Accounts</span>
+          </a>
+          <a href="#" class="nav-link" data-section="admin-management">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07M8.46 8.46a5 5 0 000 7.07"/></svg>
+            </span>
+            <span>System Settings</span>
           </a>
         </nav>
 
@@ -171,7 +171,7 @@
                 <div class="stat-card-inner">
                   <div class="stat-card-body">
                     <div class="stat-label">Total Meetings</div>
-                    <div id="stat-total-meetings" class="stat-value">0</div>
+                    <div id="stat-total-meetings" class="stat-value"><span class="skeleton skeleton-stat-value"></span></div>
                     <div class="stat-sub">
                       <span class="stat-trend stat-trend-up" id="stat-total-trend" style="display:none">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
@@ -190,7 +190,7 @@
                 <div class="stat-card-inner">
                   <div class="stat-card-body">
                     <div class="stat-label">Pending Requests</div>
-                    <div id="stat-pending-meetings" class="stat-value">0</div>
+                    <div id="stat-pending-meetings" class="stat-value"><span class="skeleton skeleton-stat-value"></span></div>
                     <div class="stat-sub">
                       <span id="stat-pending-cta" style="display:none;cursor:pointer;color:var(--brand-amber);font-weight:600;text-decoration:underline" onclick="document.querySelector('[data-section=meeting-logs]').click()">Review now →</span>
                       <span id="stat-pending-none">No pending items</span>
@@ -206,7 +206,7 @@
                 <div class="stat-card-inner">
                   <div class="stat-card-body">
                     <div class="stat-label">Active Users</div>
-                    <div id="stat-active-users" class="stat-value">0</div>
+                    <div id="stat-active-users" class="stat-value"><span class="skeleton skeleton-stat-value"></span></div>
                     <div class="stat-sub">Non-admin accounts</div>
                   </div>
                   <div class="stat-card-icon stat-icon-green">
@@ -219,7 +219,7 @@
                 <div class="stat-card-inner">
                   <div class="stat-card-body">
                     <div class="stat-label">Next 7 Days</div>
-                    <div id="stat-upcoming-week" class="stat-value">0</div>
+                    <div id="stat-upcoming-week" class="stat-value"><span class="skeleton skeleton-stat-value"></span></div>
                     <div class="stat-sub">Upcoming meetings</div>
                   </div>
                   <div class="stat-card-icon stat-icon-purple">
@@ -236,7 +236,12 @@
                 Upcoming Approved Meetings
                 <span class="dash-see-all" onclick="document.querySelector('[data-section=meeting-logs]').click()">See all →</span>
               </div>
-              <div id="upcoming-meetings-preview" class="upcoming-preview-list"></div>
+              <div id="upcoming-meetings-preview" class="upcoming-preview-list">
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:55%"></span><span class="skeleton skeleton-list-sub" style="width:75%"></span></div><span class="skeleton skeleton-list-badge"></span></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:65%"></span><span class="skeleton skeleton-list-sub" style="width:50%"></span></div><span class="skeleton skeleton-list-badge"></span></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:45%"></span><span class="skeleton skeleton-list-sub" style="width:70%"></span></div><span class="skeleton skeleton-list-badge"></span></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:70%"></span><span class="skeleton skeleton-list-sub" style="width:40%"></span></div><span class="skeleton skeleton-list-badge"></span></div>
+              </div>
             </div>
 
             <!-- Charts row -->
@@ -249,10 +254,14 @@
                 <div class="donut-wrap">
                   <svg id="donut-svg" class="donut-svg" width="140" height="140" viewBox="0 0 140 140">
                     <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" stroke-width="22"/>
-                    <g id="donut-segments"></g>
+                    <g id="donut-segments"><circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" stroke-width="22" id="donut-skeleton-arc"/></g>
                     <text x="70" y="74" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor" id="donut-center-text">–</text>
                   </svg>
-                  <div class="donut-legend" id="donut-legend"></div>
+                  <div class="donut-legend" id="donut-legend">
+                    <div class="skeleton-legend-row"><span class="skeleton skeleton-legend-dot"></span><span class="skeleton skeleton-legend-text" style="width:90px"></span></div>
+                    <div class="skeleton-legend-row"><span class="skeleton skeleton-legend-dot"></span><span class="skeleton skeleton-legend-text" style="width:70px"></span></div>
+                    <div class="skeleton-legend-row"><span class="skeleton skeleton-legend-dot"></span><span class="skeleton skeleton-legend-text" style="width:80px"></span></div>
+                  </div>
                 </div>
               </div>
               <div class="chart-card">
@@ -261,7 +270,14 @@
                   Meetings by Type
                 </div>
                 <div class="chart-wrap">
-                  <div class="bar-chart" id="type-bar-chart"></div>
+                  <div class="bar-chart" id="type-bar-chart"><div class="skeleton-bar-wrap">
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:75%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:45%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:90%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:55%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:30%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                  </div>
+                </div>
                 </div>
               </div>
               <div class="chart-card" style="grid-column: 1 / -1;">
@@ -270,7 +286,21 @@
                   Monthly Meeting Activity (This Year)
                 </div>
                 <div class="chart-wrap" style="height: 200px;">
-                  <div class="bar-chart" id="monthly-bar-chart" style="height:170px;"></div>
+                  <div class="bar-chart" id="monthly-bar-chart" style="height:170px;"><div class="skeleton-bar-wrap" style="height:160px">
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:40%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:60%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:80%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:50%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:100%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:70%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:45%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:90%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:55%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:35%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:65%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:20%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                  </div>
+                </div>
                 </div>
               </div>
             </div>
@@ -282,10 +312,11 @@
                 Recent Activity
               </div>
               <div class="activity-list" id="activity-list">
-                <div class="empty-state">
-                  <svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <p>No recent activity.</p>
-                </div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:55%"></span><span class="skeleton skeleton-list-sub" style="width:75%"></span></div></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:65%"></span><span class="skeleton skeleton-list-sub" style="width:50%"></span></div></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:45%"></span><span class="skeleton skeleton-list-sub" style="width:70%"></span></div></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:70%"></span><span class="skeleton skeleton-list-sub" style="width:40%"></span></div></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:50%"></span><span class="skeleton skeleton-list-sub" style="width:60%"></span></div></div>
               </div>
             </div>
 
@@ -297,7 +328,8 @@
                 <span class="dash-see-all" onclick="document.querySelector('[data-section=announcements]').click()">Manage →</span>
               </div>
               <div id="dash-admin-announce-preview" style="padding:0 4px">
-                <div style="font-size:0.83rem;color:var(--color-text-muted);padding:12px 0">Loading…</div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
               </div>
             </div>
           </div>
@@ -378,7 +410,8 @@
                     </tr>
                   </thead>
                   <tbody id="special-accounts-table-body">
-                    <tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px">No special accounts created yet.</td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -444,7 +477,10 @@
                     </tr>
                   </thead>
                   <tbody id="user-table-body">
-                    <tr><td colspan="4" class="text-muted" style="text-align:center;padding:24px">No users found.</td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -476,8 +512,14 @@
                   </div>
                 </div>
                 <div class="calendar-legend">
-                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-yellow"></span> Pending</span>
-                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-green"></span> Approved</span>
+                  <!-- YOUR MEETINGS - highlighted pill (gold) -->
+                  <span class="calendar-legend-mine">
+                    <span style="width:9px;height:9px;border-radius:2px;background:linear-gradient(135deg,#F5A31A,#EF8C0A);display:inline-block;flex-shrink:0;box-shadow:0 0 0 1.5px rgba(245,163,26,0.5)"></span>
+                    Your Meetings
+                  </span>
+                  <!-- Others' meetings - muted appearance -->
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-green" style="opacity:0.55"></span> Others' Approved</span>
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-yellow" style="opacity:0.55"></span> Pending</span>
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-red"></span> Cancelled / Rejected</span>
                   <span class="calendar-legend-item"><span class="icon-dot" style="background:#fcd34d;border:1px solid #f59e0b"></span> PH Holiday</span>
                   <span class="calendar-legend-item"><span style="width:8px;height:8px;border-radius:3px;background:#dc2626;display:inline-block;flex-shrink:0"></span> Full</span>
@@ -565,7 +607,12 @@
                     </tr>
                   </thead>
                   <tbody id="admin-meetings-body">
-                    <tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">No meetings have been scheduled.</td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td></tr>
+                    <tr><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:70%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:50%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:65%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:60%;border-radius:4px"></span></td><td><span class="skeleton" style="display:inline-block;height:11px;width:45%;border-radius:4px"></span></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -579,19 +626,156 @@
           <div id="section-admin-management" class="admin-section">
             <div class="page-header">
               <div>
-                <div class="page-header-title">Admin Management</div>
-                <div class="page-header-sub">Promote users to Admin via secure Cloud Function.</div>
+                <div class="page-header-title">System Settings</div>
+                <div class="page-header-sub">Manage data, accounts, and system configuration — all without opening Firebase.</div>
               </div>
             </div>
+
+            <!-- ── DATA OVERVIEW ─────────────────────────────── -->
             <div class="card">
               <div class="card-header">
                 <div class="card-title-wrap">
                   <div class="card-title-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                  </div>
+                  <div>
+                    <div class="card-title">Data Overview</div>
+                    <div class="card-subtitle">Live counts from Firestore / local storage.</div>
+                  </div>
+                </div>
+                <button class="btn btn-sm btn-ghost" id="sysdata-refresh-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+                  Refresh
+                </button>
+              </div>
+              <div class="card-body" style="padding:0">
+                <div id="sysdata-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0">
+                  <div style="padding:16px 18px;border-right:1px solid var(--color-border-soft)"><span class="skeleton" style="display:block;height:9px;width:70px;border-radius:4px;margin-bottom:10px"></span><span class="skeleton" style="display:block;height:28px;width:50px;border-radius:6px;margin-bottom:6px"></span><span class="skeleton" style="display:block;height:8px;width:90px;border-radius:4px"></span></div>
+                  <div style="padding:16px 18px;border-right:1px solid var(--color-border-soft)"><span class="skeleton" style="display:block;height:9px;width:70px;border-radius:4px;margin-bottom:10px"></span><span class="skeleton" style="display:block;height:28px;width:50px;border-radius:6px;margin-bottom:6px"></span><span class="skeleton" style="display:block;height:8px;width:90px;border-radius:4px"></span></div>
+                  <div style="padding:16px 18px;border-right:1px solid var(--color-border-soft)"><span class="skeleton" style="display:block;height:9px;width:70px;border-radius:4px;margin-bottom:10px"></span><span class="skeleton" style="display:block;height:28px;width:50px;border-radius:6px;margin-bottom:6px"></span><span class="skeleton" style="display:block;height:8px;width:90px;border-radius:4px"></span></div>
+                  <div style="padding:16px 18px;border-right:1px solid var(--color-border-soft)"><span class="skeleton" style="display:block;height:9px;width:70px;border-radius:4px;margin-bottom:10px"></span><span class="skeleton" style="display:block;height:28px;width:50px;border-radius:6px;margin-bottom:6px"></span><span class="skeleton" style="display:block;height:8px;width:90px;border-radius:4px"></span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── EDIT USER PROFILES ─────────────────────────── -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                  </div>
+                  <div>
+                    <div class="card-title">Edit User Profiles</div>
+                    <div class="card-subtitle">Change a user's display name or role directly in the database.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="padding:16px 20px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                  <div>
+                    <label class="field-label">Select User</label>
+                    <select id="edit-user-select" class="field">
+                      <option value="">— choose a user —</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="field-label">Full Name</label>
+                    <input id="edit-user-name" class="field" placeholder="Display name" />
+                  </div>
+                  <div>
+                    <label class="field-label">Username</label>
+                    <input id="edit-user-username" class="field" placeholder="Login username" />
+                  </div>
+                  <div>
+                    <label class="field-label">Role</label>
+                    <select id="edit-user-role" class="field">
+                      <option value="Councilor">Councilor</option>
+                      <option value="Researcher">Researcher</option>
+                      <option value="Vice Mayor">Vice Mayor</option>
+                      <option value="Secretary">Secretary</option>
+                    </select>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <button class="btn btn-primary" id="edit-user-save-btn" disabled>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    Save Changes
+                  </button>
+                  <span id="edit-user-msg" class="helper-text"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── FORCE PASSWORD RESET ───────────────────────── -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon" style="background:rgba(245,158,11,0.1);color:#d97706">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  </div>
+                  <div>
+                    <div class="card-title">Force Password Reset</div>
+                    <div class="card-subtitle">Flag a user so they must change password on next login.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="padding:16px 20px">
+                <div style="display:grid;grid-template-columns:1fr auto;gap:12px;align-items:flex-end">
+                  <div>
+                    <label class="field-label">Select User</label>
+                    <select id="force-reset-select" class="field">
+                      <option value="">— choose a user —</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-sm" id="force-reset-btn" disabled style="background:rgba(245,158,11,0.12);color:#d97706;border:1px solid rgba(245,158,11,0.3);white-space:nowrap">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    Flag for Reset
+                  </button>
+                </div>
+                <p class="helper-text" style="margin-top:8px">The user will be prompted to set a new password the next time they log in.</p>
+              </div>
+            </div>
+
+            <!-- ── MEETING DATA TOOLS ─────────────────────────── -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon" style="background:rgba(99,102,241,0.1);color:#6366f1">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  </div>
+                  <div>
+                    <div class="card-title">Meeting Data Tools</div>
+                    <div class="card-subtitle">Bulk operations on meeting records.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="padding:16px 20px;display:flex;flex-wrap:wrap;gap:10px">
+                <button class="btn btn-sm btn-ghost" id="sysdata-export-all-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export All Meetings (CSV)
+                </button>
+                <button class="btn btn-sm btn-ghost" id="sysdata-export-users-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export Users List (CSV)
+                </button>
+                <button class="btn btn-sm" id="sysdata-mark-done-btn" style="background:rgba(99,102,241,0.08);color:#6366f1;border:1px solid rgba(99,102,241,0.25)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  Mark Past Approved → Done
+                </button>
+              </div>
+            </div>
+
+            <!-- ── ADD ADMIN ──────────────────────────────────── -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon" style="background:rgba(220,38,38,0.08);color:#dc2626">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   </div>
                   <div>
                     <div class="card-title">Admin Accounts</div>
-                    <div class="card-subtitle">Promote users to Admin via secure Cloud Function.</div>
+                    <div class="card-subtitle">Promote a Firebase Auth user to Admin via secure Cloud Function.</div>
                   </div>
                 </div>
                 <button id="add-admin-btn" class="btn btn-primary">
@@ -599,10 +783,10 @@
                   Add New Admin
                 </button>
               </div>
-              <div class="card-body" style="padding-top:16px">
+              <div class="card-body" style="padding-top:4px;padding-bottom:16px">
                 <div class="helper-text">
                   Requires Firebase Auth sign-in and a deployed callable function named <strong>secureAddAdmin</strong>.
-                  Admin accounts have full access to User Management, Meeting Logs, and this panel.
+                  Admin accounts have full access to all sections of this portal.
                 </div>
               </div>
             </div>
@@ -683,11 +867,10 @@
                 </div>
                 <span id="ann-total-badge" style="font-size:0.78rem;color:var(--color-text-muted);font-weight:600"></span>
               </div>
-              <div id="admin-announce-list" style="display:flex;flex-direction:column">
-                <div class="empty-state" style="padding:48px 20px">
-                  <svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
-                  <p>No announcements posted yet.</p>
-                </div>
+              <div id="admin-announce-list" style="display:flex;flex-direction:column;padding:12px 16px;gap:10px">
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
               </div>
             </div>
           </div>
@@ -987,21 +1170,21 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
         <span>Dashboard</span>
       </a>
-      <a href="#" class="bottom-nav-item" data-section="user-management">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-        <span>Users</span>
-      </a>
-      <a href="#" class="bottom-nav-item" data-section="meeting-logs">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span>Logs</span>
-      </a>
       <a href="#" class="bottom-nav-item" data-section="announcements">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
         <span>Announce</span>
       </a>
+      <a href="#" class="bottom-nav-item" data-section="meeting-logs">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Meetings</span>
+      </a>
+      <a href="#" class="bottom-nav-item" data-section="user-management">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <span>Accounts</span>
+      </a>
       <a href="#" class="bottom-nav-item" data-section="admin-management">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        <span>Admins</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
+        <span>Settings</span>
       </a>
     </nav>
 
@@ -1020,9 +1203,9 @@
       (function () {
         var SECTION_TITLES = {
           dashboard: 'Dashboard',
-          'user-management': 'User Management',
+          'user-management': 'Accounts',
           'meeting-logs': 'Meeting Logs',
-          'admin-management': 'Admin Management',
+          'admin-management': 'System Settings',
           announcements: 'Announcements'
         };
         function switchSection(key) {
@@ -1086,7 +1269,23 @@
 
     <!-- Dashboard charts -->
     <script>
+
+      function clearAdminSkeletons() {
+        ['stat-total-meetings','stat-pending-meetings','stat-active-users','stat-upcoming-week'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) { var sk = el.querySelector('.skeleton'); if (sk) el.innerHTML = '0'; }
+        });
+        // Clear table body skeletons
+        ['admin-meetings-body','user-table-body','special-accounts-table-body'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el && el.querySelector('.skeleton')) el.innerHTML = '';
+        });
+        // Clear sysdata skeleton
+        var sd = document.getElementById('sysdata-stats');
+        if (sd && sd.querySelector('.skeleton')) sd.innerHTML = '';
+      }
       function renderDashboardCharts() {
+        clearAdminSkeletons();
         var mtgs = window.meetings || [];
         var usrs = window.users || [];
         var STATUS_COLORS = {

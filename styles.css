@@ -158,10 +158,13 @@
 [data-theme="dark"] .badge-rejected    { background: rgba(220,38,38,0.2);  color: #F87171; }
 [data-theme="dark"] .badge-info        { background: rgba(59,130,246,0.2); color: #93C5FD; }
 [data-theme="dark"] .badge-warning     { background: rgba(249,115,22,0.2); color: #FDBA74; }
-[data-theme="dark"] .calendar-badge-approved  { background: rgba(22,163,74,0.2);  color: #4ADE80; }
-[data-theme="dark"] .calendar-badge-pending   { background: rgba(245,163,26,0.2); color: #FCD34D; }
-[data-theme="dark"] .calendar-badge-cancelled { background: rgba(107,114,128,0.2); color: #9CA3AF; }
-[data-theme="dark"] .calendar-badge-other     { background: rgba(59,130,246,0.2);  color: #93C5FD; }
+[data-theme="dark"] .calendar-badge-approved  { background: rgba(22,163,74,0.18);  color: #4ADE80; border-color: rgba(22,163,74,0.35); opacity: 0.72; }
+[data-theme="dark"] .calendar-badge-pending   { background: rgba(245,163,26,0.18); color: #FCD34D; border-color: rgba(245,163,26,0.35); opacity: 0.72; }
+[data-theme="dark"] .calendar-badge-cancelled { background: rgba(107,114,128,0.15); color: #9CA3AF; border-color: rgba(107,114,128,0.3); opacity: 0.5; }
+[data-theme="dark"] .calendar-badge-other     { background: rgba(107,114,128,0.15); color: #9CA3AF; border-color: rgba(107,114,128,0.3); opacity: 0.55; }
+[data-theme="dark"] .calendar-badge-mine-approved { background: linear-gradient(135deg, #D97706, #B45309); color: #fff; opacity: 1; border: none; box-shadow: 0 0 0 1.5px rgba(245,163,26,0.7), 0 2px 8px rgba(245,163,26,0.4); }
+[data-theme="dark"] .calendar-badge-mine-pending  { background: rgba(245,163,26,0.15); color: #FCD34D; border-color: #F59E0B; opacity: 1; }
+[data-theme="dark"] .calendar-legend-mine { color: #FCD34D; background: rgba(245,163,26,0.12); border-color: rgba(245,163,26,0.4); }
 [data-theme="dark"] .auth-page         { background: radial-gradient(circle at top left, #0B1628, #172038 60%, #0B1628); }
 [data-theme="dark"] .auth-card         { background: rgba(17,30,53,0.98); border-color: var(--color-border); }
 [data-theme="dark"] .auth-header       { border-bottom-color: var(--color-border); }
@@ -675,23 +678,72 @@ tbody tr:hover { background: var(--color-primary-soft); }
 
 .calendar-weekend-label { font-size: 0.55rem; color: var(--color-text-faint); font-weight: 600; letter-spacing: 0.04em; }
 
+/* --------------------------------------------------------------------------
+   CALENDAR BADGES - Dual-Visual Ownership System
+   - Others' meetings: solid green (approved) / amber (pending) at reduced opacity
+   - YOUR own meetings: vibrant gold fill + pulse glow (always stands out)
+   -------------------------------------------------------------------------- */
 .calendar-badge {
   font-size: 0.62rem; border-radius: 4px; padding: 2px 5px;
   font-weight: 600; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; max-width: 100%; line-height: 1.4;
+  transition: opacity 0.15s, box-shadow 0.15s;
 }
-.calendar-badge-approved  { background: #DCFCE7; color: #166534; }
-.calendar-badge-pending   { background: #FEF3C7; color: #92400E; }
-.calendar-badge-cancelled { background: #F3F4F6; color: #9CA3AF; }
-.calendar-badge-other     { background: #DBEAFE; color: #1E40AF; }
-.calendar-badge-more      { background: var(--color-border-soft); color: var(--color-text-muted); font-size: 0.57rem; text-align: center; border: 1px dashed var(--color-border); }
 
+/* --- OTHERS' MEETINGS: clear green/amber but visually softer --- */
+.calendar-badge-approved  { background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; opacity: 0.72; }
+.calendar-badge-pending   { background: #FEF9C3; color: #A16207; border: 1px solid #FDE047; opacity: 0.72; }
+.calendar-badge-cancelled { background: #F3F4F6; color: #9CA3AF; border: 1px solid #E5E7EB; opacity: 0.5; }
+.calendar-badge-other     { background: #F3F4F6; color: #9CA3AF; border: 1px solid #E5E7EB; opacity: 0.55; }
+.calendar-badge-more      { background: var(--color-border-soft); color: var(--color-text-muted); font-size: 0.57rem; text-align: center; border: 1px dashed var(--color-border); opacity: 1; }
+
+/* --- YOUR OWN MEETINGS: gold, full opacity, glowing ring --- */
+.calendar-badge-mine-approved {
+  background: linear-gradient(135deg, #F5A31A 0%, #EF8C0A 100%);
+  color: #fff;
+  opacity: 1;
+  border: none;
+  box-shadow: 0 0 0 1.5px rgba(245,163,26,0.65), 0 2px 6px rgba(245,163,26,0.4);
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Pending own meeting - gold outline */
+.calendar-badge-mine-pending {
+  background: #FFFBEB;
+  color: #92400E;
+  opacity: 1;
+  border: 1.5px solid #F5A31A;
+  font-weight: 700;
+}
+
+/* Pulse animation on your own meetings */
+@keyframes mine-pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(245,163,26,0.6),  0 2px 6px rgba(245,163,26,0.3); }
+  65%  { box-shadow: 0 0 0 5px rgba(245,163,26,0),    0 2px 6px rgba(245,163,26,0.3); }
+  100% { box-shadow: 0 0 0 0   rgba(245,163,26,0),    0 2px 6px rgba(245,163,26,0.3); }
+}
+.calendar-badge-is-mine {
+  animation: mine-pulse 2.6s ease-out infinite;
+}
+
+/* CALENDAR LEGEND */
 .calendar-legend      { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .calendar-legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.73rem; color: var(--color-text-muted); }
 .icon-dot             { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .icon-dot-yellow      { background: #F59E0B; }
 .icon-dot-green       { background: #16A34A; }
 .icon-dot-red         { background: #DC2626; }
+.icon-dot-gold        { background: linear-gradient(135deg, #F5A31A, #EF8C0A); box-shadow: 0 0 0 1.5px rgba(245,163,26,0.5); }
+
+/* "Your Meetings" legend pill */
+.calendar-legend-mine {
+  display: flex; align-items: center; gap: 5px; font-size: 0.73rem;
+  color: #92400E; font-weight: 700;
+  background: rgba(245,163,26,0.1); border: 1px solid rgba(245,163,26,0.35);
+  padding: 2px 9px; border-radius: 999px;
+}
+
 .calendar-lunch-block { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 4px; }
 
 #day-schedule-modal .modal { max-width: 520px; }
@@ -1120,34 +1172,37 @@ body[data-page="login"] {
 
 .auth-left-content {
   position: relative; z-index: 3;
-  padding: 44px 44px 38px;
+  padding: 36px 40px 32px;
   display: flex; flex-direction: column;
   height: 100%;
   justify-content: space-between;
+  align-items: center;
+  text-align: center;
 }
 
-.auth-left-top { display: flex; flex-direction: column; gap: 26px; }
+.auth-left-top { display: flex; flex-direction: column; gap: 20px; align-items: center; }
 
 .auth-left-logo {
-  width: 80px; height: 80px;
+  width: 104px; height: 104px;
   border-radius: 50%;
   object-fit: contain;
   flex-shrink: 0;
-  border: 3px solid rgba(245,163,26,0.35);
-  background: rgba(255,255,255,0.05);
+  border: 3px solid rgba(245,163,26,0.5);
+  background: rgba(255,255,255,0.06);
   box-shadow:
-    0 0 0 6px rgba(245,163,26,0.07),
-    0 0 0 12px rgba(245,163,26,0.03),
-    0 20px 48px rgba(0,0,0,0.5);
+    0 0 0 7px rgba(245,163,26,0.09),
+    0 0 0 14px rgba(245,163,26,0.04),
+    0 0 40px 8px rgba(245,163,26,0.12),
+    0 24px 56px rgba(0,0,0,0.55);
   display: block;
   animation: logoFloat 6s ease-in-out infinite;
 }
 @keyframes logoFloat {
   0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-7px); }
+  50%       { transform: translateY(-8px); }
 }
 
-.auth-left-heading { display: flex; flex-direction: column; gap: 9px; }
+.auth-left-heading { display: flex; flex-direction: column; gap: 9px; align-items: center; }
 
 .auth-left-republic {
   font-family: var(--font-display);
@@ -1165,13 +1220,14 @@ body[data-page="login"] {
 
 .auth-left-subtitle {
   font-size: 0.78rem; color: rgba(200,220,255,0.6);
-  line-height: 1.65; max-width: 280px;
+  line-height: 1.65; max-width: 260px;
   font-weight: 400; margin: 0;
 }
 
 .auth-left-features {
   display: flex; flex-direction: column; gap: 9px;
   margin-top: 4px;
+  width: 100%;
 }
 .auth-feature-pill {
   display: flex; align-items: center; gap: 12px;
@@ -1180,11 +1236,12 @@ body[data-page="login"] {
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: 11px;
   transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  text-align: left;
 }
 .auth-feature-pill:hover {
   background: rgba(245,163,26,0.08);
   border-color: rgba(245,163,26,0.18);
-  transform: translateX(3px);
+  transform: translateY(-1px);
 }
 .auth-feature-icon {
   width: 32px; height: 32px; border-radius: 8px;
@@ -1201,10 +1258,12 @@ body[data-page="login"] {
 
 .auth-left-footer {
   display: flex; align-items: center;
-  justify-content: space-between;
-  padding-top: 22px;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 18px;
   border-top: 1px solid rgba(255,255,255,0.07);
-  margin-top: 24px;
+  margin-top: 16px;
+  width: 100%;
 }
 .auth-left-tagline {
   font-family: var(--font-display); font-size: 0.65rem;
@@ -1358,11 +1417,11 @@ body[data-page="login"] {
 }
 
 .auth-right-strip {
-  padding: 11px 36px;
+  padding: 10px 36px;
   background: linear-gradient(90deg, var(--brand-gold-soft), #EEF4FF, var(--brand-gold-soft));
   border-top: 1px solid #EEF0F8;
   display: flex; align-items: center;
-  justify-content: space-between; flex-shrink: 0;
+  justify-content: center; flex-shrink: 0;
 }
 .auth-strip-left {
   display: flex; align-items: center; gap: 6px;
@@ -1370,16 +1429,8 @@ body[data-page="login"] {
   font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; font-family: var(--font-display);
 }
-.auth-strip-right {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 0.58rem; color: #C4CCDC;
-  font-weight: 600; font-family: var(--font-display);
-}
-.auth-strip-dot {
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--color-success); display: inline-block;
-  animation: pulse 2.5s ease-in-out infinite;
-}
+.auth-strip-right { display: none; }
+.auth-strip-dot { display: none; }
 @keyframes pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.5; transform: scale(0.75); }

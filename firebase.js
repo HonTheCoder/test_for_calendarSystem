@@ -23,8 +23,6 @@
     if (fellBack) return
     mode = "local"
     fellBack = true
-    // Keep api.mode in sync so callers reading api.mode always see the live value
-    api.mode = "local"
   }
   function lsGet(key, fallback) {
     try {
@@ -180,6 +178,22 @@
           return u.id !== id
         })
         lsSet(LS.USERS, users)
+        return Promise.resolve()
+      }
+    },
+    updateUser: function (id, fields) {
+      // fields: partial object e.g. { name: "...", role: "..." } — never touches password here
+      if (mode === "firestore") {
+        return db.collection("users").doc(id).update(fields).catch(function () {
+          fallbackToLocal()
+          var users = lsGet(LS.USERS, [])
+          var u = users.find(function (x) { return x.id === id })
+          if (u) { Object.assign(u, fields); lsSet(LS.USERS, users) }
+        })
+      } else {
+        var users = lsGet(LS.USERS, [])
+        var u = users.find(function (x) { return x.id === id })
+        if (u) { Object.assign(u, fields); lsSet(LS.USERS, users) }
         return Promise.resolve()
       }
     },

@@ -119,41 +119,6 @@
           ══════════════════════════ -->
           <div id="section-dashboard" class="user-section active">
 
-            <!-- ══ SKELETON LOADER ══ -->
-            <div id="user-dashboard-skeleton" aria-hidden="true">
-              <div class="sk-welcome">
-                <div class="sk-welcome-left">
-                  <div class="skeleton sk-line-sm" style="width:80px"></div>
-                  <div class="skeleton sk-line-xl" style="width:220px"></div>
-                  <div class="skeleton sk-line" style="width:160px"></div>
-                </div>
-                <div class="skeleton sk-rect" style="width:48px;height:48px;border-radius:12px"></div>
-              </div>
-              <div class="dash-stat-row" style="margin-top:0">
-                <div class="sk-stat-card"><div class="sk-stat-card-row"><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="skeleton sk-line-sm" style="width:70px"></div><div class="skeleton sk-line-xl" style="width:50px"></div></div><div class="skeleton sk-stat-icon"></div></div></div>
-                <div class="sk-stat-card"><div class="sk-stat-card-row"><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="skeleton sk-line-sm" style="width:70px"></div><div class="skeleton sk-line-xl" style="width:50px"></div></div><div class="skeleton sk-stat-icon"></div></div></div>
-                <div class="sk-stat-card"><div class="sk-stat-card-row"><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="skeleton sk-line-sm" style="width:70px"></div><div class="skeleton sk-line-xl" style="width:50px"></div></div><div class="skeleton sk-stat-icon"></div></div></div>
-              </div>
-              <div class="dashboard-grid">
-                <div class="chart-card" style="padding:20px">
-                  <div class="skeleton sk-line-sm" style="width:130px;margin-bottom:14px"></div>
-                  <div class="sk-chart-bars">
-                    <div class="skeleton sk-chart-bar" style="height:55%"></div>
-                    <div class="skeleton sk-chart-bar" style="height:80%"></div>
-                    <div class="skeleton sk-chart-bar" style="height:40%"></div>
-                    <div class="skeleton sk-chart-bar" style="height:65%"></div>
-                    <div class="skeleton sk-chart-bar" style="height:90%"></div>
-                  </div>
-                </div>
-                <div class="chart-card" style="padding:20px">
-                  <div class="skeleton sk-line-sm" style="width:130px;margin-bottom:14px"></div>
-                  <div class="sk-ann-item"><div class="skeleton sk-ann-icon"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div class="skeleton sk-line" style="width:80%"></div><div class="skeleton sk-line-sm" style="width:60%"></div></div></div>
-                  <div class="sk-ann-item"><div class="skeleton sk-ann-icon"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div class="skeleton sk-line" style="width:70%"></div><div class="skeleton sk-line-sm" style="width:50%"></div></div></div>
-                </div>
-              </div>
-            </div>
-            <!-- ══ END SKELETON ══ -->
-
             <!-- Welcome banner -->
             <div class="welcome-banner">
               <div class="welcome-banner-text">
@@ -173,7 +138,7 @@
                 <div class="stat-card-inner">
                   <div class="stat-card-body">
                     <div class="stat-label">Total Meetings</div>
-                    <div id="stat-total-meetings" class="stat-value">0</div>
+                    <div id="stat-total-meetings" class="stat-value"><span class="skeleton skeleton-stat-value" id="sk-total"></span></div>
                     <div class="stat-sub">All your meetings</div>
                   </div>
                   <div class="stat-card-icon stat-icon-blue">
@@ -186,7 +151,7 @@
                 <div class="stat-card-inner">
                   <div class="stat-card-body">
                     <div class="stat-label">Pending Requests</div>
-                    <div id="stat-pending-meetings" class="stat-value">0</div>
+                    <div id="stat-pending-meetings" class="stat-value"><span class="skeleton skeleton-stat-value" id="sk-pending"></span></div>
                     <div class="stat-sub">Awaiting approval</div>
                   </div>
                   <div class="stat-card-icon stat-icon-amber">
@@ -199,7 +164,7 @@
                 <div class="stat-card-inner">
                   <div class="stat-card-body">
                     <div class="stat-label">Next 7 Days</div>
-                    <div id="stat-upcoming-week" class="stat-value">0</div>
+                    <div id="stat-upcoming-week" class="stat-value"><span class="skeleton skeleton-stat-value" id="sk-upcoming"></span></div>
                     <div class="stat-sub">Upcoming meetings</div>
                   </div>
                   <div class="stat-card-icon stat-icon-purple">
@@ -219,10 +184,17 @@
                 <div class="donut-wrap">
                   <svg id="user-donut-svg" class="donut-svg" width="130" height="130" viewBox="0 0 140 140">
                     <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" stroke-width="22"/>
-                    <g id="user-donut-segments"></g>
+                    <g id="user-donut-segments">
+                      <!-- skeleton arc -->
+                      <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" stroke-width="22" id="donut-skeleton-arc"/>
+                    </g>
                     <text x="70" y="74" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor" id="user-donut-center-text">–</text>
                   </svg>
-                  <div class="donut-legend" id="user-donut-legend"></div>
+                  <div class="donut-legend" id="user-donut-legend">
+                    <div class="skeleton-legend-row"><span class="skeleton skeleton-legend-dot"></span><span class="skeleton skeleton-legend-text" style="width:90px"></span></div>
+                    <div class="skeleton-legend-row"><span class="skeleton skeleton-legend-dot"></span><span class="skeleton skeleton-legend-text" style="width:70px"></span></div>
+                    <div class="skeleton-legend-row"><span class="skeleton skeleton-legend-dot"></span><span class="skeleton skeleton-legend-text" style="width:80px"></span></div>
+                  </div>
                 </div>
               </div>
               <div class="chart-card">
@@ -231,7 +203,13 @@
                   My Meetings by Type
                 </div>
                 <div class="bar-chart" id="user-type-bar-chart">
-                  <div class="text-muted" style="font-size:0.82rem;padding:12px">No data yet.</div>
+                  <div class="skeleton-bar-wrap" id="bar-skeleton">
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:75%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:45%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:90%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:55%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                    <div class="skeleton-bar-group"><div class="skeleton skeleton-bar-col" style="height:30%"></div><div class="skeleton skeleton-bar-label"></div></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -243,10 +221,9 @@
                 Upcoming Meetings
               </div>
               <div class="upcoming-preview-list" id="dash-upcoming-list">
-                <div class="empty-state">
-                  <svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  <p>No upcoming meetings.</p>
-                </div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:55%"></span><span class="skeleton skeleton-list-sub" style="width:75%"></span></div><span class="skeleton skeleton-list-badge"></span></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:65%"></span><span class="skeleton skeleton-list-sub" style="width:50%"></span></div><span class="skeleton skeleton-list-badge"></span></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:45%"></span><span class="skeleton skeleton-list-sub" style="width:70%"></span></div><span class="skeleton skeleton-list-badge"></span></div>
               </div>
             </div>
 
@@ -257,10 +234,10 @@
                 Recent Activity
               </div>
               <div class="activity-list" id="user-activity-list">
-                <div class="empty-state">
-                  <svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  <p>No recent activity.</p>
-                </div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:60%"></span><span class="skeleton skeleton-list-sub" style="width:40%"></span></div></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:50%"></span><span class="skeleton skeleton-list-sub" style="width:55%"></span></div></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:70%"></span><span class="skeleton skeleton-list-sub" style="width:35%"></span></div></div>
+                <div class="skeleton-list-item"><span class="skeleton skeleton-list-dot"></span><div class="skeleton-list-body"><span class="skeleton skeleton-list-title" style="width:45%"></span><span class="skeleton skeleton-list-sub" style="width:60%"></span></div></div>
               </div>
             </div>
 
@@ -272,7 +249,8 @@
                 <span class="dash-see-all" onclick="if(typeof switchSection==='function'){switchSection('announcements');}">See all →</span>
               </div>
               <div id="dash-announce-preview" style="padding:0 4px">
-                <div style="font-size:0.83rem;color:var(--color-text-muted);padding:12px 0;text-align:center">Loading…</div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:70%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
               </div>
             </div>
           </div>
@@ -299,8 +277,14 @@
                   </div>
                 </div>
                 <div class="calendar-legend">
-                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-yellow"></span> Pending</span>
-                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-green"></span> Approved</span>
+                  <!-- YOUR MEETINGS - highlighted pill (gold) -->
+                  <span class="calendar-legend-mine">
+                    <span style="width:9px;height:9px;border-radius:2px;background:linear-gradient(135deg,#F5A31A,#EF8C0A);display:inline-block;flex-shrink:0;box-shadow:0 0 0 1.5px rgba(245,163,26,0.5)"></span>
+                    Your Meetings
+                  </span>
+                  <!-- Others' meetings - muted appearance -->
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-green" style="opacity:0.55"></span> Others' Approved</span>
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-yellow" style="opacity:0.55"></span> Pending</span>
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-red"></span> Cancelled / Rejected</span>
                   <span class="calendar-legend-item"><span class="icon-dot" style="background:#fcd34d;border:1px solid #f59e0b"></span> PH Holiday</span>
                   <span class="calendar-legend-item"><span style="width:8px;height:8px;border-radius:3px;background:#dc2626;display:inline-block;flex-shrink:0"></span> Full</span>
@@ -666,7 +650,16 @@
 
     <!-- User dashboard charts -->
     <script>
+
+      // Clear stat-value skeletons when real data is rendered
+      function clearStatSkeletons() {
+        ['stat-total-meetings','stat-pending-meetings','stat-upcoming-week'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) { var sk = el.querySelector('.skeleton'); if (sk) { el.innerHTML = '0'; } }
+        });
+      }
       function renderUserDashboardCharts() {
+        clearStatSkeletons();
         var currentUser = null;
         try { var raw = localStorage.getItem('sbp_current_user'); if (raw) currentUser = JSON.parse(raw); } catch(e) {}
         var allMeetings = window.meetings || [];

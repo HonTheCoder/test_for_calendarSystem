@@ -513,14 +513,24 @@ function meetingStatusBadge(status) {
   return `<span class="${base} ${map[status] || "badge-info"}">${status === "Cancellation Requested" ? "Cancel Requested" : status}</span>`;
 }
 
-function statusColorForCalendar(status, isAdminCreated) {
-  if (isAdminCreated && status === "Approved") return "calendar-badge calendar-badge-admin";
-  if (isAdminCreated && status === "Pending")  return "calendar-badge calendar-badge-admin-pending";
+function statusColorForCalendar(status, isAdminCreated, isMine) {
+  if (isMine) {
+    // User's own meetings — gold highlight regardless of who scheduled
+    const mineMap = {
+      "Approved": "calendar-badge calendar-badge-mine-approved",
+      "Pending":  "calendar-badge calendar-badge-mine-pending",
+      "Cancellation Requested": "calendar-badge calendar-badge-mine-pending",
+    };
+    return mineMap[status] || "calendar-badge calendar-badge-mine-approved";
+  }
+  // Everyone else's meetings — simple green/yellow/grey, muted opacity via CSS
   const map = {
     "Approved": "calendar-badge calendar-badge-approved",
     "Pending": "calendar-badge calendar-badge-pending",
     "Cancelled": "calendar-badge calendar-badge-cancelled",
     "Rejected": "calendar-badge calendar-badge-cancelled",
+    "Cancellation Requested": "calendar-badge calendar-badge-pending",
+    "Done": "calendar-badge calendar-badge-cancelled",
   };
   return map[status] || "calendar-badge calendar-badge-other";
 }
@@ -999,6 +1009,8 @@ function renderUsersTable() {
   }
 
   renderPagination("users-pagination", totalPages, usersPage, (p) => { usersPage = p; renderUsersTable(); });
+  // Keep system settings user-selects in sync
+  populateEditUserSelect();
 }
 
 
@@ -1471,9 +1483,38 @@ function renderMyMeetingsTable(currentUser) {
     const noteTitle = m.adminNote ? ` title="${h(m.adminNote)}"` : "";
     const noteHint = m.adminNote ? `<div style="font-size:0.72rem;color:#6b7280;margin-top:3px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(m.adminNote)}">Note: ${h(m.adminNote)}</div>` : "";
     const createdAt = m.createdAt ? new Date(m.createdAt) : null;
-    const within24h = createdAt && (new Date() - createdAt) < 24 * 60 * 60 * 1000;
-    const cancelBtnLabel = within24h ? "Cancel (Free)" : "Request Cancel";
-    const cancelBtnClass = within24h ? "btn btn-sm btn-ghost cancel-btn-free" : "btn btn-sm btn-ghost";
+    const msElapsed = createdAt ? (new Date() - createdAt) : Infinity;
+    const within24h = msElapsed < 24 * 60 * 60 * 1000;
+    const msLeft = within24h ? (24 * 60 * 60 * 1000 - msElapsed) : 0;
+    const hoursLeft = Math.floor(msLeft / (60 * 60 * 1000));
+    const minsLeft  = Math.floor((msLeft % (60 * 60 * 1000)) / 60000);
+    const countdownStr = hoursLeft > 0 ? `${hoursLeft}h ${minsLeft}m` : `${minsLeft}m`;
+
+    let cancelBtn = "";
+    if (canRequestCancel) {
+      if (within24h) {
+        cancelBtn = `
+          <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">
+            <button class="btn btn-sm cancel-btn-free" data-action="request-cancel" data-meeting-id="${m.id}"
+              style="background:rgba(22,163,74,0.1);color:#166534;border:1px solid rgba(22,163,74,0.25);font-weight:600;display:flex;align-items:center;gap:5px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Cancel (Free)
+            </button>
+            <span class="cancel-countdown" data-created="${m.createdAt}" style="font-size:0.67rem;font-weight:600;color:#16a34a;display:flex;align-items:center;gap:3px">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              ${countdownStr} left
+            </span>
+          </div>`;
+      } else {
+        cancelBtn = `
+          <button class="btn btn-sm btn-ghost" data-action="request-cancel" data-meeting-id="${m.id}"
+            style="display:flex;align-items:center;gap:5px">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Request Cancel
+          </button>`;
+      }
+    }
+
     const cancelReasonHint = m.cancelReason ? `<div style="font-size:0.72rem;color:#9ca3af;margin-top:2px" title="${h(m.cancelReason)}">Reason: ${h(m.cancelReason)}</div>` : "";
     return `<tr>
       <td>${h(m.eventName)}</td>
@@ -1482,15 +1523,50 @@ function renderMyMeetingsTable(currentUser) {
       <td>${m.type || m.meetingType || "—"}</td>
       <td${noteTitle}>${meetingStatusBadge(m.status)}${noteHint}${cancelReasonHint}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        ${canRequestCancel
-          ? `<button class="${cancelBtnClass}" data-action="request-cancel" data-meeting-id="${m.id}">${cancelBtnLabel}</button>`
-          : ""}
+        ${cancelBtn}
         <button class="btn btn-sm btn-ghost" data-action="export-pdf" data-meeting-id="${m.id}">Export PDF</button>
       </td>
     </tr>`;
   }).join("");
 
   renderPagination("my-meetings-pagination", totalPages, myMeetingsPage, (p) => { myMeetingsPage = p; renderMyMeetingsTable(currentUser); });
+
+  // Live-tick countdown timers for the 24h free-cancel window
+  _startCancelCountdownTick(currentUser);
+}
+
+// ---------------------------------------------------------------------------
+// 24-hour Cancel Countdown Ticker
+// Refreshes the countdown labels in My Meetings every 60s without re-rendering the full table
+// ---------------------------------------------------------------------------
+let _cancelCountdownInterval = null;
+function _startCancelCountdownTick(currentUser) {
+  if (_cancelCountdownInterval) { clearInterval(_cancelCountdownInterval); _cancelCountdownInterval = null; }
+  const tbody = document.getElementById("my-meetings-body");
+  if (!tbody) return;
+  // Check if any free-cancel rows exist at all
+  const hasCountdowns = tbody.querySelectorAll(".cancel-countdown").length > 0;
+  if (!hasCountdowns) return;
+  _cancelCountdownInterval = setInterval(() => {
+    const spans = tbody.querySelectorAll(".cancel-countdown[data-created]");
+    if (!spans.length) { clearInterval(_cancelCountdownInterval); return; }
+    let anyLeft = false;
+    spans.forEach(span => {
+      const created = new Date(span.dataset.created);
+      const msLeft = 24 * 60 * 60 * 1000 - (new Date() - created);
+      if (msLeft <= 0) {
+        // Window expired — re-render to switch button to "Request Cancel"
+        clearInterval(_cancelCountdownInterval);
+        renderMyMeetingsTable(currentUser);
+        return;
+      }
+      anyLeft = true;
+      const h = Math.floor(msLeft / (60 * 60 * 1000));
+      const m = Math.floor((msLeft % (60 * 60 * 1000)) / 60000);
+      span.lastChild.textContent = ` ${h > 0 ? h + "h " : ""}${m}m left`;
+    });
+    if (!anyLeft) clearInterval(_cancelCountdownInterval);
+  }, 60000); // tick every 1 minute
 }
 
 function renderAdminMeetingsTable() {
@@ -1567,12 +1643,23 @@ function renderAdminMeetingsTable() {
           ${printBtn}
         </div>`;
     const cancelReasonCell = m.cancelReason ? `<div style="font-size:0.7rem;color:#9ca3af;margin-top:2px;font-style:italic" title="${h(m.cancelReason)}">Reason: ${h(m.cancelReason)}</div>` : "";
+    const createdAt = m.createdAt ? new Date(m.createdAt) : null;
+    const msElapsedAdmin = createdAt ? (new Date() - createdAt) : Infinity;
+    const within24hAdmin = msElapsedAdmin < 24 * 60 * 60 * 1000;
+    const msLeftAdmin = within24hAdmin ? (24 * 60 * 60 * 1000 - msElapsedAdmin) : 0;
+    const hoursLeftAdmin = Math.floor(msLeftAdmin / (60 * 60 * 1000));
+    const minsLeftAdmin  = Math.floor((msLeftAdmin % (60 * 60 * 1000)) / 60000);
+    const adminWindowTag = (["Pending","Approved"].includes(m.status) && within24hAdmin)
+      ? `<div style="margin-top:3px;display:inline-flex;align-items:center;gap:3px;font-size:0.65rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,0.1);border:1px solid rgba(22,163,74,0.2);border-radius:999px;padding:1px 7px">
+           <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+           Free cancel: ${hoursLeftAdmin > 0 ? hoursLeftAdmin + "h " : ""}${minsLeftAdmin}m left
+         </div>` : "";
     return `<tr${isCancelRequest ? ' style="background:rgba(249,115,22,0.04)"' : ''}>
       <td>${h(m.eventName)}</td>
       <td>${formatDateDisplay(m.date)}</td>
       <td>${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)}</td>
       <td>${h(m.type || m.meetingType || "—")}</td>
-      <td>${meetingStatusBadge(m.status)}${cancelReasonCell}</td>
+      <td>${meetingStatusBadge(m.status)}${cancelReasonCell}${adminWindowTag}</td>
       <td>${h(m.createdBy)}</td>
       <td>${actionButtons}</td>
     </tr>`;
@@ -1715,10 +1802,10 @@ function openNoteModal(title, prompt, required, onSubmit, onCancel) {
   document.getElementById("note-modal-cancel").onclick = () => close(true);
   const submitBtn = document.getElementById("note-modal-submit");
   submitBtn.textContent = "";
-  submitBtn.appendChild(document.createTextNode(typeof required === "string" ? required : "Confirm"));
+  submitBtn.textContent = "Confirm";
   document.getElementById("note-modal-submit").onclick = () => {
     const note = document.getElementById("note-modal-input").value.trim();
-    if (!note) {
+    if (required && !note) {
       document.getElementById("note-modal-error").textContent = "A reason is required.";
       return;
     }
@@ -2050,11 +2137,18 @@ function renderCalendar() {
     const MAX_BADGES = 2;
     activeMeetings.slice(0, MAX_BADGES).forEach(m => {
       const isAdminCreated = m.createdByRole === ROLES.ADMIN;
+      // "Mine" = the logged-in user created this meeting OR is the assigned councilor/researcher
+      const isMine = currentUser && (
+        m.createdBy === currentUser.username ||
+        m.councilor === currentUser.name ||
+        m.researcher === currentUser.name
+      );
       const badge = document.createElement("div");
-      badge.className = statusColorForCalendar(m.status, isAdminCreated);
+      badge.className = statusColorForCalendar(m.status, isAdminCreated, isMine);
+      if (isMine) badge.classList.add("calendar-badge-is-mine"); // extra hook for CSS ring
       const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
       badge.textContent = timeLabel + (m.eventName || "Meeting");
-      badge.title = `${h(m.eventName)} — ${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)} [${m.status}]${isAdminCreated ? " · Admin scheduled" : ""}`;
+      badge.title = `${h(m.eventName)} — ${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)} [${m.status}]${isMine ? " · Your meeting" : ""}${isAdminCreated ? " · Admin scheduled" : ""}`;
       cell.appendChild(badge);
     });
 
@@ -3042,6 +3136,7 @@ async function initAdminPage() {
   renderAdminMeetingsTable();
   updateStatistics();
   initAdminAnnouncements();
+  initSystemSettings();
 
   // Password strength meters
   initPwdStrength("user-password",    "user-pwd-strength",    "user-pwd-fill",    "user-pwd-label");
@@ -3096,6 +3191,8 @@ async function initUserPage() {
   $("#calendar-next")?.addEventListener("click", () => changeCalendarMonth(1));
   // "Today" button
   $("#calendar-today")?.addEventListener("click", jumpToToday);
+  // Quick actions row
+  $("#user-quick-schedule")?.addEventListener("click", () => openMeetingModal(null));
 
   document.getElementById("search-my-meetings")?.addEventListener("input", e => {
     myMeetingsSearch = e.target.value; myMeetingsPage = 1; renderMyMeetingsTable(user);
@@ -3524,6 +3621,214 @@ async function handleAddAdminSubmit(e) {
 }
 
 // ---------------------------------------------------------------------------
+// SYSTEM SETTINGS — Data Overview, Edit User, Force Reset, Bulk Tools
+// ---------------------------------------------------------------------------
+
+function renderSysDataStats() {
+  const el = document.getElementById("sysdata-stats");
+  if (!el) return;
+  const safeMeetings = (typeof meetings !== "undefined" && Array.isArray(meetings)) ? meetings : [];
+  const safeUsers    = (typeof users    !== "undefined" && Array.isArray(users))    ? users    : [];
+
+  const statItems = [
+    { label: "Total Users",      val: safeUsers.filter(u => u.role !== ROLES.ADMIN).length, icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`, color: "#3b82f6" },
+    { label: "Total Meetings",   val: safeMeetings.length,                                 icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`, color: "#6366f1" },
+    { label: "Pending",          val: safeMeetings.filter(m => m.status === "Pending").length, icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`, color: "#f59e0b" },
+    { label: "Approved",         val: safeMeetings.filter(m => m.status === "Approved").length, icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>`, color: "#16a34a" },
+    { label: "Done",             val: safeMeetings.filter(m => m.status === "Done").length, icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`, color: "#1b4b8a" },
+    { label: "Cancelled",        val: safeMeetings.filter(m => ["Cancelled","Rejected"].includes(m.status)).length, icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`, color: "#dc2626" },
+    { label: "Councilors",       val: safeUsers.filter(u => u.role === ROLES.COUNCILOR).length, icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg>`, color: "#8b5cf6" },
+    { label: "Researchers",      val: safeUsers.filter(u => u.role === ROLES.RESEARCHER).length, icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`, color: "#0891b2" },
+  ];
+
+  el.innerHTML = statItems.map(s => `
+    <div style="padding:18px 16px;border-right:1px solid var(--color-border-soft);display:flex;flex-direction:column;gap:6px">
+      <div style="color:${s.color};opacity:0.8">${s.icon}</div>
+      <div style="font-family:var(--font-display);font-size:1.5rem;font-weight:800;color:var(--color-text);line-height:1">${s.val}</div>
+      <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--color-text-muted)">${s.label}</div>
+    </div>
+  `).join("");
+}
+
+function populateEditUserSelect() {
+  const sel = document.getElementById("edit-user-select");
+  const forcesel = document.getElementById("force-reset-select");
+  if (!sel) return;
+  const safeUsers = (typeof users !== "undefined" && Array.isArray(users)) ? users : [];
+  const nonAdmin = safeUsers.filter(u => u.role !== ROLES.ADMIN);
+  const opts = nonAdmin.map(u => `<option value="${u.id}">${h(u.name || u.username)} — ${h(u.role)}</option>`).join("");
+  sel.innerHTML = `<option value="">— choose a user —</option>` + opts;
+  if (forcesel) forcesel.innerHTML = `<option value="">— choose a user —</option>` + opts;
+}
+
+function initSystemSettings() {
+  renderSysDataStats();
+  populateEditUserSelect();
+
+  // Refresh data stats
+  document.getElementById("sysdata-refresh-btn")?.addEventListener("click", () => {
+    renderSysDataStats();
+    populateEditUserSelect();
+    showToast("Data refreshed.", "success");
+  });
+
+  // Edit user — populate fields when user is selected
+  document.getElementById("edit-user-select")?.addEventListener("change", function () {
+    const uid = this.value;
+    const saveBtn = document.getElementById("edit-user-save-btn");
+    const msgEl   = document.getElementById("edit-user-msg");
+    if (msgEl) msgEl.textContent = "";
+    if (!uid) {
+      document.getElementById("edit-user-name").value = "";
+      document.getElementById("edit-user-username").value = "";
+      if (saveBtn) saveBtn.disabled = true;
+      return;
+    }
+    const safeUsers = (typeof users !== "undefined" && Array.isArray(users)) ? users : [];
+    const u = safeUsers.find(x => x.id === uid);
+    if (!u) return;
+    document.getElementById("edit-user-name").value     = u.name     || "";
+    document.getElementById("edit-user-username").value = u.username || "";
+    const roleEl = document.getElementById("edit-user-role");
+    if (roleEl) roleEl.value = u.role || "Councilor";
+    if (saveBtn) saveBtn.disabled = false;
+  });
+
+  // Save edit
+  document.getElementById("edit-user-save-btn")?.addEventListener("click", async () => {
+    const uid      = document.getElementById("edit-user-select")?.value;
+    const newName  = (document.getElementById("edit-user-name")?.value || "").trim();
+    const newUname = (document.getElementById("edit-user-username")?.value || "").trim();
+    const newRole  = document.getElementById("edit-user-role")?.value;
+    const msgEl    = document.getElementById("edit-user-msg");
+    const saveBtn  = document.getElementById("edit-user-save-btn");
+
+    if (!uid) { if (msgEl) msgEl.textContent = "No user selected."; return; }
+    if (!newName)  { if (msgEl) msgEl.textContent = "Name cannot be empty."; return; }
+    if (!newUname) { if (msgEl) msgEl.textContent = "Username cannot be empty."; return; }
+
+    // Check username uniqueness (excluding self)
+    const safeUsers = (typeof users !== "undefined" && Array.isArray(users)) ? users : [];
+    if (safeUsers.some(u => u.username === newUname && u.id !== uid)) {
+      if (msgEl) msgEl.textContent = `Username "${newUname}" is already taken.`;
+      return;
+    }
+
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
+    try {
+      const fields = { name: newName, username: newUname, role: newRole };
+      if (window.api && window.api.updateUser) {
+        await window.api.updateUser(uid, fields);
+        users = await window.api.getUsers();
+      } else {
+        const u = safeUsers.find(x => x.id === uid);
+        if (u) { Object.assign(u, fields); persistUsers(); }
+      }
+      renderUsersTable();
+      populateEditUserSelect();
+      updateStatistics();
+      if (msgEl) { msgEl.textContent = "Saved!"; msgEl.style.color = "#16a34a"; setTimeout(() => { if (msgEl) { msgEl.textContent = ""; msgEl.style.color = ""; } }, 2500); }
+      showToast("User profile updated.", "success");
+    } catch {
+      if (msgEl) msgEl.textContent = "Failed to save.";
+      showToast("Update failed.", "error");
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Changes`; }
+    }
+  });
+
+  // Force password reset
+  document.getElementById("force-reset-select")?.addEventListener("change", function () {
+    const btn = document.getElementById("force-reset-btn");
+    if (btn) btn.disabled = !this.value;
+  });
+  document.getElementById("force-reset-btn")?.addEventListener("click", async () => {
+    const uid = document.getElementById("force-reset-select")?.value;
+    if (!uid) return;
+    const safeUsers = (typeof users !== "undefined" && Array.isArray(users)) ? users : [];
+    const u = safeUsers.find(x => x.id === uid);
+    if (!u) return;
+    openConfirmModal(
+      "Force Password Reset",
+      `<strong>${h(u.name || u.username)}</strong> will be required to change their password on next login.`,
+      async () => {
+        try {
+          const fields = { mustChangePassword: true };
+          if (window.api && window.api.updateUser) {
+            await window.api.updateUser(uid, fields);
+            users = await window.api.getUsers();
+          } else {
+            Object.assign(u, fields); persistUsers();
+          }
+          showToast(`Password reset flagged for ${u.name || u.username}.`, "success");
+          document.getElementById("force-reset-select").value = "";
+          document.getElementById("force-reset-btn").disabled = true;
+        } catch { showToast("Failed to flag for reset.", "error"); }
+      }
+    );
+  });
+
+  // Export ALL meetings (ignores filters)
+  document.getElementById("sysdata-export-all-btn")?.addEventListener("click", () => {
+    const safeMeetings = (typeof meetings !== "undefined" && Array.isArray(meetings)) ? meetings : [];
+    const headers = ["Event Name","Date","Time","Type","Status","Requested By","Venue","Committee","Councilor","Researcher","Notes"];
+    const rows = safeMeetings.map(m => [
+      m.eventName || "", formatDateDisplay(m.date),
+      formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS),
+      m.type || m.meetingType || "", m.status || "", m.createdBy || "",
+      m.venue || "", m.committee || "", m.councilor || "", m.researcher || "", m.notes || "",
+    ].map(csvEscape).join(","));
+    const csv  = [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement("a"), { href: url, download: `sbp_all_meetings_${new Date().toISOString().slice(0,10)}.csv` });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast(`Exported ${safeMeetings.length} meetings.`, "success");
+  });
+
+  // Export users list
+  document.getElementById("sysdata-export-users-btn")?.addEventListener("click", () => {
+    const safeUsers = (typeof users !== "undefined" && Array.isArray(users)) ? users.filter(u => u.role !== ROLES.ADMIN) : [];
+    const headers = ["Username","Full Name","Role"];
+    const rows = safeUsers.map(u => [u.username || "", u.name || "", u.role || ""].map(csvEscape).join(","));
+    const csv  = [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement("a"), { href: url, download: `sbp_users_${new Date().toISOString().slice(0,10)}.csv` });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    showToast(`Exported ${safeUsers.length} users.`, "success");
+  });
+
+  // Mark past approved → done
+  document.getElementById("sysdata-mark-done-btn")?.addEventListener("click", () => {
+    const safeMeetings = (typeof meetings !== "undefined" && Array.isArray(meetings)) ? meetings : [];
+    const todayISO = getTodayISOManila();
+    const eligible = safeMeetings.filter(m => m.status === "Approved" && m.date < todayISO);
+    if (!eligible.length) { showToast("No past approved meetings to mark done.", "info"); return; }
+    openConfirmModal(
+      "Mark Past Meetings as Done",
+      `This will mark <strong>${eligible.length}</strong> approved meeting${eligible.length !== 1 ? "s" : ""} with dates before today as <strong>Done</strong>. This cannot be undone.`,
+      async () => {
+        let count = 0;
+        for (const m of eligible) {
+          try {
+            if (window.api && window.api.updateMeetingStatus) {
+              await window.api.updateMeetingStatus(m.id, "Done", "Auto-marked Done by admin.");
+            } else {
+              m.status = "Done"; m.adminNote = "Auto-marked Done by admin."; count++;
+            }
+            count++;
+          } catch {}
+        }
+        if (!window.api?.updateMeetingStatus) persistMeetings();
+        renderAdminMeetingsTable(); renderCalendar(); updateStatistics();
+        showToast(`${count} meeting${count !== 1 ? "s" : ""} marked as Done.`, "success");
+      }
+    );
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -3801,10 +4106,41 @@ function initAdminAnnouncements() {
 // ── Wire user announcements (read-only) ───────────────────────────────────
 function initUserAnnouncements() {
   if (!window.api?.subscribeAnnouncements) return;
+
+  let _prevCount = null; // track previous count to detect new arrivals
+
   window.api.subscribeAnnouncements(list => {
     window.announcements = list;
     renderUserAnnouncements(list);
     renderUserDashAnnouncements(list);
+
+    // ── Update sidebar "New" badge ──────────────────────────────────────────
+    const badge = document.getElementById("new-ann-badge");
+    if (badge && list.length > 0) {
+      badge.style.display = "inline-flex";
+      badge.textContent   = list.length > 9 ? "9+" : String(list.length);
+    } else if (badge) {
+      badge.style.display = "none";
+    }
+
+    // ── Push bell notification when a new announcement arrives in real-time ──
+    // Only fire after initial load (when _prevCount is already set)
+    if (_prevCount !== null && list.length > _prevCount) {
+      const newest = list[0]; // list is ordered newest first
+      if (newest) {
+        const currentUser = getCurrentUser();
+        if (currentUser) {
+          addNotification(
+            currentUser.id || currentUser.username,
+            `New announcement: <strong>${h(newest.title || "Untitled")}</strong>`,
+            "info",
+            "announcements"
+          );
+          updateNotificationBadge(currentUser.id || currentUser.username);
+        }
+      }
+    }
+    _prevCount = list.length;
   });
 }
 
