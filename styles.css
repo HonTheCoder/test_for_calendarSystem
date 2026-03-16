@@ -419,7 +419,7 @@ input, select, textarea { font: inherit; }
 .notif-panel {
   position: absolute;
   top: calc(100% + 8px); right: 0;
-  width: 340px; max-height: 420px;
+  width: 340px; max-width: calc(100vw - 16px); max-height: 420px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -543,7 +543,10 @@ input, select, textarea { font: inherit; }
 /* --------------------------------------------------------------------------
    13. TABLE
    -------------------------------------------------------------------------- */
-.table-wrapper { overflow-x: auto; padding: 0 20px 16px; }
+.table-wrapper { overflow-x: auto; padding: 0 20px 16px; -webkit-overflow-scrolling: touch; }
+@media (max-width: 768px) {
+  .table-wrapper table { min-width: 520px; }
+}
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; font-family: var(--font-body); }
 
 thead th {
@@ -855,8 +858,8 @@ tbody tr:hover { background: var(--color-primary-soft); }
   inset: 0;
   background: rgba(7, 15, 34, 0.65);
   z-index: 700;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  /* NOTE: No backdrop-filter here — backdrop-filter creates a new containing block
+     for position:fixed descendants, which can trap the drawer on some browsers */
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -876,7 +879,11 @@ tbody tr:hover { background: var(--color-primary-soft); }
   border-top: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  max-height: 88dvh;
+  /* Open tall enough so content is visible — overridden by page-enhancements.css if needed */
+  min-height: 70vh;
+  min-height: 70dvh;
+  max-height: 92vh;
+  max-height: 92dvh;
   transform: translateY(100%);
   transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
@@ -966,12 +973,16 @@ tbody tr:hover { background: var(--color-primary-soft); }
 
 /* Scrollable body */
 .drawer-body {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0;          /* critical: allows flex child to shrink + scroll */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 16px 18px;
   overscroll-behavior: contain;
+  /* Ensure content has breathing room at the bottom */
+  padding-bottom: 20px;
 }
+.drawer-footer:empty { display: none; }
 
 /* Footer */
 .drawer-footer {
@@ -1029,31 +1040,8 @@ tbody tr:hover { background: var(--color-primary-soft); }
   }
 }
 
-/* ── Compact centered popup for confirm / note modals on mobile ── */
-@media (max-width: 768px) {
-  #confirm-modal,
-  #note-modal {
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-
-  #confirm-modal .modal,
-  #note-modal .modal {
-    width: 100%;
-    max-width: 360px;
-    height: auto !important;
-    max-height: 80vh;
-    border-radius: 16px;
-    animation: modal-pop 0.2s ease both;
-  }
-
-  #confirm-modal .modal-body,
-  #note-modal .modal-body {
-    flex: 0 0 auto;
-    overflow-y: auto;
-  }
-}
+/* Compact centered popup for confirm / note modals on mobile —
+   handled by page-enhancements.css */
 
 /* --------------------------------------------------------------------------
    17. TOAST
@@ -1474,6 +1462,9 @@ body[data-page="login"] {
 
 /* ── DARK MODE overrides ── */
 [data-theme="dark"] .auth-right          { background: #111E35; }
+[data-theme="dark"] .auth-right .field   { background: #162340; border-color: #1E3358; color: #F0F5FF; caret-color: #F0F5FF; -webkit-text-fill-color: #F0F5FF; }
+[data-theme="dark"] .auth-right .field:focus { background: #1A2A4E; border-color: var(--brand-sky); box-shadow: 0 0 0 3px rgba(91,163,201,0.12); }
+[data-theme="dark"] .auth-right .field::placeholder { color: #5A7A9A; -webkit-text-fill-color: #5A7A9A; }
 [data-theme="dark"] .auth-welcome-title  { color: #F0F5FF; }
 [data-theme="dark"] .auth-welcome-sub    { color: #8DA3C0; }
 [data-theme="dark"] .auth-field-label    { color: var(--color-text); }
@@ -1482,7 +1473,7 @@ body[data-page="login"] {
 [data-theme="dark"] .auth-divider-text   { color: #3D5A7A; }
 [data-theme="dark"] .field               { background: #162340; border-color: #1E3358; color: #F0F5FF; }
 [data-theme="dark"] .field:focus         { background: #1A2A4E; border-color: var(--brand-sky); box-shadow: 0 0 0 3px rgba(91,163,201,0.12); }
-[data-theme="dark"] .field::placeholder  { color: #2E4668; }
+[data-theme="dark"] .field::placeholder  { color: #5A7A9A; }
 [data-theme="dark"] .auth-error          { background: rgba(220,38,38,0.12); color: #F87171; }
 [data-theme="dark"] .auth-footer         { color: #3D5A7A; }
 [data-theme="dark"] .auth-right-strip    { background: linear-gradient(90deg, rgba(245,163,26,0.05), rgba(30,58,138,0.1), rgba(245,163,26,0.05)); border-top-color: #1E3358; }
@@ -1520,11 +1511,18 @@ body[data-page="login"] {
 .bar:hover::after { content: attr(data-val); position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 0.68rem; white-space: nowrap; pointer-events: none; }
 .bar-label { font-size: 0.62rem; color: var(--color-text-muted); text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.donut-wrap        { display: flex; align-items: center; gap: 20px; min-height: 140px; }
-.donut-svg         { flex-shrink: 0; }
-.donut-legend      { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
-.donut-legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--color-text); overflow: hidden; }
-.donut-dot         { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.donut-wrap        { display: flex; align-items: center; gap: 24px; min-height: 160px; }
+.donut-svg-wrap    { position: relative; flex-shrink: 0; }
+.donut-svg         { flex-shrink: 0; display: block; }
+.donut-legend      { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 0; }
+.donut-legend-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8rem; color: var(--color-text-muted);
+  padding: 6px 10px; border-radius: 8px;
+  transition: background 0.15s;
+}
+.donut-legend-item:hover { background: var(--color-surface-2); }
+.donut-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
 
 .activity-list { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
 .activity-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; border-radius: 8px; background: var(--color-surface-2); font-size: 0.8rem; border-left: 3px solid var(--color-border); transition: background 0.25s; }
@@ -1540,19 +1538,17 @@ body[data-page="login"] {
 .dash-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 
 .dash-stat-card {
+  /* Layout handled by page-enhancements.css — only set non-conflicting base props here */
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
-  padding: 18px 20px;
   box-shadow: var(--shadow-card);
-  border-top: 3px solid var(--brand-gold);
-  /* Bug Fix #6: exclude box-shadow from transition so the pulse animation isn't overridden */
+  border-top: none;
+  padding: 0;
+  overflow: hidden;
   transition: transform 0.15s, background 0.25s, border-color 0.2s;
 }
-.dash-stat-card:hover              { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
-.dash-stat-card .stat-label        { font-size: 0.7rem; color: var(--color-text-muted); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
-.dash-stat-card .stat-value        { font-size: 2.1rem; font-weight: 800; color: var(--brand-blue); line-height: 1; font-family: var(--font-display); }
-.dash-stat-card .stat-sub          { font-size: 0.7rem; color: var(--color-text-muted); margin-top: 5px; }
+.dash-stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
 
 /* Pending card — pulse ring when there are items awaiting review */
 @keyframes pending-card-pulse {
@@ -1584,6 +1580,7 @@ body[data-page="login"] {
 .admin-section, .user-section               { display: none; }
 .admin-section.active, .user-section.active { display: flex; flex-direction: column; gap: 16px; }
 [data-page="user"] .dash-stat-row           { grid-template-columns: repeat(3, 1fr); }
+/* On mobile the user stat row drops to 2-col via page-enhancements.css @media rules */
 
 /* --------------------------------------------------------------------------
    22. RESPONSIVE
@@ -1593,6 +1590,25 @@ body[data-page="login"] {
   .dashboard-grid { grid-template-columns: 1fr; }
 }
 
+
+/* --------------------------------------------------------------------------
+   MOBILE BRANDING HEADER (shown only when left panel is hidden ≤860px)
+   -------------------------------------------------------------------------- */
+.auth-mobile-header { display: none; }
+@media (max-width: 860px) {
+  .auth-mobile-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .auth-mobile-logo { width: 52px; height: 52px; object-fit: contain; flex-shrink: 0; }
+  .auth-mobile-republic { font-size: 0.67rem; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 3px; }
+  .auth-mobile-title { font-size: 0.95rem; font-weight: 800; color: var(--color-text); font-family: var(--font-display); line-height: 1.25; }
+  [data-theme="dark"] .auth-mobile-title { color: #F0F5FF; }
+}
 @media (max-width: 860px) {
   .auth-left        { display: none; }
   .auth-right       { flex: 1; }
@@ -1605,7 +1621,7 @@ body[data-page="login"] {
 @media (max-width: 768px) {
   .sidebar        { display: none; }
   .bottom-nav     { display: flex; }
-  .main-scroll    { padding: 16px 16px 80px; }
+  .main-scroll    { padding: 16px 16px calc(60px + 24px + env(safe-area-inset-bottom, 0px)); }
   .topbar         { padding: 0 16px; }
   .card-header    { flex-direction: column; gap: 10px; }
   .stats-grid     { grid-template-columns: 1fr 1fr; }
@@ -1814,4 +1830,17 @@ mark.committee-match {
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 500;
+}
+
+/* ── Sign Out: icon-only on very small screens ── */
+@media (max-width: 480px) {
+  .logout-label { display: none; }
+}
+
+.admin-section {
+  display: none; /* Hide all sections by default */
+}
+
+.admin-section.active {
+  display: block; /* Only show the active one */
 }

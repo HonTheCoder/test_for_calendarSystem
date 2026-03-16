@@ -163,7 +163,7 @@
   justify-content: space-between;
   gap: 12px; flex-wrap: wrap;
 }
-.page-header-left {}
+.page-header-left { min-width: 0; }
 .page-header-title {
   font-size: 1.25rem; font-weight: 800;
   color: var(--color-text); font-family: var(--font-display);
@@ -222,11 +222,11 @@
 .stat-accent-purple { background: linear-gradient(90deg, #6D28D9, #A78BFA); }
 
 .stat-card-inner {
-  display: flex; align-items: flex-start;
+  display: flex; align-items: center;
   justify-content: space-between;
   padding: 16px 18px 15px; gap: 12px;
 }
-.stat-card-body { min-width: 0; }
+.stat-card-body { min-width: 0; flex: 1; overflow: hidden; }
 .stat-label {
   font-size: 0.65rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
@@ -314,6 +314,25 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   font-size: 0.72rem;
   color: var(--color-text-sub);
   margin-bottom: 5px;
+}
+
+/* Locked / readonly field — used for auto-filled councilor/researcher name */
+.field-locked {
+  background: var(--color-bg) !important;
+  border-color: var(--color-border-soft) !important;
+  color: var(--color-text-muted) !important;
+  cursor: not-allowed !important;
+  opacity: 0.85;
+  position: relative;
+}
+.field-locked:focus {
+  box-shadow: none !important;
+  border-color: var(--color-border-soft) !important;
+}
+[data-theme="dark"] .field-locked {
+  background: var(--color-surface-2) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-muted) !important;
 }
 
 /* ── SEARCH BAR ── */
@@ -605,13 +624,19 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   .notif-bell-btn       { width: 34px; height: 34px; padding: 0; }
   #logout-btn           { height: 34px; padding: 0 10px; font-size: 0.71rem; letter-spacing: 0; }
 
-  /* ────────────────────────────────────────────────────────
-     MODAL — THE MAIN FIX
-     Problem: modal-body won't scroll because flex:1 only
-     works when the parent has an explicit height, not just
-     max-height. We pin the modal as a bottom sheet with a
-     fixed height of 90vh so flex layout resolves correctly.
-     ──────────────────────────────────────────────────────── */
+  /* ════════════════════════════════════════════════════════
+     MODAL SYSTEM — MOBILE OVERHAUL
+     Strategy:
+       • Large form modals (meeting, booking) → bottom sheet,
+         full width, 92vh tall, scrollable body.
+       • Small action modals (confirm, note, password, archive)
+         → centered floating card, max 90vw, auto height,
+         rounded corners on all sides.
+       • Policy modal → bottom sheet variant with scrollable
+         rules list and sticky footer.
+     ════════════════════════════════════════════════════════ */
+
+  /* ── 1. BASE BOTTOM-SHEET for all modals ── */
   .modal-backdrop {
     padding: 0 !important;
     align-items: flex-end !important;
@@ -619,31 +644,352 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   .modal {
     width: 100% !important;
     max-width: 100% !important;
-    /* Use height not just max-height — this is the fix */
-    height: 90vh !important;
-    max-height: 90vh !important;
-    border-radius: 20px 20px 0 0 !important;
+    height: 92vh !important;
+    max-height: 92vh !important;
+    border-radius: 22px 22px 0 0 !important;
     border-bottom: none !important;
-    /* flex column already set in base styles */
     display: flex !important;
     flex-direction: column !important;
+    animation: modal-slide-up 0.32s cubic-bezier(0.32, 0.72, 0, 1) both !important;
   }
+
+  /* Drag handle on all bottom-sheet modals */
+  .modal::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: var(--color-border);
+    border-radius: 99px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+
   .modal-header {
-    flex-shrink: 0 !important;   /* never compress — always visible */
-    padding: 14px 16px !important;
+    flex-shrink: 0 !important;
+    padding: 12px 18px 12px !important;
+    border-radius: 0 !important;
+  }
+  /* Make the close button bigger / easier to tap */
+  .modal-header .btn-ghost.btn-sm {
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+  }
+  .modal-title {
+    font-size: 0.92rem !important;
+    gap: 8px !important;
   }
   .modal-body {
-    flex: 1 1 0 !important;      /* take all remaining space */
-    min-height: 0 !important;    /* critical: allows flex child to shrink + scroll */
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
-    padding: 14px 16px !important;
+    overscroll-behavior: contain;
+    padding: 16px 18px !important;
   }
   .modal-footer {
-    flex-shrink: 0 !important;   /* never compress — buttons always visible */
-    padding: 10px 14px !important;
+    flex-shrink: 0 !important;
+    padding: 12px 18px !important;
+    padding-bottom: max(14px, env(safe-area-inset-bottom)) !important;
+    gap: 10px !important;
   }
-  .form-grid-2 { grid-template-columns: 1fr !important; gap: 10px; }
+  /* Full-width, finger-friendly footer buttons */
+  .modal-footer .btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    min-height: 46px !important;
+    font-size: 0.88rem !important;
+    border-radius: 12px !important;
+  }
+  /* Stacked single-column forms */
+  .form-grid-2 { grid-template-columns: 1fr !important; gap: 12px !important; }
+  /* Larger touch-friendly fields inside modals */
+  .modal-body .field,
+  .modal-body select.field {
+    min-height: 46px !important;
+    font-size: 0.95rem !important;
+  }
+  .modal-body textarea.field { min-height: 90px !important; font-size: 0.95rem !important; }
+  .modal-body .field-label   { font-size: 0.8rem !important; margin-bottom: 6px !important; }
+  .modal-body .helper-text   { font-size: 0.75rem !important; }
+
+  /* ── 2. SMALL DIALOGS — centered floating card ──
+     confirm-modal, note-modal, password-modal, archive-modal
+     These have little content and don't need 92vh.          */
+  #confirm-modal,
+  #note-modal,
+  #password-modal,
+  #archive-modal,
+  #admin-mgmt-modal {
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+    background: rgba(7, 15, 34, 0.72) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+  #confirm-modal .modal,
+  #note-modal .modal,
+  #password-modal .modal,
+  #archive-modal .modal,
+  #admin-mgmt-modal .modal {
+    /* Override the bottom-sheet rules for compact dialogs */
+    width: calc(100vw - 32px) !important;
+    max-width: 400px !important;
+    height: auto !important;
+    /* Tighter cap so the modal never dominates the screen on small phones */
+    max-height: 80vh !important;
+    border-radius: 20px !important;
+    border-bottom: 1px solid var(--color-border) !important;
+    /* Re-apply centered pop animation */
+    animation: modal-pop-center 0.22s ease both !important;
+    /* Ensure flex column so body can scroll independently */
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  /* Allow the modal body to scroll when content is tall */
+  #confirm-modal .modal-body,
+  #note-modal .modal-body,
+  #password-modal .modal-body,
+  #archive-modal .modal-body,
+  #admin-mgmt-modal .modal-body {
+    overflow-y: auto !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    /* Slightly more comfortable padding on small screens */
+    padding: 14px 16px !important;
+  }
+
+  /* Tighten confirm modal body text for small screens */
+  #confirm-modal .confirm-modal-body-inner {
+    font-size: 0.84rem !important;
+    line-height: 1.55 !important;
+  }
+
+  /* Ensure the warning info-box inside confirm body wraps nicely */
+  #confirm-modal .modal-body div[style*="display:flex"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* No drag handle on centered compact dialogs */
+  #confirm-modal .modal::before,
+  #note-modal .modal::before,
+  #password-modal .modal::before,
+  #archive-modal .modal::before,
+  #admin-mgmt-modal .modal::before { display: none !important; }
+
+  /* Compact dialog footer — keep side-by-side, not stacked */
+  #confirm-modal .modal-footer,
+  #note-modal .modal-footer,
+  #password-modal .modal-footer,
+  #archive-modal .modal-footer,
+  #admin-mgmt-modal .modal-footer {
+    padding: 12px 16px 16px !important;
+  }
+  #confirm-modal .modal-footer .btn,
+  #note-modal .modal-footer .btn,
+  #password-modal .modal-footer .btn,
+  #archive-modal .modal-footer .btn,
+  #admin-mgmt-modal .modal-footer .btn {
+    min-height: 42px !important;
+    font-size: 0.84rem !important;
+  }
+
+  /* ── 3. POLICY MODAL — bottom sheet with internal scroll ── */
+  #policy-modal {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+  #policy-modal .modal,
+  #policy-modal .policy-modal-inner {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 94vh !important;
+    max-height: 94vh !important;
+    border-radius: 22px 22px 0 0 !important;
+    border-bottom: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    animation: modal-slide-up 0.32s cubic-bezier(0.32, 0.72, 0, 1) both !important;
+  }
+  /* Drag handle for policy modal */
+  #policy-modal .policy-modal-inner::before {
+    content: '';
+    display: block;
+    width: 40px; height: 4px;
+    background: var(--color-border);
+    border-radius: 99px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+  #policy-modal .policy-modal-header {
+    flex-shrink: 0 !important;
+    padding: 12px 18px 12px !important;
+  }
+  #policy-modal .policy-modal-icon {
+    width: 36px !important; height: 36px !important;
+    border-radius: 10px !important;
+  }
+  #policy-modal .policy-modal-title { font-size: 0.92rem !important; }
+  #policy-modal .policy-modal-sub   { font-size: 0.72rem !important; }
+  /* Summary strip — stacked 2-col on mobile */
+  #policy-modal .policy-meeting-summary { padding: 10px 18px !important; flex-shrink: 0 !important; }
+  #policy-modal .policy-summary-grid    { grid-template-columns: 1fr 1fr !important; }
+  #policy-modal .policy-summary-item:nth-child(2) { border-right: none !important; }
+  #policy-modal .policy-summary-item:nth-child(3) { border-top: 1px solid var(--color-border-soft) !important; }
+  /* Rules list — scrollable, takes remaining space */
+  #policy-modal .policy-rules-list {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  #policy-modal .policy-rule { padding: 11px 18px !important; }
+  #policy-modal .policy-rule-body { font-size: 0.8rem !important; }
+  /* Agree row + footer — always visible at bottom */
+  #policy-modal .policy-agree-row {
+    flex-shrink: 0 !important;
+    padding: 12px 18px 6px !important;
+  }
+  #policy-modal .policy-agree-text { font-size: 0.82rem !important; }
+  #policy-modal .policy-modal-footer {
+    flex-shrink: 0 !important;
+    padding: 10px 18px !important;
+    padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+    gap: 10px !important;
+  }
+  #policy-modal .policy-modal-footer .btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    min-height: 46px !important;
+    font-size: 0.88rem !important;
+    border-radius: 12px !important;
+  }
+
+  /* ── 4. MEETING FORM MODAL — bottom sheet specific fixes ── */
+  #meeting-modal .form-grid-3 {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+  #meeting-modal .form-grid-3 > div:first-child {
+    grid-column: 1 / -1 !important;
+  }
+  #meeting-modal .meeting-time-infobar {
+    font-size: 0.73rem !important;
+    padding: 8px 12px !important;
+    flex-wrap: wrap !important;
+    gap: 4px 7px !important;
+  }
+  #meeting-modal .meeting-end-preview-val {
+    font-size: 0.75rem !important;
+    margin-left: 0 !important;
+  }
+  #meeting-modal .section-stack { gap: 14px !important; }
+
+  /* ── 5. COMMITTEE DROPDOWN PORTAL (mobile) ──
+     Portalled to document.body as position:fixed so it
+     escapes overflow:auto parents. Scrollable with a visible
+     scrollbar so users know they can scroll the list.        */
+  body > ul.committee-dropdown-portal,
+  body > ul.committee-dropdown {
+    position: fixed !important;
+    max-height: 240px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    border-radius: 14px !important;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12) !important;
+    border: 1.5px solid var(--color-border) !important;
+    background: var(--color-surface) !important;
+    z-index: 99999 !important;
+    padding: 6px 0 !important;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+  body > ul.committee-dropdown-portal::-webkit-scrollbar,
+  body > ul.committee-dropdown::-webkit-scrollbar { width: 4px; }
+  body > ul.committee-dropdown-portal::-webkit-scrollbar-thumb,
+  body > ul.committee-dropdown::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 4px;
+  }
+  body > ul.committee-dropdown-portal .committee-dropdown-item,
+  body > ul.committee-dropdown .committee-dropdown-item {
+    padding: 13px 16px !important;
+    font-size: 0.88rem !important;
+    line-height: 1.4 !important;
+    border-radius: 0 !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer;
+  }
+  body > ul.committee-dropdown-portal .committee-dropdown-item:active,
+  body > ul.committee-dropdown .committee-dropdown-item:active,
+  body > ul.committee-dropdown-portal .committee-dropdown-active,
+  body > ul.committee-dropdown .committee-dropdown-active {
+    background: var(--color-primary-soft) !important;
+    color: var(--brand-blue) !important;
+  }
+  body > ul.committee-dropdown-portal .committee-dropdown-empty,
+  body > ul.committee-dropdown .committee-dropdown-empty {
+    padding: 16px !important;
+    font-size: 0.85rem !important;
+    text-align: center !important;
+  }
+
+  /* ────────────────────────────────────────────────────────
+     BOTTOM DRAWER — flex scroll fix + guaranteed tall height
+     • min-height: 70vh forces the drawer to open tall enough
+       so all content (time slots, meeting list, footer) is
+       visible without the user having to scroll blind.
+     • max-height: 92vh / 92dvh caps it on very large phones.
+     • flex:1 1 0 + min-height:0 is the iOS Safari scroll fix.
+     ──────────────────────────────────────────────────────── */
+  .bottom-drawer {
+    min-height: 70vh !important;
+    min-height: 70dvh !important;
+    max-height: 92vh !important;
+    max-height: 92dvh !important;
+  }
+  .drawer-handle { margin: 8px auto 0 !important; }
+  .drawer-header {
+    flex-shrink: 0 !important;
+    padding: 14px 18px 12px !important;
+  }
+  .drawer-title  { font-size: 0.95rem !important; }
+  .drawer-subtitle { font-size: 0.74rem !important; margin-top: 3px !important; }
+  .drawer-footer { flex-shrink: 0 !important; }
+  .drawer-footer:empty { display: none !important; }
+  .drawer-body {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 16px 16px 8px !important;
+  }
+  /* Make footer buttons full-width and finger-friendly */
+  .drawer-footer .btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    min-height: 48px !important;
+    font-size: 0.9rem !important;
+  }
+  /* Section label inside drawer body */
+  .drawer-body [style*="text-transform:uppercase"] {
+    font-size: 0.7rem !important;
+  }
 
   /* ── NOTIFICATION PANEL ── */
   .notif-bell-wrap { position: static; }
@@ -660,21 +1006,27 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   }
 
   /* ── Dashboard stat cards ── */
-  .dash-stat-row  { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .stat-card-inner{ padding: 13px 13px 11px; }
-  .stat-value     { font-size: 1.7rem; }
-  .stat-label     { font-size: 0.62rem; }
-  .stat-sub       { font-size: 0.62rem; }
+  .dash-stat-row           { grid-template-columns: 1fr 1fr; gap: 10px; }
+  [data-page="user"] .dash-stat-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card-inner         { padding: 14px 14px 13px; gap: 10px; align-items: center; flex-wrap: nowrap; }
+  .stat-card-body          { min-width: 0; flex: 1; overflow: hidden; }
+  .stat-card-icon          { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; align-self: center; }
+  .stat-card-icon svg      { width: 16px; height: 16px; }
+  .stat-value              { font-size: 1.75rem; }
+  .stat-label              { font-size: 0.6rem; margin-bottom: 4px; white-space: normal; line-height: 1.25; letter-spacing: 0.06em; }
+  .stat-sub                { font-size: 0.6rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   /* ── Dashboard charts ── */
   .dashboard-grid { grid-template-columns: 1fr; gap: 12px; }
   .chart-card     { padding: 16px 14px 14px; }
   .bar-chart      { height: 120px; gap: 4px; padding-bottom: 18px; }
   .bar-label      { font-size: 0.54rem; }
-  .donut-wrap     { flex-direction: column; align-items: center; gap: 12px; min-height: auto; }
-  .donut-svg      { width: 120px !important; height: 120px !important; }
-  .donut-legend   { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 5px 14px; }
-  .donut-legend-item { font-size: 0.72rem; }
+  .donut-wrap       { flex-direction: column; align-items: center; gap: 14px; min-height: auto; }
+  .donut-svg-wrap   { position: relative; }
+  .donut-svg        { width: 140px !important; height: 140px !important; }
+  #user-donut-center-text { font-size: 1.4rem !important; }
+  .donut-legend     { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 10px; width: 100%; }
+  .donut-legend-item { font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; }
 
   /* ── Calendar ── */
   .calendar-header-row   { padding: 0 0 10px; gap: 6px; }
@@ -717,14 +1069,73 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   .activity-item { font-size: 0.76rem; padding: 8px 10px; }
 }
 
+/* ── Modal animations (declared outside @media — linter safe) ── */
+@keyframes modal-slide-up {
+  from { transform: translateY(100%); opacity: 0.6; }
+  to   { transform: translateY(0);    opacity: 1;   }
+}
+@keyframes modal-pop-center {
+  from { opacity: 0; transform: scale(0.93) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+/* ── Committee dropdown portal — mobile (position:fixed, appended to body) ──
+   Declared outside @media so the body > ul selector is always available.
+   JS only creates the portal on mobile (<=768px) so it won't affect desktop. */
+body > ul.committee-dropdown {
+  position: fixed;
+  max-height: 240px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  z-index: 99999;
+  padding: 6px 0;
+  list-style: none;
+  margin: 0;
+}
+body > ul.committee-dropdown .committee-dropdown-item {
+  padding: 13px 16px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  border-radius: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: background 0.1s;
+}
+body > ul.committee-dropdown .committee-dropdown-item:active,
+body > ul.committee-dropdown .committee-dropdown-active {
+  background: var(--color-primary-soft);
+  color: var(--brand-blue);
+}
+body > ul.committee-dropdown .committee-dropdown-empty {
+  padding: 16px;
+  font-size: 0.85rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+[data-theme="dark"] body > ul.committee-dropdown {
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+}
+
 /* ── Very small phones ≤ 390px ── */
 @media (max-width: 390px) {
   .dash-stat-row   { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-value      { font-size: 1.45rem; }
+  [data-page="user"] .dash-stat-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  /* 3rd user stat card spans full width so it's not crushed */
+  [data-page="user"] .dash-stat-row .dash-stat-card:last-child { grid-column: 1 / -1; }
+  .stat-value      { font-size: 1.4rem; }
   .stat-sub        { display: none; }
-  .stat-card-inner { padding: 10px 10px 9px; }
-  .stat-card-icon  { width: 36px; height: 36px; }
-  .stat-card-icon svg { width: 16px; height: 16px; }
+  .stat-card-inner { padding: 10px 10px 9px; gap: 8px; align-items: center; flex-wrap: nowrap; }
+  .stat-card-body  { min-width: 0; flex: 1; overflow: hidden; }
+  .stat-card-icon  { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; align-self: flex-start; margin-top: 1px; }
+  .stat-card-icon svg { width: 14px; height: 14px; }
   .calendar-cell   { min-height: 44px; }
   .main-scroll     { padding: 10px 8px 88px; }
   .welcome-banner  { padding: 14px 14px; }

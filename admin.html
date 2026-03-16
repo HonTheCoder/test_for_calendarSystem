@@ -114,7 +114,7 @@
             </div>
             <button id="logout-btn" class="btn btn-danger btn-sm">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-              Sign Out
+              <span class="logout-label">Sign Out</span>
             </button>
           </div>
         </header>
@@ -247,17 +247,22 @@
 
             <!-- Charts row -->
             <div class="dashboard-grid">
-              <div class="chart-card">
+              <div class="chart-card donut-chart-card">
                 <div class="chart-card-title">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   Meetings by Status
                 </div>
                 <div class="donut-wrap">
-                  <svg id="donut-svg" class="donut-svg" width="140" height="140" viewBox="0 0 140 140">
-                    <circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" stroke-width="22"/>
-                    <g id="donut-segments"><circle cx="70" cy="70" r="52" fill="none" stroke="#e5e7eb" stroke-width="22" id="donut-skeleton-arc"/></g>
-                    <text x="70" y="74" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor" id="donut-center-text">–</text>
-                  </svg>
+                  <div class="donut-svg-wrap" style="position:relative;flex-shrink:0;">
+                    <svg id="donut-svg" class="donut-svg" width="160" height="160" viewBox="0 0 160 160">
+                      <circle cx="80" cy="80" r="60" fill="none" stroke="var(--color-border)" stroke-width="20"/>
+                      <g id="donut-segments"><circle cx="80" cy="80" r="60" fill="none" stroke="var(--color-border)" stroke-width="20" id="donut-skeleton-arc"/></g>
+                    </svg>
+                    <div id="donut-center-wrap" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;line-height:1.1;">
+                      <div id="donut-center-text" style="font-size:1.65rem;font-weight:800;color:var(--color-text);font-family:var(--font-display);letter-spacing:-0.03em;">–</div>
+                      <div style="font-size:0.62rem;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;">total</div>
+                    </div>
+                  </div>
                   <div class="donut-legend" id="donut-legend">
                     <div class="skeleton-legend-row"><span class="skeleton skeleton-legend-dot"></span><span class="skeleton skeleton-legend-text" style="width:90px"></span></div>
                     <div class="skeleton-legend-row"><span class="skeleton skeleton-legend-dot"></span><span class="skeleton skeleton-legend-text" style="width:70px"></span></div>
@@ -342,7 +347,7 @@
             <div class="page-header">
               <div>
                 <div class="page-header-title">User Management</div>
-                <div class="page-header-sub">Manage all user accounts. Regular users: Councilor (max 10), Researcher (max 10). Special accounts: Vice Mayor (1), Secretary (1).</div>
+                <div class="page-header-sub">Manage all user accounts. Regular users (Councilor + Researcher): max 20 total. Special accounts: Vice Mayor (1), Secretary (1).</div>
               </div>
             </div>
 
@@ -427,7 +432,10 @@
                   </div>
                   <div>
                     <div class="card-title">Regular User Accounts</div>
-                    <div class="card-subtitle">Councilor and Researcher accounts (10 each max).</div>
+                    <div class="card-subtitle">
+                      Councilor and Researcher accounts — max <strong>20</strong> total.
+                      &nbsp;<span id="user-count-badge" style="font-size:0.75rem;font-weight:500;color:var(--color-text-muted);background:var(--color-bg);border:1px solid var(--color-border);border-radius:999px;padding:1px 10px;vertical-align:middle">0 / 20 users</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -605,6 +613,7 @@
                       <th>Type</th>
                       <th>Status</th>
                       <th>Requested By</th>
+                      <th>Notes</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -790,6 +799,10 @@
                   <button class="btn btn-sm" id="sysdata-purge-junk-btn" style="background:rgba(239,68,68,0.08);color:#dc2626;border:1px solid rgba(239,68,68,0.25);">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
                     Purge Rejected &amp; Cancelled
+                  </button>
+                  <button class="btn btn-sm" id="sysdata-purge-approved-btn" style="background:rgba(234,88,12,0.08);color:#ea580c;border:1px solid rgba(234,88,12,0.25);">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v4H3z"/><path d="M8 7v14M16 7v14"/></svg>
+                    Purge Approved &amp; Done
                   </button>
                   <button class="btn btn-sm btn-ghost" id="sysdata-clear-notifs-btn">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -1040,11 +1053,19 @@
             <div class="form-grid-2">
               <div>
                 <label for="meeting-councilor" class="field-label">Councilor *</label>
-                <input id="meeting-councilor" class="field" required placeholder="Full name" />
+                <select id="meeting-councilor-select" class="field" style="display:none">
+                  <option value="">— Select Councilor —</option>
+                  <option value="N/A">N/A (No Councilor)</option>
+                </select>
+                <input id="meeting-councilor" class="field" placeholder="Full name" />
               </div>
               <div>
                 <label for="meeting-researcher" class="field-label">Researcher *</label>
-                <input id="meeting-researcher" class="field" required placeholder="Full name" />
+                <select id="meeting-researcher-select" class="field" style="display:none">
+                  <option value="">— Select Researcher —</option>
+                  <option value="N/A">N/A (No Researcher)</option>
+                </select>
+                <input id="meeting-researcher" class="field" placeholder="Full name" />
               </div>
             </div>
 
@@ -1285,217 +1306,283 @@
 
     <!-- Section navigation -->
     <script>
-      (function () {
-        var SECTION_TITLES = {
-          dashboard: 'Dashboard',
-          'user-management': 'Accounts',
-          'meeting-logs': 'Meeting Logs',
-          'admin-management': 'System Settings',
-          announcements: 'Announcements'
-        };
-        function switchSection(key) {
-          document.querySelectorAll('.admin-section').forEach(function (el) { el.classList.remove('active'); });
-          var target = document.getElementById('section-' + key);
-          if (target) target.classList.add('active');
-          document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
-            a.classList.toggle('nav-link-active', a.dataset.section === key);
-          });
-          document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
-            a.classList.toggle('bottom-nav-item-active', a.dataset.section === key);
-          });
-          var titleEl = document.getElementById('topbar-section-title');
-          if (titleEl) titleEl.textContent = SECTION_TITLES[key] || key;
-          try { sessionStorage.setItem('admin_section', key); } catch(e){}
-        }
+  (function () {
+    var SECTION_TITLES = {
+      dashboard: 'Dashboard',
+      'user-management': 'Accounts',
+      'meeting-logs': 'Meeting Logs',
+      'admin-management': 'System Settings',
+      announcements: 'Announcements'
+    };
+
+    function isFormDirty() {
+      var mf = document.getElementById('meeting-form');
+      if (mf && mf.dataset && mf.dataset.dirty === '1') return true;
+      var uf = document.getElementById('user-form');
+      if (uf && uf.dataset && uf.dataset.dirty === '1') return true;
+      return false;
+    }
+
+    function initDirtyTracking(id) {
+      var f = document.getElementById(id);
+      if (!f) return;
+      f.dataset.dirty = '0';
+      var inputs = f.querySelectorAll('input,select,textarea');
+      inputs.forEach(function (el) {
+        el.addEventListener('input', function () { f.dataset.dirty = '1'; });
+        el.addEventListener('change', function () { f.dataset.dirty = '1'; });
+      });
+    }
+
+    function switchSection(key) {
+      function doSwitch() {
+        document.querySelectorAll('.admin-section').forEach(function (el) { el.classList.remove('active'); });
+        var target = document.getElementById('section-' + key);
+        if (target) target.classList.add('active');
         document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
-          a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+          a.classList.toggle('nav-link-active', a.dataset.section === key);
         });
         document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
-          a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+          a.classList.toggle('bottom-nav-item-active', a.dataset.section === key);
         });
-        document.addEventListener('DOMContentLoaded', function () {
-          // Always land on dashboard when coming fresh from login
-          var fromLogin = sessionStorage.getItem('sbp_just_logged_in');
-          if (fromLogin) {
-            sessionStorage.removeItem('sbp_just_logged_in');
-            switchSection('dashboard');
-          } else {
-            try {
-              var saved = sessionStorage.getItem('admin_section');
-              if (saved && document.getElementById('section-' + saved)) { switchSection(saved); }
-              else { switchSection('dashboard'); }
-            } catch(e) { switchSection('dashboard'); }
-          }
-
-          // ── Live username preview ──────────────────────────────────────
-          var PREFIXES = { 'Councilor':'councilor_', 'Researcher':'researcher_', 'Vice Mayor':'vicemayor_', 'Secretary':'secretary_' };
-          function previewUsername(inputId, roleId, previewId) {
-            var inp  = document.getElementById(inputId);
-            var role = document.getElementById(roleId);
-            var pre  = document.getElementById(previewId);
-            if (!inp || !role || !pre) return;
-            function update() {
-              var raw = inp.value.trim().toLowerCase().replace(/\s+/g,'_');
-              var prefix = PREFIXES[role.value] || '';
-              if (!raw) { pre.textContent = ''; return; }
-              var stripped = raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
-              var final = prefix + stripped;
-              pre.innerHTML = 'Will be saved as: <strong style="color:var(--brand-blue)">' + final + '</strong>';
-            }
-            inp.addEventListener('input', update);
-            role.addEventListener('change', update);
-          }
-          previewUsername('user-username',    'user-role',    'user-username-preview');
-          previewUsername('special-username', 'special-role', 'special-username-preview');
-          // ──────────────────────────────────────────────────────────────
-        });
-      })();
-    </script>
-
-    <!-- Dashboard charts -->
-    <script>
-
-      function clearAdminSkeletons() {
-        ['stat-total-meetings','stat-pending-meetings','stat-active-users','stat-upcoming-week'].forEach(function(id) {
-          var el = document.getElementById(id);
-          if (el) { var sk = el.querySelector('.skeleton'); if (sk) el.innerHTML = '0'; }
-        });
-        // Clear table body skeletons
-        ['admin-meetings-body','user-table-body','special-accounts-table-body'].forEach(function(id) {
-          var el = document.getElementById(id);
-          if (el && el.querySelector('.skeleton')) el.innerHTML = '';
-        });
-        // Clear sysdata skeleton
-        var sd = document.getElementById('sysdata-stats');
-        if (sd && sd.querySelector('.skeleton')) sd.innerHTML = '';
+        var titleEl = document.getElementById('topbar-section-title');
+        if (titleEl) titleEl.textContent = SECTION_TITLES[key] || key;
+        try { sessionStorage.setItem('admin_section', key); } catch(e){}
       }
-      function renderDashboardCharts() {
-        clearAdminSkeletons();
-        var mtgs = window.meetings || [];
-        var usrs = window.users || [];
-        var STATUS_COLORS = {
-          'Approved':'#16a34a','Pending':'#f59e0b','Cancelled':'#dc2626',
-          'Rejected':'#dc2626','Done':'#3b82f6','Cancellation Requested':'#f97316'
-        };
-        var statusCounts = {};
-        mtgs.forEach(function(m) { statusCounts[m.status] = (statusCounts[m.status] || 0) + 1; });
-        var statusKeys = Object.keys(statusCounts);
-        var total = mtgs.length || 1;
-        var segs = document.getElementById('donut-segments');
-        var legend = document.getElementById('donut-legend');
-        var centerText = document.getElementById('donut-center-text');
-        if (segs && legend) {
-          segs.innerHTML = ''; legend.innerHTML = '';
-          var r = 52, cx = 70, cy = 70, circ = 2 * Math.PI * r, offset = 0;
-          statusKeys.forEach(function(s) {
-            var pct = statusCounts[s] / total, dash = pct * circ, gap = circ - dash;
-            var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', r);
-            circle.setAttribute('fill', 'none'); circle.setAttribute('stroke', STATUS_COLORS[s] || '#9ca3af');
-            circle.setAttribute('stroke-width', '22');
-            circle.setAttribute('stroke-dasharray', dash + ' ' + gap);
-            circle.setAttribute('stroke-dashoffset', circ * 0.25 - offset);
-            circle.setAttribute('style', 'transition:stroke-dasharray 0.6s ease');
-            segs.appendChild(circle); offset += dash;
-            var item = document.createElement('div');
-            item.className = 'donut-legend-item';
-            item.innerHTML = '<span class="donut-dot" style="background:' + (STATUS_COLORS[s]||'#9ca3af') + '"></span><span>' + s + ': <strong>' + statusCounts[s] + '</strong></span>';
-            legend.appendChild(item);
-          });
-          if (centerText) centerText.textContent = mtgs.length;
-        }
-        var TYPE_COLORS = { 'Regular':'#1d4ed8','Special':'#7c3aed' };
-        var typeCounts = {};
-        mtgs.forEach(function(m) { var t = m.type || m.meetingType || 'Other'; typeCounts[t] = (typeCounts[t] || 0) + 1; });
-        var typeKeys = Object.keys(typeCounts);
-        var typeMax = Math.max.apply(null, typeKeys.map(function(k){ return typeCounts[k]; })) || 1;
-        var typeChart = document.getElementById('type-bar-chart');
-        if (typeChart) {
-          typeChart.innerHTML = typeKeys.length
-            ? typeKeys.map(function(k) {
-                var pct = (typeCounts[k] / typeMax) * 100;
-                return '<div class="bar-group"><div class="bar" style="height:' + pct + '%;background:' + (TYPE_COLORS[k]||'#6b7280') + ';opacity:0.85;" data-val="' + typeCounts[k] + '"></div><div class="bar-label" title="' + k + '">' + k + '</div></div>';
-              }).join('')
-            : '<div class="text-muted" style="font-size:0.82rem;padding:12px">No data yet.</div>';
-        }
-        var nowYear = new Date().getFullYear();
-        var monthCounts = new Array(12).fill(0);
-        mtgs.forEach(function(m) {
-          if (!m.date) return;
-          var d = new Date(m.date);
-          if (d.getFullYear() === nowYear) monthCounts[d.getMonth()]++;
-        });
-        var MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-        var monthMax = Math.max.apply(null, monthCounts) || 1;
-        var monthChart = document.getElementById('monthly-bar-chart');
-        if (monthChart) {
-          monthChart.innerHTML = monthCounts.map(function(c, i) {
-            var pct = (c / monthMax) * 100;
-            var isCurrentMonth = i === new Date().getMonth();
-            return '<div class="bar-group"><div class="bar" style="height:' + pct + '%;background:' + (isCurrentMonth ? '#1d4ed8' : '#93c5fd') + ';opacity:0.9;" data-val="' + c + '"></div><div class="bar-label">' + MONTH_LABELS[i] + '</div></div>';
-          }).join('');
-        }
-        var activityList = document.getElementById('activity-list');
-        if (activityList) {
-          var sorted = mtgs.slice().sort(function(a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); }).slice(0, 8);
-          if (!sorted.length) {
-            activityList.innerHTML = '<div class="empty-state"><svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>No recent activity.</p></div>';
-          } else {
-            var DOT_COLORS = { 'Approved':'#16a34a','Pending':'#f59e0b','Cancelled':'#dc2626','Rejected':'#dc2626','Done':'#3b82f6' };
-            activityList.innerHTML = sorted.map(function(m) {
-              var color = DOT_COLORS[m.status] || '#9ca3af';
-              var when = m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : m.date;
-              return '<div class="activity-item"><span class="activity-dot" style="background:' + color + '"></span><div><div class="activity-text"><strong>' + (m.eventName||'Meeting') + '</strong> — ' + (m.status||'') + ' · ' + (m.createdBy||'') + '</div><div class="activity-time">' + when + '</div></div></div>';
-            }).join('');
-          }
+      if (isFormDirty()) {
+        if (typeof openConfirmModal === 'function') {
+          openConfirmModal(
+            'Discard Unsaved Changes?',
+            '<p>You have unsaved changes. Leave without saving?</p>',
+            function () {
+              var mf = document.getElementById('meeting-form');
+              if (mf) { if (typeof mf.reset === 'function') mf.reset(); mf.dataset && (mf.dataset.dirty = '0'); }
+              var uf = document.getElementById('user-form');
+              if (uf) { if (typeof uf.reset === 'function') uf.reset(); uf.dataset && (uf.dataset.dirty = '0'); }
+              doSwitch();
+            },
+            function () {}
+          );
+          return;
         }
       }
-      var _dashPollCount = 0;
-      function pollForChartData() {
-        _dashPollCount++;
-        var hasMeetings = Array.isArray(window.meetings) && window.meetings.length > 0;
-        var hasUsers    = Array.isArray(window.users)    && window.users.length > 0;
-        if (hasMeetings || hasUsers || _dashPollCount > 40) {
-          renderDashboardCharts();
-          window.renderDashboardCharts = renderDashboardCharts;
-        } else { setTimeout(pollForChartData, 250); }
+      doSwitch();
+    }
+
+    document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+    });
+    document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+      initDirtyTracking('meeting-form');
+      initDirtyTracking('user-form');
+      // Always land on dashboard when coming fresh from login
+      var fromLogin = sessionStorage.getItem('sbp_just_logged_in');
+      if (fromLogin) {
+        sessionStorage.removeItem('sbp_just_logged_in');
+        switchSection('dashboard');
+      } else {
+        try {
+          var saved = sessionStorage.getItem('admin_section');
+          if (saved && document.getElementById('section-' + saved)) { switchSection(saved); }
+          else { switchSection('dashboard'); }
+        } catch(e) { switchSection('dashboard'); }
       }
-      document.addEventListener('DOMContentLoaded', function() { setTimeout(pollForChartData, 500); });
-    </script>
 
-    <!-- Dark mode toggle -->
-    <script>
-      (function () {
-        var btn = document.getElementById('dark-toggle-btn');
-        var icon = document.getElementById('dark-icon');
-        var MOON = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
-        var SUN = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
-        function applyTheme(dark) {
-          document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
-          if (icon) icon.innerHTML = dark ? SUN : MOON;
-          try { localStorage.setItem('sbp_dark', dark ? '1' : '0'); } catch(e) {}
+      // ── Live username preview ──────────────────────────────────────
+      var PREFIXES = { 'Councilor':'councilor_', 'Researcher':'researcher_', 'Vice Mayor':'vicemayor_', 'Secretary':'secretary_' };
+      function previewUsername(inputId, roleId, previewId) {
+        var inp  = document.getElementById(inputId);
+        var role = document.getElementById(roleId);
+        var pre  = document.getElementById(previewId);
+        if (!inp || !role || !pre) return;
+        function update() {
+          var raw = inp.value.trim().toLowerCase().replace(/\s+/g,'_');
+          var prefix = PREFIXES[role.value] || '';
+          if (!raw) { pre.textContent = ''; return; }
+          var stripped = raw.startsWith(prefix) ? raw.slice(prefix.length) : raw;
+          var final = prefix + stripped;
+          pre.innerHTML = 'Will be saved as: <strong style="color:var(--brand-blue)">' + final + '</strong>';
         }
-        applyTheme(localStorage.getItem('sbp_dark') === '1');
-        if (btn) btn.addEventListener('click', function() { applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark'); });
-      })();
-    </script>
+        inp.addEventListener('input', update);
+        role.addEventListener('change', update);
+      }
+      previewUsername('user-username',    'user-role',    'user-username-preview');
+      previewUsername('special-username', 'special-role', 'special-username-preview');
+    });
+  })();
+</script>
 
-    <!-- Session timeout -->
-    <script>
-      (function() {
-        var TIMEOUT = 30 * 60 * 1000;
-        function refresh() { try { localStorage.setItem('sbp_session_expiry', Date.now() + TIMEOUT); } catch(e){} }
-        function check() {
-          var exp = parseInt(localStorage.getItem('sbp_session_expiry') || '0', 10);
-          if (exp && Date.now() > exp) {
-            localStorage.removeItem('sbp_current_user'); localStorage.removeItem('sbp_session_expiry');
-            window.location.href = './index.html?timeout=1';
-          }
-        }
-        refresh();
-        ['click','keypress','mousemove','touchstart'].forEach(function(e) { document.addEventListener(e, refresh, { passive: true }); });
-        setInterval(check, 60000);
-      })();
-    </script>
+<script>
+  function clearAdminSkeletons() {
+    ['stat-total-meetings','stat-pending-meetings','stat-active-users','stat-upcoming-week'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { var sk = el.querySelector('.skeleton'); if (sk) el.innerHTML = '0'; }
+    });
+    ['admin-meetings-body','user-table-body','special-accounts-table-body'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.querySelector('.skeleton')) el.innerHTML = '';
+    });
+    var sd = document.getElementById('sysdata-stats');
+    if (sd && sd.querySelector('.skeleton')) sd.innerHTML = '';
+  }
+
+  function renderDashboardCharts() {
+    clearAdminSkeletons();
+    var mtgs = window.meetings || [];
+    var usrs = window.users || [];
+    var STATUS_COLORS = {
+      'Approved':'#16a34a','Pending':'#f59e0b','Cancelled':'#dc2626',
+      'Rejected':'#dc2626','Done':'#3b82f6','Cancellation Requested':'#f97316'
+    };
+    var statusCounts = {};
+    mtgs.forEach(function(m) { statusCounts[m.status] = (statusCounts[m.status] || 0) + 1; });
+    var statusKeys = Object.keys(statusCounts);
+    var total = mtgs.length || 1;
+    var segs = document.getElementById('donut-segments');
+    var legend = document.getElementById('donut-legend');
+    var centerText = document.getElementById('donut-center-text');
+    if (segs && legend) {
+      segs.innerHTML = ''; legend.innerHTML = '';
+      var skArc = document.getElementById('donut-skeleton-arc');
+      if (skArc) skArc.remove();
+      var r = 60, cx = 80, cy = 80, circ = 2 * Math.PI * r, offset = 0;
+      statusKeys.forEach(function(s) {
+        var count = statusCounts[s];
+        var pct = count / total;
+        var dash = pct * circ, gap = circ - dash;
+        var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', r);
+        circle.setAttribute('fill', 'none');
+        circle.setAttribute('stroke', STATUS_COLORS[s] || '#9ca3af');
+        circle.setAttribute('stroke-width', '20');
+        circle.setAttribute('stroke-linecap', 'butt');
+        circle.setAttribute('stroke-dasharray', dash + ' ' + gap);
+        circle.setAttribute('stroke-dashoffset', -(offset - circ * 0.25));
+        circle.style.transition = 'stroke-dasharray 0.5s cubic-bezier(.4,0,.2,1)';
+        segs.appendChild(circle); offset += dash;
+        var pctLabel = total > 0 ? Math.round(pct * 100) + '%' : '';
+        var item = document.createElement('div');
+        item.className = 'donut-legend-item';
+        item.innerHTML =
+          '<span class="donut-dot" style="background:' + (STATUS_COLORS[s]||'#9ca3af') + ';width:10px;height:10px;border-radius:3px;flex-shrink:0"></span>' +
+          '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s + '</span>' +
+          '<span style="font-weight:700;color:var(--color-text);margin-left:6px;flex-shrink:0">' + count + '</span>' +
+          '<span style="font-size:0.68rem;color:var(--color-text-muted);margin-left:4px;flex-shrink:0">(' + pctLabel + ')</span>';
+        legend.appendChild(item);
+      });
+      if (centerText) centerText.textContent = mtgs.length > 0 ? mtgs.length : '–';
+    }
+    var TYPE_COLORS = { 'Regular':'#1d4ed8','Special':'#7c3aed' };
+    var typeCounts = {};
+    mtgs.forEach(function(m) { var t = m.type || m.meetingType || 'Other'; typeCounts[t] = (typeCounts[t] || 0) + 1; });
+    var typeKeys = Object.keys(typeCounts);
+    var typeMax = Math.max.apply(null, typeKeys.map(function(k){ return typeCounts[k]; })) || 1;
+    var typeChart = document.getElementById('type-bar-chart');
+    if (typeChart) {
+      typeChart.innerHTML = typeKeys.length
+        ? typeKeys.map(function(k) {
+            var pct = (typeCounts[k] / typeMax) * 100;
+            return '<div class="bar-group"><div class="bar" style="height:' + pct + '%;background:' + (TYPE_COLORS[k]||'#6b7280') + ';opacity:0.85;" data-val="' + typeCounts[k] + '"></div><div class="bar-label" title="' + k + '">' + k + '</div></div>';
+          }).join('')
+        : '<div class="text-muted" style="font-size:0.82rem;padding:12px">No data yet.</div>';
+    }
+    var nowYear = new Date().getFullYear();
+    var monthCounts = new Array(12).fill(0);
+    mtgs.forEach(function(m) {
+      if (!m.date) return;
+      var d = new Date(m.date);
+      if (d.getFullYear() === nowYear) monthCounts[d.getMonth()]++;
+    });
+    var MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var monthMax = Math.max.apply(null, monthCounts) || 1;
+    var monthChart = document.getElementById('monthly-bar-chart');
+    if (monthChart) {
+      monthChart.innerHTML = monthCounts.map(function(c, i) {
+        var pct = (c / monthMax) * 100;
+        var isCurrentMonth = i === new Date().getMonth();
+        return '<div class="bar-group"><div class="bar" style="height:' + pct + '%;background:' + (isCurrentMonth ? '#1d4ed8' : '#93c5fd') + ';opacity:0.9;" data-val="' + c + '"></div><div class="bar-label">' + MONTH_LABELS[i] + '</div></div>';
+      }).join('');
+    }
+    var activityList = document.getElementById('activity-list');
+    if (activityList) {
+      var sorted = mtgs.slice().sort(function(a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); }).slice(0, 8);
+      if (!sorted.length) {
+        activityList.innerHTML = '<div class="empty-state"><svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>No recent activity.</p></div>';
+      } else {
+        var DOT_COLORS = { 'Approved':'#16a34a','Pending':'#f59e0b','Cancelled':'#dc2626','Rejected':'#dc2626','Done':'#3b82f6' };
+        activityList.innerHTML = sorted.map(function(m) {
+          var color = DOT_COLORS[m.status] || '#9ca3af';
+          var when = m.createdAt ? new Date(m.createdAt).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : m.date;
+          return '<div class="activity-item"><span class="activity-dot" style="background:' + color + '"></span><div><div class="activity-text"><strong>' + (m.eventName||'Meeting') + '</strong> — ' + (m.status||'') + ' · ' + (m.createdBy||'') + '</div><div class="activity-time">' + when + '</div></div></div>';
+        }).join('');
+      }
+    }
+  }
+  var _dashPollCount = 0;
+  function pollForChartData() {
+    _dashPollCount++;
+    var hasMeetings = Array.isArray(window.meetings) && window.meetings.length > 0;
+    var hasUsers    = Array.isArray(window.users)    && window.users.length > 0;
+    if (hasMeetings || hasUsers || _dashPollCount > 40) {
+      renderDashboardCharts();
+      window.renderDashboardCharts = renderDashboardCharts;
+    } else { setTimeout(pollForChartData, 250); }
+  }
+  document.addEventListener('DOMContentLoaded', function() { setTimeout(pollForChartData, 500); });
+</script>
+
+<script>
+  (function () {
+    var btn = document.getElementById('dark-toggle-btn');
+    var icon = document.getElementById('dark-icon');
+    var MOON = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+    var SUN = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+    function applyTheme(dark) {
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
+      if (icon) icon.innerHTML = dark ? SUN : MOON;
+      try { localStorage.setItem('sbp_dark', dark ? '1' : '0'); } catch(e) {}
+    }
+    applyTheme(localStorage.getItem('sbp_dark') === '1');
+    if (btn) btn.addEventListener('click', function() { applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark'); });
+  })();
+</script>
+
+<script>
+  (function() {
+    var TIMEOUT = 30 * 60 * 1000; // 30 Minutes
+
+    function refresh() { 
+      try { 
+        // Silently update expiry time in storage
+        sessionStorage.setItem('sbp_session_expiry', Date.now() + TIMEOUT); 
+      } catch(e){} 
+    }
+
+    function check() {
+      var exp = parseInt(sessionStorage.getItem('sbp_session_expiry') || '0', 10);
+      // ONLY redirect if we have a valid expiration time AND current time is past it
+      if (exp > 0 && Date.now() > exp) {
+        sessionStorage.removeItem('sbp_current_user'); 
+        sessionStorage.removeItem('sbp_session_expiry');
+        window.location.href = './index.html?timeout=1';
+      }
+    }
+
+    // Set initial expiry on load
+    refresh();
+
+    // Listen for activity to refresh the timer silently
+    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(function(evt) {
+      window.addEventListener(evt, refresh, { passive: true });
+    });
+
+    // Run the check every minute
+    setInterval(check, 60000);
+  })();
+</script>
   </body>
 </html>

@@ -49,8 +49,8 @@
   }
   function ensureDefaultAdminIfNeeded() {
     var DEFAULT_ADMIN = {
-      id: "admin",
       username: "sb_adminpolangui",
+      // Legacy SHA-256 for 'admin123'
       password: "41e5653fc7aeb894026d6bb7b2db7f65902b454945fa8fd65a6327047b5277fb",
       role: "Admin",
       name: "System Administrator",
@@ -64,37 +64,52 @@
         .get()
         .then(function (snap) {
           if (snap.empty) {
-            return db.collection("users").add(DEFAULT_ADMIN)
+            var docId = "admin_" + Math.random().toString(36).slice(2, 9);
+            return db.collection("users").doc(docId).set(Object.assign({ id: docId }, DEFAULT_ADMIN))
           }
         })
         .catch(function () {
           fallbackToLocal()
           var users = lsGet(LS.USERS, [])
           if (!users.some(function (u) { return u.username === DEFAULT_ADMIN.username })) {
-            users.push(DEFAULT_ADMIN)
+            users.push(Object.assign({ id: "admin_local" }, DEFAULT_ADMIN))
             lsSet(LS.USERS, users)
           }
         })
     } else {
       var users = lsGet(LS.USERS, [])
       if (!users.some(function (u) { return u.username === DEFAULT_ADMIN.username })) {
-        users.push(DEFAULT_ADMIN)
+        users.push(Object.assign({ id: "admin_local" }, DEFAULT_ADMIN))
         lsSet(LS.USERS, users)
       }
       return Promise.resolve()
     }
   }
+
+  var _annSubscribers = []
+  function _notifyAnnSubscribers() {
+    var list = lsGet(LS.ANNOUNCEMENTS, []).slice().reverse()
+    _annSubscribers.forEach(function (cb) { try { cb(list) } catch (e) {} })
+  }
+
+  var _meetingSubscribers = []
+  function _notifyMeetingSubscribers() {
+    var list = lsGet(LS.MEETINGS, [])
+    _meetingSubscribers.forEach(function (cb) { try { cb(list) } catch (e) {} })
+  }
+
   var api = {
     mode: mode,
     init: function () {
       return ensureDefaultAdminIfNeeded().then(function () {})
     },
-    signIn: function (username, hashedPassword) {
+    // Updated signIn to fetch the user by username first.
+    // Password verification is now handled in app.js using verifyPassword()
+    signIn: function (username) {
       if (mode === "firestore") {
         return db
           .collection("users")
           .where("username", "==", username)
-          .where("password", "==", hashedPassword)
           .limit(1)
           .get()
           .then(function (snap) {
@@ -107,17 +122,11 @@
           .catch(function () {
             fallbackToLocal()
             var users = lsGet(LS.USERS, [])
-            var u = users.find(function (x) {
-              return x.username === username && x.password === hashedPassword
-            })
-            return u || null
+            return users.find(function (x) { return x.username === username }) || null
           })
       } else {
         var users = lsGet(LS.USERS, [])
-        var u = users.find(function (x) {
-          return x.username === username && x.password === hashedPassword
-        })
-        return Promise.resolve(u || null)
+        return Promise.resolve(users.find(function (x) { return x.username === username }) || null)
       }
     },
     getUsers: function () {
@@ -142,18 +151,21 @@
     },
     createUser: function (user) {
       if (mode === "firestore") {
+        var docId = user.id || ("user_" + Math.random().toString(36).slice(2, 9))
+        var userData = Object.assign({}, user, { id: docId })
         return db
           .collection("users")
-          .add(user)
-          .then(function (ref) {
-            return Object.assign({ id: ref.id }, user)
+          .doc(docId)
+          .set(userData)
+          .then(function () {
+            return userData
           })
           .catch(function () {
             fallbackToLocal()
             var users = lsGet(LS.USERS, [])
-            users.push(user)
+            users.push(userData)
             lsSet(LS.USERS, users)
-            return user
+            return userData
           })
       } else {
         var users = lsGet(LS.USERS, [])
@@ -164,25 +176,22 @@
     },
     deleteUser: function (id) {
       if (mode === "firestore") {
-        return db.collection("users").doc(id).delete().catch(function () {
-          fallbackToLocal()
-          var users = lsGet(LS.USERS, [])
-          users = users.filter(function (u) {
-            return u.id !== id
-          })
-          lsSet(LS.USERS, users)
+        return db.collection("users").doc(id).delete().then(function() {
+            var cached = lsGet(LS.USERS, [])
+            cached = cached.filter(function (u) { return u.id !== id })
+            lsSet(LS.USERS, cached)
+        }).catch(function(err) {
+            console.error("Delete failed", err)
+            throw err
         })
       } else {
         var users = lsGet(LS.USERS, [])
-        users = users.filter(function (u) {
-          return u.id !== id
-        })
+        users = users.filter(function (u) { return u.id !== id })
         lsSet(LS.USERS, users)
         return Promise.resolve()
       }
     },
     updateUser: function (id, fields) {
-      // fields: partial object e.g. { name: "...", role: "..." } — never touches password here
       if (mode === "firestore") {
         return db.collection("users").doc(id).update(fields).catch(function () {
           fallbackToLocal()
@@ -202,9 +211,7 @@
         return db.collection("users").doc(id).update({ password: password, mustChangePassword: false }).catch(function () {
           fallbackToLocal()
           var users = lsGet(LS.USERS, [])
-          var u = users.find(function (x) {
-            return x.id === id
-          })
+          var u = users.find(function (x) { return x.id === id })
           if (u) {
             u.password = password
             u.mustChangePassword = false
@@ -213,9 +220,7 @@
         })
       } else {
         var users = lsGet(LS.USERS, [])
-        var u = users.find(function (x) {
-          return x.id === id
-        })
+        var u = users.find(function (x) { return x.id === id })
         if (u) {
           u.password = password
           u.mustChangePassword = false
@@ -282,35 +287,38 @@
         var list = lsGet(LS.MEETINGS, [])
         list.push(meeting)
         lsSet(LS.MEETINGS, list)
+        _notifyMeetingSubscribers()
         return Promise.resolve(meeting)
       }
     },
-    updateMeetingStatus: function (id, status, adminNote) {
+    updateMeetingStatus: function (id, status, adminNote, extraFields) {
       if (mode === "firestore") {
         var payload = { status: status }
         if (typeof adminNote === "string") payload.adminNote = adminNote
+        if (extraFields && typeof extraFields === "object") {
+          Object.keys(extraFields).forEach(function (k) { payload[k] = extraFields[k] })
+        }
         return db.collection("meetings").doc(id).update(payload).catch(function () {
           fallbackToLocal()
           var list = lsGet(LS.MEETINGS, [])
-          var m = list.find(function (x) {
-            return x.id === id
-          })
+          var m = list.find(function (x) { return x.id === id })
           if (m) {
             m.status = status
             if (typeof adminNote === "string") m.adminNote = adminNote
+            if (extraFields && typeof extraFields === "object") Object.assign(m, extraFields)
             lsSet(LS.MEETINGS, list)
           }
         })
       } else {
         var list = lsGet(LS.MEETINGS, [])
-        var m = list.find(function (x) {
-          return x.id === id
-        })
+        var m = list.find(function (x) { return x.id === id })
         if (m) {
           m.status = status
           if (typeof adminNote === "string") m.adminNote = adminNote
+          if (extraFields && typeof extraFields === "object") Object.assign(m, extraFields)
           lsSet(LS.MEETINGS, list)
         }
+        _notifyMeetingSubscribers()
         return Promise.resolve()
       }
     },
@@ -338,8 +346,11 @@
           return function () {}
         }
       } else {
+        _meetingSubscribers.push(cb)
         cb(lsGet(LS.MEETINGS, []))
-        return function () {}
+        return function () {
+          _meetingSubscribers = _meetingSubscribers.filter(function (fn) { return fn !== cb })
+        }
       }
     },
     subscribeCalendarHistory: function (cb) {
@@ -369,7 +380,6 @@
       }
     },
     exportAndArchivePreviousMonth: function (range) {
-      // range: { startISO, endISO }
       var startISO = range && range.startISO
       var endISO = range && range.endISO
       function inRange(dateIso) {
@@ -424,52 +434,207 @@
         return Promise.resolve({ archived: count })
       }
     },
+    _filterExpiredAnn: function (list) {
+      var now = Date.now()
+      return list.filter(function (a) {
+        if (!a.expiresAt) return true
+        return new Date(a.expiresAt).getTime() > now
+      })
+    },
+    _purgeExpiredAnn: function () {
+      if (mode !== "firestore") return
+      var now = new Date().toISOString()
+      db.collection("announcements").get()
+        .then(function (snap) {
+          var batch = db.batch()
+          var count = 0
+          snap.docs.forEach(function (d) {
+            var data = d.data()
+            if (data.expiresAt && data.expiresAt < now) {
+              batch.delete(d.ref)
+              count++
+            }
+          })
+          if (count > 0) return batch.commit()
+        })
+        .catch(function () {})
+    },
     getAnnouncements: function () {
+      var self = this
       if (mode === "firestore") {
         return db.collection("announcements").orderBy("createdAt", "desc").get()
           .then(function (snap) {
-            return snap.docs.map(function (d) { var v = d.data(); v.id = d.id; return v; });
-          }).catch(function () { return lsGet(LS.ANNOUNCEMENTS, []).slice().reverse(); });
+            var list = snap.docs.map(function (d) { var v = d.data(); v.id = d.id; return v })
+            return self._filterExpiredAnn(list)
+          })
+          .catch(function () {
+            return self._filterExpiredAnn(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse())
+          })
       } else {
-        return Promise.resolve(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse());
+        return Promise.resolve(
+          this._filterExpiredAnn(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse())
+        )
       }
     },
     addAnnouncement: function (ann) {
+      var ANN_TTL_MS = 7 * 24 * 60 * 60 * 1000
+      var enriched = Object.assign({}, ann, {
+        expiresAt: new Date(Date.now() + ANN_TTL_MS).toISOString()
+      })
       if (mode === "firestore") {
-        return db.collection("announcements").add(ann)
-          .then(function (ref) { return Object.assign({ id: ref.id }, ann); })
-          .catch(function () {
-            var list = lsGet(LS.ANNOUNCEMENTS, []); ann.id = "ann_" + Date.now(); list.push(ann); lsSet(LS.ANNOUNCEMENTS, list); return ann;
-          });
+        var docId = "ann_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)
+        var withId = Object.assign({}, enriched, { id: docId })
+        return db.collection("announcements").doc(docId).set(withId)
+          .then(function () {
+            var list = lsGet(LS.ANNOUNCEMENTS, [])
+            list.unshift(withId)
+            lsSet(LS.ANNOUNCEMENTS, list)
+            return withId
+          })
+          .catch(function (err) {
+            console.error("addAnnouncement Firestore error:", err)
+            var list = lsGet(LS.ANNOUNCEMENTS, [])
+            var localAnn = Object.assign({}, enriched, { id: "ann_" + Date.now() })
+            list.unshift(localAnn)
+            lsSet(LS.ANNOUNCEMENTS, list)
+            _notifyAnnSubscribers()
+            return localAnn
+          })
       } else {
-        var list = lsGet(LS.ANNOUNCEMENTS, []); ann.id = "ann_" + Date.now(); list.push(ann); lsSet(LS.ANNOUNCEMENTS, list);
-        return Promise.resolve(ann);
+        var list = lsGet(LS.ANNOUNCEMENTS, [])
+        var localAnn = Object.assign({}, enriched, { id: "ann_" + Date.now() })
+        list.unshift(localAnn)
+        lsSet(LS.ANNOUNCEMENTS, list)
+        _notifyAnnSubscribers()
+        return Promise.resolve(localAnn)
+      }
+    },
+    updateAnnouncement: function (id, fields) {
+      if (mode === "firestore") {
+        return db.collection("announcements").doc(id).update(fields).then(function () {
+          // update local cache mirror
+          var list = lsGet(LS.ANNOUNCEMENTS, [])
+          var idx = list.findIndex(function (a) { return a.id === id })
+          if (idx >= 0) {
+            list[idx] = Object.assign({}, list[idx], fields)
+            lsSet(LS.ANNOUNCEMENTS, list)
+          }
+        }).catch(function (err) {
+          console.error("updateAnnouncement Firestore error:", err)
+          // fallback to local
+          fallbackToLocal()
+          var list = lsGet(LS.ANNOUNCEMENTS, [])
+          var idx = list.findIndex(function (a) { return a.id === id })
+          if (idx >= 0) {
+            list[idx] = Object.assign({}, list[idx], fields)
+            lsSet(LS.ANNOUNCEMENTS, list)
+          }
+          _notifyAnnSubscribers()
+        })
+      } else {
+        var list = lsGet(LS.ANNOUNCEMENTS, [])
+        var idx = list.findIndex(function (a) { return a.id === id })
+        if (idx >= 0) {
+          list[idx] = Object.assign({}, list[idx], fields)
+          lsSet(LS.ANNOUNCEMENTS, list)
+        }
+        _notifyAnnSubscribers()
+        return Promise.resolve()
       }
     },
     deleteAnnouncement: function (id) {
       if (mode === "firestore") {
-        return db.collection("announcements").doc(id).delete()
-          .catch(function () {
-            var list = lsGet(LS.ANNOUNCEMENTS, []).filter(function (a) { return a.id !== id; });
-            lsSet(LS.ANNOUNCEMENTS, list);
-          });
+        return db.collection("announcements").doc(id).delete().then(function() {
+            var list = lsGet(LS.ANNOUNCEMENTS, []).filter(function (a) { return a.id !== id })
+            lsSet(LS.ANNOUNCEMENTS, list)
+        }).catch(function(err) {
+            console.error("deleteAnnouncement Error", err)
+            throw err
+        })
       } else {
-        var list = lsGet(LS.ANNOUNCEMENTS, []).filter(function (a) { return a.id !== id; });
-        lsSet(LS.ANNOUNCEMENTS, list);
-        return Promise.resolve();
+        var list = lsGet(LS.ANNOUNCEMENTS, []).filter(function (a) { return a.id !== id })
+        lsSet(LS.ANNOUNCEMENTS, list)
+        _notifyAnnSubscribers()
+        return Promise.resolve()
+      }
+    },
+    deleteMeeting: function (id) {
+      if (mode === "firestore") {
+        return db.collection("meetings").doc(id).delete().then(function () {
+          var list = lsGet(LS.MEETINGS, []).filter(function (m) { return m.id !== id })
+          lsSet(LS.MEETINGS, list)
+        }).catch(function (err) {
+          console.error("deleteMeeting Error", err)
+          // fallback to local
+          fallbackToLocal()
+          var list = lsGet(LS.MEETINGS, []).filter(function (m) { return m.id !== id })
+          lsSet(LS.MEETINGS, list)
+          _notifyMeetingSubscribers()
+        })
+      } else {
+        var list = lsGet(LS.MEETINGS, []).filter(function (m) { return m.id !== id })
+        lsSet(LS.MEETINGS, list)
+        _notifyMeetingSubscribers()
+        return Promise.resolve()
+      }
+    },
+    _notifyMeetings: function () { _notifyMeetingSubscribers() },
+    subscribeUsers: function (cb) {
+      if (mode === "firestore") {
+        try {
+          var unsub = db.collection("users").onSnapshot(
+            function (snap) {
+              var arr = snap.docs.map(function (d) {
+                var v = d.data()
+                v.id = d.id
+                return v
+              })
+              cb(arr)
+            },
+            function (err) {
+              console.warn("subscribeUsers snapshot error:", err)
+              fallbackToLocal()
+              cb(lsGet(LS.USERS, []))
+            }
+          )
+          return unsub
+        } catch (e) {
+          fallbackToLocal()
+          cb(lsGet(LS.USERS, []))
+          return function () {}
+        }
+      } else {
+        cb(lsGet(LS.USERS, []))
+        return function () {}
       }
     },
     subscribeAnnouncements: function (cb) {
+      var self = this
       if (mode === "firestore") {
+        self._purgeExpiredAnn()
         try {
           return db.collection("announcements").orderBy("createdAt", "desc").onSnapshot(
-            function (snap) { cb(snap.docs.map(function (d) { var v = d.data(); v.id = d.id; return v; })); },
-            function () { cb(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse()); }
-          );
-        } catch (e) { cb(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse()); return function () {}; }
+            function (snap) {
+              var list = snap.docs.map(function (d) { var v = d.data(); v.id = d.id; return v })
+              var active = self._filterExpiredAnn(list)
+              lsSet(LS.ANNOUNCEMENTS, active)
+              cb(active)
+            },
+            function (err) {
+              console.warn("subscribeAnnouncements snapshot error:", err)
+              cb(self._filterExpiredAnn(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse()))
+            }
+          )
+        } catch (e) {
+          cb(self._filterExpiredAnn(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse()))
+          return function () {}
+        }
       } else {
-        cb(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse());
-        return function () {};
+        _annSubscribers.push(cb)
+        cb(self._filterExpiredAnn(lsGet(LS.ANNOUNCEMENTS, []).slice().reverse()))
+        return function () {
+          _annSubscribers = _annSubscribers.filter(function (fn) { return fn !== cb })
+        }
       }
     },
   }

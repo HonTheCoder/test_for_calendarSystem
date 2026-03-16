@@ -23,6 +23,9 @@ const ROLE_LIMITS = {
   [ROLES.SECRETARY]: 1,
 };
 
+// Hard cap on total regular (non-admin, non-special) user accounts
+const MAX_REGULAR_USERS = 20;
+
 // Roles that are special accounts (not full admins) routed to user.html
 const SPECIAL_ROLES = [ROLES.VICE_MAYOR, ROLES.SECRETARY];
 
@@ -108,16 +111,47 @@ function getHolidayInfo(isoDate) {
 // SHA-256 Password Hashing (native WebCrypto)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Password hashing — PBKDF2-SHA-256 with per-password salt
+// Format: "pbkdf2:<salt_hex>:<hash_hex>"
+// Backwards-compatible: legacy SHA-256 hashes (64 hex chars, no prefix) are
+// verified with the old method and migrated on next successful login.
+// ---------------------------------------------------------------------------
 async function hashPassword(password) {
-  const msgBuffer = new TextEncoder().encode(password);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2,"0")).join("");
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name:"PBKDF2", salt, iterations:200000, hash:"SHA-256" }, keyMaterial, 256
+  );
+  const hashHex = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2,"0")).join("");
+  return `pbkdf2:${saltHex}:${hashHex}`;
 }
 
-async function verifyPassword(password, hash) {
-  const hashed = await hashPassword(password);
-  return hashed === hash;
+async function verifyPassword(password, storedHash) {
+  if (!storedHash) return false;
+  // Legacy SHA-256 format (64-char hex, no prefix) — still verify, migrate on login
+  if (!storedHash.startsWith("pbkdf2:")) {
+    const msgBuffer = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+    const legacyHex = Array.from(new Uint8Array(hashBuffer)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    return legacyHex === storedHash;
+  }
+  // New PBKDF2 format
+  const parts = storedHash.split(":");
+  if (parts.length !== 3) return false;
+  const saltBytes = new Uint8Array(parts[1].match(/.{2}/g).map(h => parseInt(h,16)));
+  const expectedHash = parts[2];
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name:"PBKDF2", salt:saltBytes, iterations:200000, hash:"SHA-256" }, keyMaterial, 256
+  );
+  const derivedHex = Array.from(new Uint8Array(bits)).map(b=>b.toString(16).padStart(2,"0")).join("");
+  return derivedHex === expectedHash;
 }
 
 // ---------------------------------------------------------------------------
@@ -247,11 +281,38 @@ function updateNotificationBadge(userId) {
   badge.textContent = unread > 9 ? "9+" : String(unread);
   badge.style.display = unread > 0 ? "flex" : "none";
 
-  // Also update pending badge on meeting-logs nav link (admin only)
+  // Update pending badge on nav link.
+  // On admin page: counts all pending meetings system-wide (meeting-logs nav).
+  // On user page:  counts only the current user's own pending meetings (my-meetings nav).
   const pendingBadge = document.getElementById("pending-badge");
   if (pendingBadge) {
     const safeMeetings = (typeof meetings !== "undefined" && Array.isArray(meetings)) ? meetings : [];
-    const pendingCount = safeMeetings.filter(m => m.status === "Pending" || m.status === "Cancellation Requested").length;
+    const isAdminPage = document.body.dataset.page === "admin";
+    const cu = getCurrentUser();
+    let pendingCount = 0;
+
+    if (isAdminPage) {
+      // Admin sees all pending / cancellation-requested meetings system-wide
+      pendingCount = safeMeetings.filter(m =>
+        m.status === "Pending" || m.status === "Cancellation Requested"
+      ).length;
+    } else if (cu) {
+      // Regular user: ONLY count meetings that genuinely belong to them.
+      // We match by BOTH createdBy (username or id) AND by name on the
+      // councilor/researcher fields — whichever the meeting was booked under.
+      // This prevents stale meetings from a previous session (or meetings
+      // belonging to other users) from triggering the badge on a new account.
+      pendingCount = safeMeetings.filter(m => {
+        if (m.status !== "Pending" && m.status !== "Cancellation Requested") return false;
+        const byUsername  = m.createdBy === cu.username;
+        const byId        = m.createdBy === cu.id;
+        const byCouncilor = cu.role === ROLES.COUNCILOR  && m.councilor  === cu.name;
+        const byResearcher= cu.role === ROLES.RESEARCHER && m.researcher === cu.name;
+        return byUsername || byId || byCouncilor || byResearcher;
+      }).length;
+    }
+
+    // Always keep the badge hidden when count is 0 — never show "0"
     pendingBadge.textContent = String(pendingCount);
     pendingBadge.style.display = pendingCount > 0 ? "flex" : "none";
   }
@@ -375,6 +436,37 @@ function initNotificationBell(user) {
 }
 
 // ---------------------------------------------------------------------------
+// Offline detection — show/hide a persistent banner
+// ---------------------------------------------------------------------------
+(function initOfflineDetection() {
+  function showOfflineBanner() {
+    let banner = document.getElementById("offline-banner");
+    if (banner) return;
+    banner = document.createElement("div");
+    banner.id = "offline-banner";
+    banner.setAttribute("role", "alert");
+    banner.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg>
+      <span>No internet connection — some features may be unavailable.</span>`;
+    banner.style.cssText = [
+      "position:fixed","top:0","left:0","right:0","z-index:99999",
+      "background:#dc2626","color:#fff","font-size:0.78rem","font-weight:600",
+      "padding:8px 16px","display:flex","align-items:center","gap:8px",
+      "justify-content:center","box-shadow:0 2px 8px rgba(0,0,0,0.25)",
+      "font-family:var(--font-body,sans-serif)"
+    ].join(";");
+    document.body.prepend(banner);
+  }
+  function hideOfflineBanner() {
+    const b = document.getElementById("offline-banner");
+    if (b) b.remove();
+  }
+  if (!navigator.onLine) showOfflineBanner();
+  window.addEventListener("offline", showOfflineBanner);
+  window.addEventListener("online",  hideOfflineBanner);
+})();
+
+// ---------------------------------------------------------------------------
 // Default admin (hashed password on first run)
 // ---------------------------------------------------------------------------
 
@@ -389,6 +481,8 @@ async function ensureDefaultAdmin() {
       password: hashed,
       role: ROLES.ADMIN,
       name: "System Administrator",
+      // Force password change on first login — hardcoded default must be changed
+      mustChangePassword: true,
     });
     save(STORAGE_KEYS.USERS, users);
   }
@@ -400,8 +494,18 @@ function getCurrentUser() {
 
 function setCurrentUser(user) {
   if (!user) {
+    // On logout, remove the current user identity and session stamp.
+    // Also clear per-session cached data (meetings, notifications) so the
+    // NEXT user who logs in on this device never sees stale data from the
+    // previous session — which was causing the phantom pending-badge bug
+    // on new accounts that have no meetings yet.
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     localStorage.removeItem(STORAGE_KEYS.SESSION_EXPIRY);
+    localStorage.removeItem(STORAGE_KEYS.MEETINGS);
+    localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+    // Do NOT clear STORAGE_KEYS.USERS — the user list is shared/synced from
+    // Firestore and is needed for login on next load.
+    // Do NOT clear announcements — they are global, not per-user.
   } else {
     save(STORAGE_KEYS.CURRENT_USER, user);
     refreshSession();
@@ -432,6 +536,19 @@ function formatTime12h(mins) {
   const d = new Date();
   d.setHours(h, m, 0, 0);
   return d.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
+
+function hasMeetingEnded(m) {
+  if (!m || !m.date || !m.timeStart) return false;
+  const todayISO = getTodayISOManila();
+  if (m.date < todayISO) return true;
+  if (m.date > todayISO) return false;
+  const now = getManilaNow();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const start = minutesFromTimeStr(m.timeStart);
+  const dur = Number.isFinite(m.durationHours) ? m.durationHours : SLOT_DURATION_HOURS;
+  const end = start + dur * 60;
+  return nowMinutes >= end;
 }
 
 function isWeekend(dateObj) {
@@ -574,6 +691,7 @@ Object.defineProperty(window, "users", {
 let calendarYear, calendarMonth;
 let unsubscribeMeetings = null;
 let unsubscribeHistory = null;
+let unsubscribeUsers = null;
 
 // Search state
 let adminMeetingsSearch = "";
@@ -625,11 +743,29 @@ function attachCommonHeader(user) {
   const logoutBtn = $("#logout-btn");
 
   if (welcomeEl) {
-    welcomeEl.textContent = user.role === ROLES.RESEARCHER
-      ? `Welcome, ${user.name} (Researcher)` : `Welcome, ${user.name}`;
+    const dispName = user.role === ROLES.RESEARCHER
+      ? `${user.name} (Researcher)` : user.name;
+    // If it's the new dash-welcome-banner style, set just the name so CSS can style it
+    welcomeEl.innerHTML = `Welcome, <span>${h(dispName)}</span>`;
+  }
+  // Populate user dashboard greeting & date (mirrors admin updateDashboardGreeting)
+  const userGreetEl = $("#user-dash-greeting");
+  const userDateEl  = $("#user-dash-date-str");
+  if (userGreetEl) {
+    const hr = new Date().getHours();
+    userGreetEl.textContent = hr < 12 ? "Good morning," : hr < 17 ? "Good afternoon," : "Good evening,";
+  }
+  if (userDateEl) {
+    userDateEl.textContent = new Date().toLocaleDateString("en-PH", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
   }
   if (sidebarUser) sidebarUser.textContent = user.name;
   if (sidebarRole) sidebarRole.textContent = user.role;
+  const avatarEl = $("#sidebar-avatar");
+  if (avatarEl) {
+    const initials = (user.name || user.username || "U")
+      .split(" ").filter(Boolean).map(w => w[0]).slice(0, 2).join("").toUpperCase();
+    avatarEl.textContent = initials || "U";
+  }
   if (logoutBtn) {
     logoutBtn.addEventListener("click", () => {
       const doLogout = () => { setCurrentUser(null); window.location.href = "./index.html"; };
@@ -656,15 +792,40 @@ function attachCommonHeader(user) {
 async function initDataLayer() {
   await ensureDefaultAdmin();
   if (!window.api) {
+    // Inline local-only API used when firebase.js is absent.
+    // Uses its own pub/sub so updateMeetingStatus can push live changes
+    // to all active subscribers — matching the firebase.js local-mode pattern.
+    const _localMtgSubs = [];
+    const _notifyLocalMtgSubs = () => {
+      const list = load(STORAGE_KEYS.MEETINGS, []);
+      _localMtgSubs.forEach(cb => { try { cb(list); } catch (_) {} });
+    };
     window.api = {
       mode: "local",
       init: () => Promise.resolve(),
       getUsers: () => Promise.resolve(load(STORAGE_KEYS.USERS, [])),
       getMeetings: () => Promise.resolve(load(STORAGE_KEYS.MEETINGS, [])),
       getCalendarHistory: () => Promise.resolve(load("sbp_calendar_history", [])),
-      subscribeMeetings: (cb) => { cb(load(STORAGE_KEYS.MEETINGS, [])); return () => {}; },
+      subscribeMeetings: (cb) => {
+        _localMtgSubs.push(cb);
+        cb(load(STORAGE_KEYS.MEETINGS, []));
+        return () => { const i = _localMtgSubs.indexOf(cb); if (i !== -1) _localMtgSubs.splice(i, 1); };
+      },
+      updateMeetingStatus: (id, status, adminNote, extraFields) => {
+        const list = load(STORAGE_KEYS.MEETINGS, []);
+        const m = list.find(x => x.id === id);
+        if (m) {
+          m.status = status;
+          if (typeof adminNote === "string") m.adminNote = adminNote;
+          if (extraFields && typeof extraFields === "object") Object.assign(m, extraFields);
+          save(STORAGE_KEYS.MEETINGS, list);
+        }
+        _notifyLocalMtgSubs();
+        return Promise.resolve();
+      },
       subscribeCalendarHistory: (cb) => { cb(load("sbp_calendar_history", [])); return () => {}; },
       exportAndArchivePreviousMonth: () => Promise.resolve({ archived: 0 }),
+      _notifyMeetings: _notifyLocalMtgSubs,
     };
   }
   await window.api.init();
@@ -707,10 +868,32 @@ async function initDataLayer() {
       renderCalendar();
     });
   }
+
+  // Subscribe to live user updates from Firestore.
+  // This is the key fix for the "deleted user reappears on refresh" bug:
+  // whenever Firestore delivers a new users snapshot (including after a delete),
+  // we update the in-memory array AND localStorage in one place, so the UI and
+  // cache always match what Firestore actually has.
+  if (unsubscribeUsers) { try { unsubscribeUsers(); } catch {} }
+  if (window.api.subscribeUsers) {
+    unsubscribeUsers = window.api.subscribeUsers((arr) => {
+      users = arr || [];
+      persistUsers();
+      renderUsersTable();
+      updateStatistics();
+    });
+  }
 }
 
 function persistUsers() { save(STORAGE_KEYS.USERS, users); }
-function persistMeetings() { save(STORAGE_KEYS.MEETINGS, meetings); }
+function persistMeetings() {
+  save(STORAGE_KEYS.MEETINGS, meetings);
+  // Notify any active local-mode subscribers so the UI re-renders immediately.
+  // In Firestore mode this is a no-op because updateMeetingStatus is used instead.
+  if (window.api && typeof window.api._notifyMeetings === "function") {
+    window.api._notifyMeetings();
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Force Password Change Modal (mustChangePassword flag)
@@ -818,46 +1001,51 @@ async function initLoginPage() {
   const errorEl = $("#login-error");
   if (!form) return;
 
-  // ── Bug fix: brute-force lockout ─────────────────────────────────────────
-  // Track failed attempts in sessionStorage (resets on browser close).
-  // After 5 failures, lock the form for 30 seconds.
+  // ── Brute-force lockout ───────────────────────────────────────────────────
+  // 5 failures → 15-minute lockout, persisted in localStorage so closing
+  // the tab or browser does NOT reset it (unlike the old sessionStorage version).
   const LOCKOUT_MAX   = 5;
-  const LOCKOUT_MS    = 30 * 1000;
+  const LOCKOUT_MS    = 15 * 60 * 1000; // 15 minutes
   const LS_ATTEMPTS   = "sbp_login_attempts";
   const LS_LOCKOUT_TS = "sbp_login_lockout_ts";
 
-  function getAttempts()  { return parseInt(sessionStorage.getItem(LS_ATTEMPTS)  || "0", 10); }
-  function getLockoutTs() { return parseInt(sessionStorage.getItem(LS_LOCKOUT_TS) || "0", 10); }
+  function getAttempts()  { return parseInt(localStorage.getItem(LS_ATTEMPTS)  || "0", 10); }
+  function getLockoutTs() { return parseInt(localStorage.getItem(LS_LOCKOUT_TS) || "0", 10); }
 
   function isLockedOut() {
     const ts = getLockoutTs();
     if (!ts) return false;
     if (Date.now() < ts) return true;
-    // Lockout expired — clear it
-    sessionStorage.removeItem(LS_ATTEMPTS);
-    sessionStorage.removeItem(LS_LOCKOUT_TS);
+    localStorage.removeItem(LS_ATTEMPTS);
+    localStorage.removeItem(LS_LOCKOUT_TS);
     return false;
   }
 
   function recordFailedAttempt() {
     const next = getAttempts() + 1;
-    sessionStorage.setItem(LS_ATTEMPTS, String(next));
+    localStorage.setItem(LS_ATTEMPTS, String(next));
     if (next >= LOCKOUT_MAX) {
-      sessionStorage.setItem(LS_LOCKOUT_TS, String(Date.now() + LOCKOUT_MS));
+      localStorage.setItem(LS_LOCKOUT_TS, String(Date.now() + LOCKOUT_MS));
     }
     return next;
   }
 
   function clearAttempts() {
-    sessionStorage.removeItem(LS_ATTEMPTS);
-    sessionStorage.removeItem(LS_LOCKOUT_TS);
+    localStorage.removeItem(LS_ATTEMPTS);
+    localStorage.removeItem(LS_LOCKOUT_TS);
   }
 
-  // Show remaining lockout time and re-enable once expired
+  function formatLockoutTime(ms) {
+    const totalSec = Math.ceil(ms / 1000);
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  }
+
   function showLockoutError() {
-    const remaining = Math.ceil((getLockoutTs() - Date.now()) / 1000);
+    const rem = getLockoutTs() - Date.now();
     if (errorEl) {
-      errorEl.textContent = `Too many failed attempts. Please wait ${remaining}s before trying again.`;
+      errorEl.textContent = `Too many failed attempts. Please wait ${formatLockoutTime(rem)} before trying again.`;
       errorEl.classList.add("auth-error-visible");
     }
     const loginBtn = $("#login-btn");
@@ -868,8 +1056,8 @@ async function initLoginPage() {
         if (errorEl) errorEl.classList.remove("auth-error-visible");
         if (loginBtn) { loginBtn.disabled = false; }
       } else {
-        const rem = Math.ceil((getLockoutTs() - Date.now()) / 1000);
-        if (errorEl) errorEl.textContent = `Too many failed attempts. Please wait ${rem}s before trying again.`;
+        const r = getLockoutTs() - Date.now();
+        if (errorEl) errorEl.textContent = `Too many failed attempts. Please wait ${formatLockoutTime(r)} before trying again.`;
       }
     }, 1000);
   }
@@ -934,6 +1122,23 @@ async function initLoginPage() {
       return;
     }
 
+    // ── Silently migrate legacy SHA-256 or plaintext password to PBKDF2 ──
+    // If the stored hash doesn't start with "pbkdf2:" it is still old format.
+    // Re-hash with PBKDF2 now and persist — fully transparent to the user.
+    if (account.password && !account.password.startsWith("pbkdf2:")) {
+      try {
+        const upgraded = await hashPassword(password);
+        if (window.api && window.api.updateUserPassword) {
+          await window.api.updateUserPassword(account.id, upgraded);
+        } else {
+          const allU = load(STORAGE_KEYS.USERS, []);
+          const target = allU.find(x => x.id === account.id);
+          if (target) { target.password = upgraded; save(STORAGE_KEYS.USERS, allU); }
+        }
+        account.password = upgraded;
+      } catch (_) { /* non-fatal — will retry next login */ }
+    }
+
     // Fix 14: Check mustChangePassword flag — force password change before proceeding
     if (account.mustChangePassword) {
       if (loginBtn) { loginBtn.classList.remove("loading"); loginBtn.disabled = false; }
@@ -996,6 +1201,17 @@ function renderUsersTable() {
 
   // Render regular users with pagination
   if (!tbody) return;
+
+  // Update the user count badge so admin can see slots used vs cap
+  const regularRoles = [ROLES.COUNCILOR, ROLES.RESEARCHER];
+  const totalRegular = users.filter(u => regularRoles.includes(u.role)).length;
+  const userCountEl = document.getElementById("user-count-badge");
+  if (userCountEl) {
+    userCountEl.textContent = `${totalRegular} / ${MAX_REGULAR_USERS} users`;
+    userCountEl.style.color = totalRegular >= MAX_REGULAR_USERS ? "var(--color-danger)" : "var(--color-text-muted)";
+    userCountEl.style.fontWeight = totalRegular >= MAX_REGULAR_USERS ? "700" : "500";
+  }
+
   const totalPages = Math.max(1, Math.ceil(regularList.length / MEETINGS_PAGE_SIZE));
   if (usersPage > totalPages) usersPage = totalPages;
   const paginated = regularList.slice((usersPage - 1) * MEETINGS_PAGE_SIZE, usersPage * MEETINGS_PAGE_SIZE);
@@ -1209,6 +1425,17 @@ async function handleUserFormSubmit(e) {
   if (password !== confirm)  { msg.textContent = "Passwords do not match."; showToast("Passwords do not match.", "error"); return; }
   if (users.some(u => u.username === username)) { msg.textContent = `Username "${username}" already exists.`; showToast("Username already exists.", "error"); return; }
 
+  // Check total regular-user cap (20 max — Councilors + Researchers combined)
+  const regularRoles = [ROLES.COUNCILOR, ROLES.RESEARCHER];
+  if (regularRoles.includes(role)) {
+    const regularCount = users.filter(u => regularRoles.includes(u.role)).length;
+    if (regularCount >= MAX_REGULAR_USERS) {
+      msg.textContent = `User limit reached. A maximum of ${MAX_REGULAR_USERS} regular accounts (Councilors + Researchers) are allowed.`;
+      showToast(`User limit reached (max ${MAX_REGULAR_USERS}).`, "error");
+      return;
+    }
+  }
+
   const limit = ROLE_LIMITS[role];
   if (limit != null && countUsersByRole(role) >= limit) {
     msg.textContent = `Role limit reached for ${role}.`;
@@ -1225,6 +1452,8 @@ async function handleUserFormSubmit(e) {
   const onDone = () => {
     $("#user-form").reset();
     msg.textContent = "";
+    const prevU = document.getElementById("user-username-preview");
+    if (prevU) prevU.innerHTML = "";
     renderUsersTable();
     updateStatistics();
     showUsernameCreatedPopup(username, role, name);
@@ -1275,6 +1504,8 @@ async function handleSpecialAccountFormSubmit(e) {
   const onDone = async () => {
     $("#special-account-form").reset();
     msg.textContent = "";
+    const prevS = document.getElementById("special-username-preview");
+    if (prevS) prevS.innerHTML = "";
     renderUsersTable();
     updateStatistics();
     showUsernameCreatedPopup(username, role, name);
@@ -1306,34 +1537,115 @@ function handleUserTableClick(e) {
   }
 
   if (action === "remove-user") {
+    const allUserMeetings = meetings.filter(m =>
+      m.createdBy === user.id || m.createdBy === user.username ||
+      m.councilor === user.name || m.researcher === user.name
+    );
+    // Approved & Done meetings are KEPT — only their name references get scrubbed
+    const approvedMeetings    = allUserMeetings.filter(m => m.status === "Approved" || m.status === "Done");
+    // Pending / Cancellation Requested meetings get cancelled
+    const cancellableMeetings = allUserMeetings.filter(m =>
+      ["Pending", "Cancellation Requested"].includes(m.status)
+    );
+
+    const warnIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-right:6px;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    const infoIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0;margin-right:6px;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
+    let confirmMsg = `Are you sure you want to permanently remove <strong>${h(user.name)}</strong>? This action cannot be undone.`;
+    if (cancellableMeetings.length) {
+      confirmMsg += `<div style="display:flex;align-items:flex-start;margin-top:10px;padding:9px 12px;background:var(--color-danger-soft);border-radius:8px;font-size:0.84rem;color:var(--color-danger)">${warnIcon}${cancellableMeetings.length} pending meeting(s) will be <strong style="margin-left:4px">cancelled</strong>.</div>`;
+    }
+    if (approvedMeetings.length) {
+      confirmMsg += `<div style="display:flex;align-items:flex-start;margin-top:8px;padding:9px 12px;background:var(--color-surface-2);border:1px solid var(--color-border-soft);border-radius:8px;font-size:0.84rem;color:var(--color-text-muted)">${infoIcon}${approvedMeetings.length} approved/done meeting(s) will be <strong style="margin:0 4px">kept</strong> — scheduler name shown as <em>"Deleted User"</em>.</div>`;
+    }
+
     openConfirmModal(
       "Remove User Account",
-      `Are you sure you want to remove <strong>${h(user.name)}</strong>? This cannot be undone. Their pending/approved meetings will be cancelled.`,
-      () => {
-        // Cancel all active meetings belonging to this user before deleting
-        const userMeetings = meetings.filter(m =>
-          (m.createdBy === user.id || m.createdBy === user.username) &&
-          ["Pending", "Approved", "Cancellation Requested"].includes(m.status)
-        );
-        userMeetings.forEach(m => {
-          m.status = "Cancelled";
+      confirmMsg,
+      async () => {
+        const deleteId = user.id || userId;
+
+        // ── Step 1: Cancel all pending/cancellation-requested meetings ────────
+        const meetingUpdates = [];
+        cancellableMeetings.forEach(m => {
+          m.status    = "Cancelled";
           m.adminNote = `Account removed — ${user.name}`;
           if (window.api && window.api.updateMeetingStatus) {
-            window.api.updateMeetingStatus(m.id, "Cancelled", m.adminNote).then(() => {});
+            meetingUpdates.push(
+              window.api.updateMeetingStatus(m.id, "Cancelled", m.adminNote)
+            );
           }
         });
-        if (userMeetings.length) persistMeetings();
 
+        // ── Step 2: Scrub name refs in approved/done meetings (keep the records) ──
+        approvedMeetings.forEach(m => {
+          const SCRUBBED = "Deleted User";
+          const extraFields = {};
+          if (m.councilor  === user.name) { m.councilor  = SCRUBBED; extraFields.councilor  = SCRUBBED; }
+          if (m.researcher === user.name) { m.researcher = SCRUBBED; extraFields.researcher = SCRUBBED; }
+          if (m.createdBy === user.id || m.createdBy === user.username) {
+            m.createdByName = SCRUBBED;
+            extraFields.createdByName = SCRUBBED;
+          }
+          if (!m.adminNote) {
+            m.adminNote = `Original scheduler (${user.name}) account removed.`;
+            extraFields.adminNote = m.adminNote;
+          }
+          if (window.api && window.api.updateMeetingStatus && Object.keys(extraFields).length) {
+            meetingUpdates.push(
+              window.api.updateMeetingStatus(m.id, m.status, m.adminNote, extraFields)
+            );
+          }
+        });
+
+        // Wait for all meeting updates to complete before touching the user record
+        if (meetingUpdates.length) await Promise.all(meetingUpdates).catch(() => {});
+        if (allUserMeetings.length) persistMeetings();
+
+        // ── Step 3: Remove user from memory + localStorage immediately ────────
+        // Optimistically remove from in-memory array so the UI updates instantly.
+        // The subscribeUsers() listener in initDataLayer will receive the Firestore
+        // delete confirmation and re-sync users + localStorage automatically —
+        // so we do NOT manually re-fetch here (that was the source of the reappear bug).
+        const toastMsg = [
+          `User "${user.name}" removed.`,
+          cancellableMeetings.length ? `${cancellableMeetings.length} pending meeting(s) cancelled.` : "",
+          approvedMeetings.length    ? `${approvedMeetings.length} approved meeting(s) preserved as "Deleted User".` : "",
+        ].filter(Boolean).join(" ");
+
+        users = users.filter(u => u.id !== deleteId && u.username !== user.username);
+        persistUsers();
+        renderUsersTable();
+        renderAdminMeetingsTable();
+        renderCalendar();
+        updateStatistics();
+        showToast(toastMsg, "success");
+
+        // ── Step 4: Delete from Firestore ────────────────────────────────────
+        // firebase.js deleteUser handles BOTH new-style (doc.id === user.id) and
+        // old-style (Firestore auto-generated doc.id) users via a batch that does:
+        //   - Direct delete by doc ID
+        //   - Query-based delete by the "id" field
+        // IMPORTANT: firestore.rules must have "allow delete: if true" on /users.
+        // The rule was previously "allow delete: if false" which caused the silent
+        // failure + 400/404 WebChannel errors you saw in the console.
         if (window.api && window.api.deleteUser) {
-          window.api.deleteUser(user.id || userId).then(async () => {
-            users = await window.api.getUsers();
-            renderUsersTable(); renderAdminMeetingsTable(); renderCalendar(); updateStatistics();
-            showToast(`User removed. ${userMeetings.length ? userMeetings.length + " meeting(s) cancelled." : ""}`, "success");
+          window.api.deleteUser(deleteId).catch(err => {
+            console.error("Firestore deleteUser failed:", err);
+            // The user is gone from the UI but NOT from Firestore.
+            // The subscribeUsers listener will re-deliver them on next snapshot.
+            showToast(
+              "Could not delete account from the database. Check Firestore rules (allow delete: if true on /users) and try again.",
+              "error"
+            );
+            // Restore the user in memory so the UI matches Firestore reality
+            window.api.getUsers && window.api.getUsers().then(fresh => {
+              users = fresh;
+              persistUsers();
+              renderUsersTable();
+              updateStatistics();
+            }).catch(() => {});
           });
-        } else {
-          users = users.filter(u => u.id !== userId);
-          persistUsers(); renderUsersTable(); renderAdminMeetingsTable(); renderCalendar(); updateStatistics();
-          showToast(`User removed. ${userMeetings.length ? userMeetings.length + " meeting(s) cancelled." : ""}`, "success");
         }
       }
     );
@@ -1360,40 +1672,37 @@ function openConfirmModal(title, bodyHtml, onConfirm, onCancel) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div class="modal-body" id="confirm-modal-body-wrap"><div id="confirm-modal-body" class="confirm-modal-body-inner"></div></div>
+        <div class="modal-body" id="confirm-modal-body-wrap">
+          <div id="confirm-modal-body" class="confirm-modal-body-inner"></div>
+        </div>
         <div class="modal-footer">
           <button id="confirm-modal-cancel" class="btn btn-ghost btn-sm">Cancel</button>
-          <button id="confirm-modal-ok" class="btn btn-primary btn-sm">Confirm</button>
+          <button id="confirm-modal-ok" class="btn btn-danger btn-sm">Confirm</button>
         </div>
       </div>`;
-    // Force it to always sit on top of everything and truly center in the viewport
-    modal.style.cssText = "display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;padding:20px;background:rgba(7,15,34,0.7);backdrop-filter:blur(5px);";
     document.body.appendChild(modal);
   }
 
   document.getElementById("confirm-modal-title").textContent = title;
   document.getElementById("confirm-modal-body").innerHTML = bodyHtml;
 
-  // Reset scroll to top every time modal opens
   const bodyWrap = document.getElementById("confirm-modal-body-wrap");
   if (bodyWrap) bodyWrap.scrollTop = 0;
 
-  // Re-trigger animation by removing and re-adding the class
   const modalInner = modal.querySelector(".modal");
   if (modalInner) { modalInner.style.animation = "none"; requestAnimationFrame(() => { modalInner.style.animation = ""; }); }
 
-  modal.style.display = "flex";
+  modal.classList.add("modal-open");
 
   const close = (cancelled) => {
-    modal.style.display = "none";
+    modal.classList.remove("modal-open");
     if (cancelled && typeof onCancel === "function") onCancel();
   };
 
-  // Backdrop click — defined after close so no ReferenceError
   modal.onclick = (e) => { if (e.target === modal) close(true); };
-  document.getElementById("confirm-modal-close").onclick = () => close(true);
+  document.getElementById("confirm-modal-close").onclick  = () => close(true);
   document.getElementById("confirm-modal-cancel").onclick = () => close(true);
-  document.getElementById("confirm-modal-ok").onclick = () => { close(false); onConfirm(); };
+  document.getElementById("confirm-modal-ok").onclick     = () => { close(false); onConfirm(); };
 }
 
 // ---------------------------------------------------------------------------
@@ -1480,7 +1789,10 @@ function renderMyMeetingsTable(currentUser) {
   const paginated = mine.slice((myMeetingsPage - 1) * MEETINGS_PAGE_SIZE, myMeetingsPage * MEETINGS_PAGE_SIZE);
 
   if (!paginated.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-muted">No meetings found.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:0;border:none"><div class="empty-state" style="padding:48px 20px;text-align:center">
+      <svg class="empty-state-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 10px;display:block;opacity:0.35"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <p style="margin:0;font-size:0.85rem;color:var(--color-text-muted)">No meetings found.</p>
+    </div></td></tr>`;
     renderPagination("my-meetings-pagination", totalPages, myMeetingsPage, (p) => { myMeetingsPage = p; renderMyMeetingsTable(currentUser); });
     return;
   }
@@ -1490,7 +1802,8 @@ function renderMyMeetingsTable(currentUser) {
     const noteTitle = m.adminNote ? ` title="${h(m.adminNote)}"` : "";
     const noteHint = m.adminNote ? `<div style="font-size:0.72rem;color:#6b7280;margin-top:3px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(m.adminNote)}">Note: ${h(m.adminNote)}</div>` : "";
     const createdAt = m.createdAt ? new Date(m.createdAt) : null;
-    const msElapsed = createdAt ? (new Date() - createdAt) : Infinity;
+    const nowManila = getManilaNow();
+    const msElapsed = createdAt ? Math.max(0, nowManila - createdAt) : Infinity;
     const within24h = msElapsed < 24 * 60 * 60 * 1000;
     const msLeft = within24h ? (24 * 60 * 60 * 1000 - msElapsed) : 0;
     const hoursLeft = Math.floor(msLeft / (60 * 60 * 1000));
@@ -1560,7 +1873,8 @@ function _startCancelCountdownTick(currentUser) {
     let anyLeft = false;
     spans.forEach(span => {
       const created = new Date(span.dataset.created);
-      const msLeft = 24 * 60 * 60 * 1000 - (new Date() - created);
+      const nowManila = getManilaNow();
+      const msLeft = Math.max(0, 24 * 60 * 60 * 1000 - (nowManila - created));
       if (msLeft <= 0) {
         // Window expired — re-render to switch button to "Request Cancel"
         clearInterval(_cancelCountdownInterval);
@@ -1601,7 +1915,7 @@ function renderAdminMeetingsTable() {
   const paginated = list.slice((adminMeetingsPage - 1) * MEETINGS_PAGE_SIZE, adminMeetingsPage * MEETINGS_PAGE_SIZE);
 
   if (!paginated.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-muted">No meetings found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-muted">No meetings found.</td></tr>';
     renderPagination("admin-meetings-pagination", totalPages, adminMeetingsPage, (p) => { adminMeetingsPage = p; renderAdminMeetingsTable(); });
     return;
   }
@@ -1609,10 +1923,9 @@ function renderAdminMeetingsTable() {
   tbody.innerHTML = paginated.map(m => {
     const isCancelRequest = m.status === "Cancellation Requested";
     const isAdminCreated = m.createdByRole === ROLES.ADMIN;
-    const printBtn = m.status === "Approved"
-      ? `<button class="btn btn-sm btn-ghost" data-action="print" data-meeting-id="${m.id}">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          PDF</button>` : "";
+  const printBtns = `<button class="btn btn-sm btn-ghost" data-action="print" data-meeting-id="${m.id}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2 2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          PDF</button>`;
 
     // Admin-created meetings: show "Referred" badge instead of Approve button
     const referredBadge = `<span style="font-size:0.72rem;color:#1e40af;font-weight:600;display:inline-flex;align-items:center;gap:4px;background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:3px 8px;">
@@ -1621,6 +1934,13 @@ function renderAdminMeetingsTable() {
     </span>`;
 
     // Fix 15: When cancellation is requested, show a clear prominent action instead of generic buttons
+    const canMarkDone = m.status === "Approved" && hasMeetingEnded(m);
+    const doneBtn = `<button class="action-btn action-btn-done" data-action="status" data-status="Done" data-meeting-id="${m.id}" ${canMarkDone ? "" : "disabled title=\"Available after meeting end\""}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Done
+          </button>`;
+    const delBtn = `<button class="action-btn action-btn-cancel" data-action="delete" data-meeting-id="${m.id}">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>Delete
+          </button>`;
     const actionButtons = isCancelRequest
       ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
           <span style="font-size:0.72rem;color:#c2410c;font-weight:600;display:inline-flex;align-items:center;gap:4px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;">
@@ -1633,6 +1953,8 @@ function renderAdminMeetingsTable() {
           <button class="action-btn action-btn-approve" data-action="status" data-status="Approved" data-meeting-id="${m.id}">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Deny Request
           </button>
+          ${delBtn}
+          ${printBtns}
         </div>`
       : `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
           ${isAdminCreated && m.status === "Pending" ? referredBadge : !isAdminCreated ? `<button class="action-btn action-btn-approve" data-action="status" data-status="Approved" data-meeting-id="${m.id}">
@@ -1644,14 +1966,19 @@ function renderAdminMeetingsTable() {
           <button class="action-btn action-btn-cancel" data-action="status" data-status="Cancelled" data-meeting-id="${m.id}">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Cancel
           </button>
-          <button class="action-btn action-btn-done" data-action="status" data-status="Done" data-meeting-id="${m.id}">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Done
-          </button>
-          ${printBtn}
+          ${doneBtn}
+          ${delBtn}
+          ${printBtns}
         </div>`;
     const cancelReasonCell = m.cancelReason ? `<div style="font-size:0.7rem;color:#9ca3af;margin-top:2px;font-style:italic" title="${h(m.cancelReason)}">Reason: ${h(m.cancelReason)}</div>` : "";
+    const submittedAt = m.createdAt ? new Date(m.createdAt) : null;
+    const submittedTag = submittedAt
+      ? `<div style="font-size:0.68rem;color:var(--color-text-muted);margin-top:2px">
+           Submitted ${_annTimeAgo(m.createdAt)} · ${submittedAt.toLocaleString('en-PH',{ hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'Asia/Manila' })}
+         </div>` : "";
     const createdAt = m.createdAt ? new Date(m.createdAt) : null;
-    const msElapsedAdmin = createdAt ? (new Date() - createdAt) : Infinity;
+    const nowManila2 = getManilaNow();
+    const msElapsedAdmin = createdAt ? Math.max(0, nowManila2 - createdAt) : Infinity;
     const within24hAdmin = msElapsedAdmin < 24 * 60 * 60 * 1000;
     const msLeftAdmin = within24hAdmin ? (24 * 60 * 60 * 1000 - msElapsedAdmin) : 0;
     const hoursLeftAdmin = Math.floor(msLeftAdmin / (60 * 60 * 1000));
@@ -1661,13 +1988,36 @@ function renderAdminMeetingsTable() {
            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
            Free cancel: ${hoursLeftAdmin > 0 ? hoursLeftAdmin + "h " : ""}${minsLeftAdmin}m left
          </div>` : "";
+    const notesCell = m.adminNote
+      ? `<button class="admin-note-tap" data-note="${h(m.adminNote)}" title="${h(m.adminNote)}"
+           style="font-size:0.71rem;color:var(--color-text-muted);background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;padding:3px 8px;cursor:pointer;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;text-align:left"
+           onclick="(function(btn){var p=document.getElementById('admin-note-popover');if(!p){p=document.createElement('div');p.id='admin-note-popover';p.style.cssText='position:fixed;z-index:9999;max-width:300px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-size:0.82rem;color:var(--color-text);line-height:1.5;white-space:pre-wrap;word-break:break-word';var close=document.createElement('button');close.textContent='✕';close.style.cssText='float:right;background:none;border:none;cursor:pointer;font-size:0.9rem;color:var(--color-text-muted);margin:-4px -4px 6px 8px';close.onclick=function(){p.remove()};p.appendChild(close);document.body.appendChild(p);document.addEventListener('click',function h(e){if(!p.contains(e.target)&&e.target!==btn){p.remove();document.removeEventListener('click',h)}},{once:true})}var r=btn.getBoundingClientRect();p.querySelector('button').nextSibling?p.childNodes[1].textContent=btn.dataset.note:p.appendChild(document.createTextNode(btn.dataset.note));p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-316)+'px';p.style.display='block'})(this)"
+         >${h(m.adminNote)}</button>`
+      : `<span style="color:var(--color-text-faint);font-size:0.78rem">—</span>`;
     return `<tr${isCancelRequest ? ' style="background:rgba(249,115,22,0.04)"' : ''}>
       <td>${h(m.eventName)}</td>
       <td>${formatDateDisplay(m.date)}</td>
       <td>${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)}</td>
       <td>${h(m.type || m.meetingType || "—")}</td>
-      <td>${meetingStatusBadge(m.status)}${cancelReasonCell}${adminWindowTag}</td>
+      <td>${(() => {
+            const parts = [meetingStatusBadge(m.status)];
+            if (cancelReasonCell) parts.push(cancelReasonCell);
+            if (adminWindowTag) parts.push(adminWindowTag);
+            if (submittedTag) parts.push(submittedTag);
+            if (isAdminCreated) {
+              const refRaw = (m.councilor && m.councilor !== "N/A") ? m.councilor
+                           : (m.researcher && m.researcher !== "N/A") ? m.researcher
+                           : null;
+              if (refRaw) {
+                const refUser = Array.isArray(users) ? users.find(u => u.name === refRaw || u.username === refRaw) : null;
+                const refName = refUser ? (refUser.name || refUser.username || refRaw) : refRaw;
+                parts.push(`<div style="margin-top:3px;display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;color:#1e40af;background:#eef2ff;border:1px solid #c7d2fe;border-radius:999px;padding:1px 7px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/></svg>Referred to: ${h(refName)}</div>`);
+              }
+            }
+            return parts.join("");
+          })()}</td>
       <td>${h(m.createdBy)}</td>
+      <td>${notesCell}</td>
       <td>${actionButtons}</td>
     </tr>`;
   }).join("");
@@ -1713,7 +2063,38 @@ function handleAdminMeetingsClick(e) {
   const mtg = meetings.find(m => m.id === id);
   if (!mtg) return;
 
-  if (action === "print") { generateMeetingPdf(mtg); return; }
+  if (action === "print") {
+    const _dt = mtg.status === "Cancelled"            ? "cancellation"
+              : mtg.status === "Rejected"             ? "rejection"
+              : mtg.status === "Pending"              ? "request"
+              : mtg.status === "Cancellation Requested" ? "cancellation"
+              : "approval";
+    generateMeetingPdf(mtg, _dt);
+    return;
+  }
+  if (action === "delete") {
+    openConfirmModal(
+      "Delete Meeting",
+      "Delete this meeting permanently? This cannot be undone.",
+      async () => {
+        try {
+          if (window.api && window.api.deleteMeeting) {
+            await window.api.deleteMeeting(mtg.id);
+          } else {
+            const idx = meetings.findIndex(x => x.id === mtg.id);
+            if (idx > -1) meetings.splice(idx, 1);
+          }
+          renderAdminMeetingsTable();
+          renderCalendar();
+          updateStatistics();
+          showToast("Meeting deleted.", "success");
+        } catch (err) {
+          showToast("Failed to delete meeting.", "error");
+        }
+      }
+    );
+    return;
+  }
 
   // Disable button row immediately to prevent double-click
   const row = btn.closest("tr");
@@ -1733,6 +2114,12 @@ function handleAdminMeetingsClick(e) {
 
   const adminUser = getCurrentUser();
   const adminId = adminUser ? (adminUser.id || adminUser.username) : null;
+
+  if (status === "Done" && !hasMeetingEnded(mtg)) {
+    showToast("You can only mark as Done after the meeting end time.", "warning");
+    reenable();
+    return;
+  }
 
   if (status === "Rejected" || status === "Cancelled") {
     openNoteModal(
@@ -1862,7 +2249,17 @@ function applyMeetingStatus(mtg, status, note, adminId) {
       notifType = "error";
     }
 
-    if (message) addNotification(ownerId, message, notifType, targetSection);
+    if (message) {
+      addNotification(ownerId, message, notifType, targetSection);
+      // Refresh the user's bell badge right away so they see it immediately
+      updateNotificationBadge(ownerId);
+    }
+  }
+
+  // --- Also notify admins when a cancellation request is approved/actioned ---
+  // (admin cancelling a meeting on behalf — make sure pending badge re-counts)
+  if (status === "Cancelled" || status === "Approved" || status === "Rejected") {
+    updateStatistics(); // refreshes the meeting-logs pending badge for admin
   }
 
   // --- Auto-cancel conflicting pending meetings when one is approved ---
@@ -1893,35 +2290,216 @@ function applyMeetingStatus(mtg, status, note, adminId) {
       }
     });
     if (!window.api || !window.api.updateMeetingStatus) persistMeetings();
-    generateMeetingPdf(mtg);
+    generateMeetingPdf(mtg, "approval");
   }
 
   renderAdminMeetingsTable();
-  updateStatistics();
   renderCalendar();
+  updateStatistics();
+  // Refresh the admin's own badge after any status change
+  const currentAdmin = getCurrentUser();
+  if (currentAdmin) updateNotificationBadge(currentAdmin.id || currentAdmin.username);
   showToast(`Meeting marked as ${status}.`, "success");
 }
-function generateMeetingPdf(mtg) {
+function generateMeetingPdf(mtg, docType, autoPrint) {
+  // docType controls the document title and filename:
+  //   'approval'      → Meeting Approval Slip  (default)
+  //   'cancellation'  → Cancellation Letter
+  //   'rejection'     → Rejection Notice
+  //   'request'       → Meeting Request Form
   try {
     const { jsPDF } = window.jspdf || {};
-    if (!jsPDF) return;
-    const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text("Meeting Approval — SB Polangui", 10, 10);
-    doc.setFontSize(10);
-    const lines = [
-      `Event: ${mtg.eventName}`, `Committee: ${mtg.committee || ""}`,
-      `Councilor: ${mtg.councilor || ""}`, `Researcher: ${mtg.researcher || ""}`,
-      `Date: ${formatDateDisplay(mtg.date)}`,
-      `Time: ${formatTimeRange(mtg.timeStart, mtg.durationHours || SLOT_DURATION_HOURS)}`,
-      `Type: ${mtg.type || mtg.meetingType || "—"}`, `Venue: ${mtg.venue || ""}`,
-      `Requested By: ${mtg.createdBy}`, `Status: ${mtg.status}`,
-      mtg.adminNote ? `Admin Note: ${mtg.adminNote}` : "",
-    ].filter(Boolean);
-    let y = 22;
-    lines.forEach(t => { doc.text(t, 10, y); y += 8; });
-    doc.save(`meeting-${mtg.id}.pdf`);
-  } catch {}
+    if (!jsPDF) { showToast("PDF library not loaded.", "error"); return; }
+
+    // ── Letterhead images (base64 JPEG extracted from official SBP letterhead) ──
+    const HEADER_B64 = "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";
+    const FOOTER_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABGA4QDASIAAhEBAxEB/8QAHAAAAgIDAQEAAAAAAAAAAAAAAAIBAwUGBwQI/8QAShAAAQMCAwQDDQYEBAMJAAAAAQACAwQFBhExBxIhQRNR0QgUFyIyUlVhcYGTobEVI0KRwdIzNHJzFmKi4SRFhBglRFSDkrLC8f/EABoBAQEBAQEBAQAAAAAAAAAAAAABAgMEBQb/xAAtEQEAAgAFBAADCAMAAAAAAAAAAQIDBBETURIhMUEFBmEUcYGhsdHh8CJCwf/aAAwDAQACEQMRAD8A+yhqpSxneaHdYzTIBYvEVkpL3R971Ld1zeMcrQN5h9Xq9SyiETTVxS+Wats1UIKuMZHiyRvFrx6j+i8LdV3C5UNLcKR9LVwtlifqD9R1Fc0xPhOrtLn1FNvVNGOJdl40ftHV612rfXs42pp3hrzdVa1VN1VreS0ysboParGqtugVgUmGljdFYzkq26KxmqzLS5nJWjXgqmclczVFhYFa3UKtuqduqxLULEwSpggdqYapW6p26oGaNE7RqkbyTt5oGKYBKdUwQMOSZQOSkoGCYJQmCBwnakCdqkiUw1Sph5XuUWDBO1IE7VpDDQpglGhTBSQ4TN0ShMPJUVI1UjVQNUzeaKkJhotHxztOw1g290tpu4rTNPGJS6GHebE0kgE8eOh4BbXYrtbr5aoLnaquOqpJm7zJGcM/aDxB9RWIxK2npie70YmUx8PCri3pMVt4n1L38k3NUzzRU8D5qiVkUTBvOe92TWj1krEUmKbZU18VLD0z+lcGsk3PFJOnryXDMZ3L5aa1xbxWbeNfbnh4OJiRNqxrEM9zTBQ3VMNV6nJPNSoGuhHtUoBMlTIqRopGqgKQglSoUoJRkoBGeSZBGSFOaEEKCpUEgAklBChY+zXyy3oTmz3eguIp39HN3rUNl6N3U7dJyPtXvJHWkxp2kBSnRMUpQQhCESUJSmK8F6u9qslE6vvNyo7dSNcGunqpmxRgnQbziBmVdNUetRyKiKSOaFs0LhJE9ocx7Dm1wPEEEcCFPIqNFKV3JMUruSBSl5lMdUp1QKoOoUodyRJIUpTOSu0SEKdUhTu1SFaClI7ROdUp5qSsFSlMlKQhSkKcpCqEKjkpOijkgQ8kjhqrMuASO5oFOiUjRPyKU8kFR5JRzTnQJEClI5O7VKUClVu5qzkq3aH2oKn6Ko81adFWearMqXKl6ucqXrSK3Ksqx3JVu0Wo8JKt2gVbtCrHaBVnRVmVT9VWVfHG+WRscbHPe45Na0Zkn2LecLYKEbmVl4YHvHFtPq0f1dfsUm0QkVmWFwhhKe6uZV1rXw0Q4jk6X1DqHrXT6WnhpadkEETIomDJrGjIAKxoDWgAAADIAclK5WtMu9axUIQhZaGaEpzz0Qroz1Qro3sfSxOY5rmlgyIOYPBXLh+DsaVWHa6WlqGuqLc6VxdGPLjOerM/oux2e6UN2o21VBUxzxEDMtPFp6iOR9S1ek1Zw8SLx2e1CELDoFDgCMipQg1PEWDaWtc6ot5FLUE5luX3bvdy9y0SvoKy3VHQVlO+F+WYz0I6wea7OqK2jpq2AwVULJYyOIcFqL6MTXhxoclYFt95wU5pMtqlzaBn0Mp459Qd2rVqmlqKSYxVMMkLxye3L/8AV0i2rExMFborGKtuisZyUVczkrma+9Us5K0cDmiwtGqtbqFU3irG6rEtQsTBKmCB26pm6pWph5SB28k7earadFYDwQMdUwSlSCgsbyUlI3knQMEwShMEDhO1IE7VJEph5XuSpueaiwYJ2pAnatIYaFMEo0TBSQ4TDyUoTN0UVI1TN1SjVSNUV84903bBWY3p5Y3bkraBgyOjvGd+S1vB18xBg2anmoZH00j4WGSGRubJWHiMweBB6wt27oUhuNqcuIGdCzLM5Z+M5dEw5hmzYn2XWOkutMJMqRpjlYd2SM8eLXfpoVr4p8LpbAw8fBnpvP5vufAvme+DN8nnK9eDxPmP3/vdxvGmNb/jWsZTPDmUrpB0FDTguBd6+bj7dFtOHMTiXGVjtlHH4prIo5pHjiciAQB7RqunYIwLZMJ07nUjDUVrgQ+rmAMmXU3k0eoLhWAyHbSLQGuDj9pN4A5/jK/K5n4TXGxsLGzP+Vontx6eP5s+ZorGDlPhtejD10mfc+P1/GZ9y7xtZxg7AeAbjihlukuL6UMa2Bp3QXOcGhzjyaM8yVxzBu2m/wCObferZcW4VhhnsNbUMFBVSiqheyIkMc1+ruOZLc8stV3PHOHzijC1bYhdK2199sDTVUm70jMiD+IaHLiOrmuZ4a7n61W68Vl7umKLld7nNRzUkMz6aKFkIkjdGXljAA5wDjlnl681+ywbYMUnr8vnS4zsd2oY+wJsxku8GGYrzhqK5FtVXVVY/pekc1o6NvjEgacd0jMro20Dui6+33+2WvD9qtFLDWW6Cu79vc0rYj0sYeGN6MZ8PJz6wdMs09B3LdthoorZU49xDLazL0tRRxxsjjlcOAdlmQHAfiyJW1452IRYgqKcW/GN1tFvht8VvFCKaGoiETG7oDd8ZtJGeZHEnjmvTiYmVtfqn6jWMVd0RU2bBuGqiO2Waqv16ifJJ0da51FStbIYw5zxmXZkHMZjLI8V58N905ALZe24ls1LJX22MPgktNSX01aXPDWtYXjebrnvHMZA8+C2i7dzrgurwfabFS1t0oqq0ukfTXKN7TMXPcHOLxkARvAEAZZZa6rJYc2LWqkwfd8N4kxDe8TwXVzXzPrZADE5vkvjPEtcMhx3iDkOC4zbLRXtB3YHZxtS2r4jutprKzZlEcM3Y70NZST+PDFnl0jy52Ry1yIaSNFptu7oTalcbbe7tbsE2Ostljl/4+oZJI0RR7xA4OfmScs8wDl1LecF9z7b8OYmoLo/GuJa2ktkhfQ0LpujjizOe6S08W9YAaDzXKNkew2/4mOI4sQ1mJcKU7qxucLIi2OvjLnOObSQDkQMuBAz0XWv2adZmI0jTnn7zu3y890pJUWHDkeFcLisxJfCWiinnzjgcJDG1u8Mi8uIzGmQ1Ws7Qdst+v2AsZ4GxXYfsDE1BAyQvo6h24d2aIlvAktO68HMOIIXTMRdzxgu5YXs9nt9RcbVVWZrxR3GKQOnO8/fPSZgb3jcRlllyyXgou5vw/Fh290tRiG6117vEQinu1SA97G9I153WE5ZndAJJJWa3ytZiYj3+Pn9NDu0jDO1S9bPu57wXPb6a2XGtuMta0vudeWFgZO7jkSC8ccs97hkOtZawd0jebps4xRdjh+2xXuwx08oAle+mnbJMIyQM94ZZ+cQc881slX3PdBJhnC1vpsV3SjuOGXTOpLhFTx7zukmMvGM5jMOPA5+0Kqm7nO3wUGLKMYvukwxEyJsk09Ox8kZZMJS7ezG+SRkeA1Um2WmJmY76/8Af2O7UYO6Qx3bafD98xLgi2sw/eN5sM1NO4STbjt17mZuO6AcvFcOPWs7dtvWLrnj67WHAGC6W80dkErq589QWSPZG7de9vEBoz4AHeJ6llsTdz3Q3vAOFcJvxPXQMw8JgyobSMLp+kdvcW55Ny9S5vtqwPI7aHfau07LMYSunjAhrLVWiOmq5C3x3vYGuIaTlmGuaTkcwM1qkZbEtpEc/d5+s8Hd74O6VxhJszq8UGx2DvmG7xULYwJujLHQukLj4+eebQOrIrbMX7ZsQUGMsD4bFotMtJie1UdVWOeJN6MzlzXtZk7QAcM8zxWJ2R7ApKvY5X2HHTZqGqutbHXwMgcOloiyPdYXci45uzb1EDVZKzdzRR23EVkvcmOLzWzWuSNwbUQNeHNjPisbm7NjQOGQzS32WLT9Nf4O7m2w/HdvwZs3x9imz4WoqOuhlpKanYypmlE0kjnhgO+45NaSTkMs+tY+5Y7xlNWXequeKtoNbPaGt79qLIYqWhoZCctx7CPGaHeLmSM906jiut0/c5w2zZvijC9uxLLU1V4kp6innqaYRtglgcXNz3SSQcyD1LlVVgC+sulxbfsFbRWT1u82409jmidRXCUZ7srXu0aXZO3HBwzJ00XamJg3tNv76/k7t92dbbr7ZML3p+Ot67SUdpgu9rqGsbHLVwTPEbWSbvih2+W5u5cdcgsXcu6H2nUWDaPFM+BbJDa7lUmOhq3TSOY/d3g5paH72ebTk7gPFPA6jdsHbJLfY9ml1rLnQ3rElzuNibSi21/Rslhia0vZSs3Dk1zXnyg7UAjRcGm2VYqxBNbLJYtn+LLO/ps6me81wkpYAddzJjQ0akk5uPALGHXLXtMzHv8Avs7uuYn25bQINpV1whhvCtluj6SmE8Ye+Rkm6IGSvc7N4BADjwGRPBYNndNY2mwzDiGmwNbHW2lqGU1yqDUv3XyvBc1sYzBZm0Hid8Z5e/qVDsXo6bajX46/xBUulrKJ9IaXvZu4wOgbDvB2eZyDc9Oa16i7nG30uziuwYMV17oqu4w1xqTRMDmmJhZuBu9kQc881yi+V7axxz+J3Y/ah3QV1scdknw3arBNDcrZFcXCvr/vow8fwzG0tyPDgczvDkFrO1DaZQ7Ru54diG54WhNRQ32KlfTmrkawPMZd0jHMLXcQcsj/ALrepe50tkdfbbhbcX3m21lPb20FVNBFGe+YxH0RIBz6MuZwOWfqyUU3c726HZfWYF/xXWmGqusdxNV3mwOaWR7m4G72WR1zWqXy1emY8xMfyOe4OqpP+1RhOnp3zU9H9iUW5SMneYo2/Z2YaATxA6zxXa9u+007NbLbpae0G53G6Tup6SF0nRsDgAS5xyzIzc0ZDLPPULCP2EW+TG9LiZ+J7mx0NrZbehhhbG4tbTd774kBza4jxtOB4Ly0vc6YYGCJMN3C/wB7rnisNbT1jpA19PIWbmTW8RkQAXdZAOYyWL3wL2rNp8Rwd0Um1bH2HrRd7jtM2dG00tDTiSKpo5wY5pXEBkIBc7MuJ8oEgZHMLUoe6Hxpb6a1YkxJgOkpsK3WV7KWop6hxmIaTvEEnI5ZHgWtzy4FbzhjYPZKCC6sxFiW/wCKH3KlNLN35UFrAzMFrg3M5vbujdcTw5BYS2dzPhyGvphdMUX262ikkL6e2Sua2NpJzILgdDz3Q3NWLZXvrH5T+Sd2Duu3zHL8T4ptmHcKWa50llZJUtqHPkYWUzCPvZAXje4OHBuR9q8FR3SWMYrJbcSPwLbmWOad1LLMap5dNMxu9II+I3ch5wd1Zro1JsRt1LiHGN2iv9S3/FFFUUj4RSsDaVsrmnNhz8bd3cgDksRXdzzbarZtb8FHFVc2GhuM9e2qFEzfeZW7paW72QA1zzWq3yvbWvB3doo546qjgqoTnHNG2Rh9TgCPqrXcl57ZSihttLQtkMgp4WRB5GRcGtDc8vcrzqF85ZK5K7RM5KUhCu1SFOdUhWgp1SnmmKR2ikrCEpTJSkIUpCnKQqhDoo5KSoKBeQSO5pikcdUByKU8lJ0KUnRAp0CrTHklCBXapSmKRyBeSR2h9qsKrdzQVHRVnmrHaKt3NaZlS5UvVzlS9VFbuSrdorHcl67XZ7hc3gUtOTGTkZXcGD3rUTpCMY7RZSxYduF3cHRs6GnOszx4vu61uNjwfRUm5NXHvuYHPdIyY0+zn71szQ1jQ1rQAOAAGixN+GoryxOH8PW+zt3oIy+cjJ0z+Lj7OoexZhCFzbiNAhCEUKDopWt4xxdbcPQFkj2z1hHiU7D43td5oViJntCTMRGstjJGeqF8533EF2u1xfW1NZMx7xkGRSFrGDkAAULtGDLzTjw8FV/Nzf3HfUr1We7XGz1QqbdVSQPBBIB8V2XJw0IXlqv5ub+476lVr0vLro6zhvafSTMbDfIDTS55dNC0mM+sjUfNb/Q1lLWw9NSVMNRH50bw4fJfM69VtuFdbZzNb6ualkOro3ZZ+3rXC2DE+HopmJjy+lkLjlm2n3amayO5UsNc0HIyNPRvy93A/kFutq2h4ardxklU+jkd+GdhAB/qGYXKcO0eneuNS3ttyFTTVMFQzfgmilb1xvDh8lcubqFRWUdNWR9HVQRzN5B7c8vZ1K9CDULpgyJ2brdOYzn/AA5Tm33HVa5X2m4W95FTTPDQPLaN5p94XUlDgCMjxB1BWuqWelyZnJWhb/X4etlWHfcCB5478XinP2aLB1uE6mPjSTsmHU/xT2K9SaMC1Wt1T1VDWUjt2op5GevLMfmOCrbyUlYWApgkCcIHam5pWpkDN1CdvNIE4QMmCUaJggcJkoTIJCcJAnCBwnCQJhopIYqQoUhRYOE4SDVMNFpDjVM1IE40UkO3VSEo5FMFBJTJVIRYVVNDRVb2uqqOlqHNGTTLC15A6gSCr4Y44o2xRRsjjYMmtY3INHUANEetOE1k0NyXmp7bboJhPDb6OOUHMPZTsDh7wF6AmCmhMRPk3JMlCYHhkqJTJQUwRApB5KFIRpITJVI0QMEJUwQSpSo49aBlCMz1qEE5jLgoQoJQBKhCCggqCeXUpKVAIJQoJ4oiClOiYnjklKEIOiUpjqlOqKh2qQ6pueaUoIKQ6JuSUoIUHVSlKIjrSlS48FBSEIlOiY6JTqAtBSkcnKQqSsISlMdEp5BIQpSFMUpVCFQdFJUHRAhSFOUhQQUhTlI5AhUKSoQIUjk5SOQKdUjuac81W7icufJBW7RVFZSks9yqxnFSuDfOf4o+ay9HhEFrTWVRz1LYhw/M9iusQaNPIJIABJOgGpWSt+HLpXDeEPQR+dLwz9g1W+UNqoKIg09NG1w/GRm78yvap1HS1214St1K4SVOdXIB+MeJ/wC3tWwRsaxoaxoa0aADIBMhTVdAhCFFCF4bldbdbo3SV1bT07WjM9JIAfy1Wo3jadZaaNwt0U9dL+HxejZ+Z4/JarWbeIZtetfMt8WLvuILTZYnSXCtiiIHCPPN59jRxXIr5tCxDcfEglZb4uqDyj7XHj+WS1KV8ksjpZXukkcc3OccyfaV1rgT7cLZiP8AVv2KdpdbWCSms0Ro4XNy6d38X2jk35laFNJJNK+WWR8j3nec5xzJPWSUiF3rWK+Hmteb+Su5IUv1HsQpKRK2q/m5v7jvqVWrKr+bm/uO+pVa2khCEIgQhCCymnqKWUS0s8kD26OjcWke8LY6DHuKaRw/7x74aPwzxtdn7+BWsIUmsT5ai8x4l0qj2rztaO/bOx55mGYjP3Efqtht20vDlQwd8GppH8xJEXD825/PJcUQuc4NZdIx7w+haDFWHa47tNeKRzvNdJuH/VksxHIx4zY4OHWCD9F8xHjrxVkM00P8GaWP+h5b9FicDiXSMzPuH04hfPFBinEVEAKe81gaNGvfvj8nZrKw7RsVR+VVwS/107f0yWZwLNxmK+4dyIB1C8NTaLdUOLpKVgcfxN8U/JcupNql2ZkKq3Uc3WWOcw/qspFtYpj/ABbLO3+icO+oCzOFfhuMek+21VGGIi4mnqXMHJr27wHvWOnsNwiPiRslaObHfoV4qbanYnnKejr4R17rXD5FZSm2hYUmHG4uh/uQvH6LPRaPSxiUnxLGTU9RAcp4Xxn/ADDVV+8LYo8ZYWlGQvVHkfOcR9QmNzwrXcPtG1yE9U7Qfqmk8Naxy14Jwth+y7ROPuJxx03Jg5Uvw+4fw6kHq3mIMMNEwWQlslbGPF3JMup2R+aoNvrmeVSy+4Z/RRVITKHMfGcnscw/5hkgEZahVDNTjVVhOEDhOEgTBQOFIUBA1UWDjQJwkCYKhwnHBIOpSEQ4TjTNIEzdMlA2qkKBogIsHGibXikCYIpwm5pAUw0QMOCYJBomzQNnkmCQJgUQwQoClBIKlKpzRTZhCVTmgbMozUZozQTmjNCjNBJJUIzUZoJzUKM0EoIKEIRASlKkqCiIJUZ80FQUVBSlSUpRUFKeATEpSggpTqpKVAZ5JSmKQ6oygpT1qSlKogpCmPFKVQp096U6qSl5rLQKQpj1JSqyQpXHgUxSFUQ7VQdEE8VDiOsIFKQq6OKWXhHE959TSVay21zzwpZB7eCDxlI5Zdliq38Xujj95P0V8WHxw6apcfU1mX1U1VrxSkrZ/s6ywDemkjIHOSYAfUI+2sMUfi/adriI5CZmaqdmvQUNZUcYaaR487LIfNe6mw7Wy/xnRwj1nePyXukxnhePPevVIcvNJd9AvFVbRMKwnJtdJN/agcfqAmluE6qx7ZGlw1SM4zySTeryR8lk6SgpKX+Xp44z1gcfzWkVG1OzMP3Nvr5PWQ1o+q8M21iIA9DZZXHkX1AH0Cu3fhnepy6chccrNqV8k4U1FQwDrcHPP1Cx0+0PFcuYbXxxA+ZA3h+ea1GDaWZzFPTumapqKmCBm/NLHE0aue8NA/NfPFdiC+1p/wCKu9bIOrpS0fkMljpHvkOcj3PPW4k/VbjAn3LM5mPUO+1mM8MUjyyS8UznDlGS/wCnBYO57UbHBm2ipquscOe6I2/6uPyXHELUYFfbnOYs6Fctqdzka5tBbqanJ0fI4yEe7gFrdxxhiWvY5lRd5wxwyLYsox/pCwKFuMOseIcpxLz5lJJJ3nEud1niVCELbAQhCAQhCBXckIdyQsS3Dp0+ymqkmkkF4hAc4kDoTwzPtSeCar9MwfBPahC47luXq2qcDwTVfpmD4J7UeCar9MwfBPahCm5bk2qcDwTVfpmD4J7UeCar9MwfBPahCbluTapwPBNV+mYPgntR4Jqv0zB8E9qEJuW5NqnA8E1X6Zg+Ce1Hgmq/TMHwT2oQm5bk2qcDwTVfpmD4J7UeCar9MwfBPahCbluTapwPBNV+mYPgntR4Jqv0zB8E9qEJuW5NqnA8E1X6Zg+Ce1Hgmq/TMHwT2oQm5bk2qcDwTVfpmD4J7UeCar9MwfBPahCu5bk2qcDwTVfpmD4J7UeCaq9MwfAPahCm5bk2qcJbsnrGHNl6hafVCR+quZszu7PIxK5vsD/3IQm5Y2qcPQzZ/iJnkYunb7DJ+5Xx4MxbH5GNaoe0vP1chCnXKxh1eqLDeNY27v8AjPeH+amDvqr22LF48vENvl/rt7ShCar0wk2DEzvKutpPsoCPo5Aw/iQf81tp/wCld+5CE1NDixYiH/MbYf8Apn/uV0VmvYcOlqre4f5Y3g//ACKELLUPRFargB946lPXuucP0KuFrnzGYjHXlIf2oQpLULW2w83fk7/ZOy2s/E93uP8AshCin+zYfPk/MKRbovPk+SEKKnvCLz3/ACU94x+e/wCSEIDvKPz3Ke8o/OchCAFHH5zlPejPOchCCe9Wec5HezPOchCCe92+c5T0DesoQgBA3rKnoW9ZQhAdCPOKnox1lCEB0Y6yjox1lCEB0Y6yjox1lCEB0Y6yjox1lCEB0Y6yjox1lCEB0Y6yjox1lCEB0Y6yjox1lCEB0Y6yjox1lCEEdCPOKOhb1lCEEdA3rKOgb1lCEEGnb5zlHezPOchCCO9Gec5HekfnOQhBBo4z+JyO8o/OchCCDRRn8b/kjvGPz3/JCEEfZ8Xnv+Sj7Oi8+T5IQgj7Nh8+T8wqJba/M9GWkct55H6IQgrFsqT5QiHslP7UrrZV5cG0/rzld+1CFrRnVTJa7mT922iaOecrz/8AVeZ9nxAR4k1rHtEhQhVlSbJig/8AjLMD/Zk/ckNhxV/5+z/Ak/chCrKRZMXN8m4WIH10Tj9XJXWXG58i/WiL+3QZIQmqaKJcPY9kzzxfE0dTIN36BeSXB2NZPLxnIfY+QfQoQtRaSaQ878AYrf5eK3O9skvavO/Zpf3+XiJjvaZO1CFeuWduql2yi5u8q7UbvbG4/qoGye5jS7UQ/wDTchCddjarwPBRc/S1H8N3ajwUXP0tR/DchCu5bk2qcDwUXP0tR/Dd2o8FFz9LUfw3dqEJuW5NqnA8FFz9LUfw3dqPBRc/S1H8N3ahCbljapwPBRc/S1H8N3ajwUXP0tR/Dd2oQm5Y2qcDwUXP0tR/Dd2o8FFz9LUfw3dqEJuWNqnA8FFz9LUfw3dqPBRc/S1H8N3ahCbljapwPBRc/S1H8N3ajwUXP0tR/Dd2oQm5Y2qcDwUXP0tR/Dd2o8FFz9LUfw3dqEJuWNqnA8FFz9LUfw3dqPBRc/S1H8NyEJuWNqnAOye6crtRe+J3ahCFOuyxh14f/9k=";
+
+    // ── Document type config ──────────────────────────────────────────────────
+    const DOC_TYPES = {
+      approval:     { title: "MEETING APPROVAL SLIP",   file: "Meeting-Approval-Slip" },
+      cancellation: { title: "CANCELLATION LETTER",     file: "Cancellation-Letter" },
+      rejection:    { title: "REJECTION NOTICE",        file: "Rejection-Notice" },
+      request:      { title: "MEETING REQUEST FORM",    file: "Meeting-Request-Form" },
+    };
+    const dtype = DOC_TYPES[docType] || DOC_TYPES.approval;
+
+    // ── Page setup (custom letterhead size: 215.9 x 355.6 mm) ────────────────
+    const PW = 215.9, PH = 355.6;
+    const ML = 20, MR = 20;
+    const CW = PW - ML - MR;
+    const doc = new jsPDF({ unit: "mm", format: [PW, PH] });
+
+    // ── Letterhead header image ───────────────────────────────────────────────
+    // Header image occupies ~53mm at top (proportional to 200px out of 1482px total)
+    const HEADER_H_MM = (200 / 1482) * PH;
+    const FOOTER_H_MM = (100 / 1482) * PH;
+    doc.addImage("data:image/jpeg;base64," + HEADER_B64, "JPEG", 0, 0, PW, HEADER_H_MM);
+    doc.addImage("data:image/jpeg;base64," + FOOTER_B64, "JPEG", 0, PH - FOOTER_H_MM, PW, FOOTER_H_MM);
+
+    // ── Document title ────────────────────────────────────────────────────────
+    let y = HEADER_H_MM + 8;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(27, 75, 138);  // SBP navy
+    doc.text(dtype.title, PW / 2, y, { align: "center" });
+    y += 2;
+    // Gold underline
+    doc.setDrawColor(245, 163, 26);
+    doc.setLineWidth(0.7);
+    doc.line(ML + 10, y, PW - MR - 10, y);
+    y += 5;
+
+    // ── Reference / date line ─────────────────────────────────────────────────
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    const refDate = new Date().toLocaleDateString("en-PH", { year:"numeric", month:"long", day:"numeric" });
+    const refNo = `SBP-${mtg.date || ""}`.replace(/-/g, "");
+    doc.text(`Date: ${refDate}`, ML, y);
+    doc.text(`Ref. No: ${refNo}-${(mtg.id || "").slice(-6).toUpperCase()}`, PW - MR, y, { align: "right" });
+    y += 7;
+
+    // ── Status badge ──────────────────────────────────────────────────────────
+    const STATUS_COLORS = {
+      Approved:               [22,163,74],
+      Pending:                [217,119,6],
+      Rejected:               [220,38,38],
+      Cancelled:              [107,114,128],
+      Done:                   [59,130,246],
+      "Cancellation Requested":[249,115,22],
+    };
+    const sc = STATUS_COLORS[mtg.status] || [107,114,128];
+    doc.setFillColor(...sc);
+    doc.roundedRect(PW - MR - 38, y - 4.5, 38, 7, 2, 2, "F");
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+    doc.text((mtg.status || "").toUpperCase(), PW - MR - 19, y + 0.5, { align: "center" });
+    y += 7;
+
+    // ── Detail table ──────────────────────────────────────────────────────────
+    const rows = [
+      ["Event / Title",   mtg.eventName || "—"],
+      ["Meeting Type",    mtg.type || mtg.meetingType || "—"],
+      ["Committee",       mtg.committee || "—"],
+      ["Date",            formatDateDisplay(mtg.date)],
+      ["Time",            formatTimeRange(mtg.timeStart, mtg.durationHours ?? mtg.duration ?? SLOT_DURATION_HOURS)],
+      ["Venue",           mtg.venue || "—"],
+      ["Councilor",       mtg.councilor || "—"],
+      ["Researcher",      mtg.researcher || "—"],
+      ["Requested By",    mtg.createdBy || "—"],
+      ["Stakeholders",    mtg.stakeholders || "—"],
+    ];
+
+    const COL1W = 42; // label column width
+    const ROW_H = 9;
+    rows.forEach(([label, value], i) => {
+      const ry = y + i * ROW_H;
+      // Alternate row shading
+      if (i % 2 === 0) {
+        doc.setFillColor(245, 248, 255);
+        doc.rect(ML, ry - 3.5, CW, ROW_H, "F");
+      }
+      // Thin border bottom
+      doc.setDrawColor(220, 225, 235);
+      doc.setLineWidth(0.2);
+      doc.line(ML, ry + ROW_H - 3.5, ML + CW, ry + ROW_H - 3.5);
+
+      // Label
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(100, 116, 139);
+      doc.text(label.toUpperCase(), ML + 2, ry + 1.5);
+
+      // Value (word-wrapped)
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(17, 24, 39);
+      doc.setFontSize(8.5);
+      const wrapped = doc.splitTextToSize(String(value || "—"), CW - COL1W - 4);
+      doc.text(wrapped, ML + COL1W, ry + 1.5);
+    });
+
+    y += rows.length * ROW_H + 6;
+
+    // ── Admin note / reason box ───────────────────────────────────────────────
+    if (mtg.adminNote || mtg.cancelReason) {
+      const noteText = mtg.adminNote || mtg.cancelReason;
+      const noteLabel = docType === "cancellation" ? "REASON FOR CANCELLATION" : "ADMIN NOTE / REMARKS";
+      doc.setFillColor(255, 251, 235);
+      doc.setDrawColor(245, 163, 26);
+      doc.setLineWidth(0.4);
+      const noteLines = doc.splitTextToSize(noteText, CW - 8);
+      const noteBoxH = 10 + noteLines.length * 5;
+      doc.roundedRect(ML, y, CW, noteBoxH, 2, 2, "FD");
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(146, 64, 14);
+      doc.text(noteLabel, ML + 3, y + 5);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(92, 45, 5);
+      doc.text(noteLines, ML + 3, y + 10);
+      y += noteBoxH + 8;
+    } else {
+      y += 4;
+    }
+
+    // ── Signature section ─────────────────────────────────────────────────────
+    const sigY = y;
+    const sigBoxW = (CW - 10) / 2;
+
+    // Left: Requested By
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.line(ML, sigY + 18, ML + sigBoxW, sigY + 18);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(27, 75, 138);
+    doc.text("REQUESTED BY", ML + sigBoxW / 2, sigY + 23, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(7);
+    doc.text("Signature over Printed Name / Date", ML + sigBoxW / 2, sigY + 27, { align: "center" });
+
+    // Right: Approved / Noted By
+    const sig2X = ML + sigBoxW + 10;
+    const sig2Label = docType === "cancellation" ? "NOTED BY" : "APPROVED BY";
+    doc.line(sig2X, sigY + 18, sig2X + sigBoxW, sigY + 18);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(27, 75, 138);
+    doc.text(sig2Label, sig2X + sigBoxW / 2, sigY + 23, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(7);
+    doc.text("Signature over Printed Name / Date", sig2X + sigBoxW / 2, sigY + 27, { align: "center" });
+
+    // ── Official note above footer ────────────────────────────────────────────
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(150, 160, 180);
+    doc.text("This is an official document of the Sangguniang Bayan ng Polangui, Albay.",
+      PW / 2, PH - FOOTER_H_MM - 5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text("sbsecpolangui@gmail.com", PW / 2, PH - FOOTER_H_MM - 1.5, { align: "center" });
+
+    // ── Smart filename ────────────────────────────────────────────────────────
+    const safeEvent = (mtg.eventName || "Meeting").replace(/[^a-zA-Z0-9 ]/g, "").trim().replace(/\s+/g, "-").slice(0, 30);
+    const dateStr = (mtg.date || "").replace(/-/g, "");
+    if (autoPrint) {
+      doc.autoPrint();
+      const url = doc.output("bloburl");
+      window.open(url, "_blank");
+    } else {
+      doc.save(`SBP-${dtype.file}-${safeEvent}-${dateStr}.pdf`);
+    }
+
+  } catch(err) {
+    console.error("PDF error:", err);
+    showToast("Failed to generate PDF. Please try again.", "error");
+  }
 }
 
 function handleMyMeetingsClick(e) {
@@ -1935,7 +2513,14 @@ function handleMyMeetingsClick(e) {
   if (!mtg) return;
 
   if (action === "export-pdf") {
-    generateMeetingPdf(mtg);
+    const _dt = mtg.status === "Cancelled" || mtg.status === "Cancellation Requested"
+                  ? "cancellation"
+                  : mtg.status === "Rejected"
+                    ? "rejection"
+                    : mtg.status === "Pending"
+                      ? "request"
+                      : "approval";
+    generateMeetingPdf(mtg, _dt);
     return;
   }
 
@@ -1946,8 +2531,8 @@ function handleMyMeetingsClick(e) {
 
     const currentUser = getCurrentUser();
     const createdAt = mtg.createdAt ? new Date(mtg.createdAt) : null;
-    const now = new Date();
-    const within24h = createdAt && (now - createdAt) < 24 * 60 * 60 * 1000;
+    const now = getManilaNow();
+    const within24h = !!(createdAt && Math.max(0, now - createdAt) < 24 * 60 * 60 * 1000);
 
     // Use openNoteModal to collect a cancellation reason
     const promptHtml = within24h
@@ -1980,7 +2565,14 @@ function handleMyMeetingsClick(e) {
           mtg.status = "Cancelled";
           mtg.cancelReason = reason.trim();
           mtg.cancelledAt = new Date().toISOString();
-          persistMeetings();
+
+          const extraFields = { cancelReason: mtg.cancelReason, cancelledAt: mtg.cancelledAt };
+          if (window.api && window.api.updateMeetingStatus) {
+            window.api.updateMeetingStatus(mtg.id, "Cancelled", "", extraFields).then(() => {});
+          } else {
+            persistMeetings();
+          }
+
           renderMyMeetingsTable(currentUser);
           renderAdminMeetingsTable();
           renderCalendar();
@@ -1988,44 +2580,66 @@ function handleMyMeetingsClick(e) {
           showToast("Meeting cancelled successfully.", "success");
           if (window.innerWidth <= 768 && typeof _closeActive === "function") _closeActive();
 
-          // Notify admins of the self-cancellation
-          users.filter(u => u.role === ROLES.ADMIN).forEach(admin => {
+          // Notify ALL admins of the self-cancellation and refresh their badge immediately
+          const adminList = (Array.isArray(users) ? users : []).filter(u => u.role === ROLES.ADMIN);
+          adminList.forEach(admin => {
+            const adminUserId = admin.id || admin.username;
             addNotification(
-              admin.id || admin.username,
-              `<strong>${h(currentUser.name)}</strong> cancelled their meeting <strong>"${h(mtg.eventName)}"</strong> on ${formatDateDisplay(mtg.date)} (within 24h). Reason: ${h(reason.trim())}`,
+              adminUserId,
+              `<strong>${h(currentUser.name)}</strong> cancelled their meeting <strong>"${h(mtg.eventName)}"</strong> on ${formatDateDisplay(mtg.date)} (within 24h free window). Reason: <em>${h(reason.trim())}</em>`,
               "info",
               "meeting-logs"
             );
+            // Refresh the admin's bell badge right away so they see it immediately
+            updateNotificationBadge(adminUserId);
           });
+
+          // Also refresh the current user's own badge
+          updateNotificationBadge(currentUser.id || currentUser.username);
+
         } else {
-          // Admin-review path
+          // ── Admin-review path (past 24h window) ──────────────────────────
           mtg.status = "Cancellation Requested";
           mtg.cancelReason = reason.trim();
-          persistMeetings();
+
+          const extraFields = { cancelReason: mtg.cancelReason };
+          if (window.api && window.api.updateMeetingStatus) {
+            window.api.updateMeetingStatus(mtg.id, "Cancellation Requested", "", extraFields).then(() => {});
+          } else {
+            persistMeetings();
+          }
+
           renderMyMeetingsTable(currentUser);
           renderAdminMeetingsTable();
           renderCalendar();
+          // Update statistics so the pending-badge on meeting-logs nav refreshes
+          updateStatistics();
           showToast("Cancellation request submitted to admin.", "info");
           if (window.innerWidth <= 768 && typeof _closeActive === "function") _closeActive();
 
-          users.filter(u => u.role === ROLES.ADMIN).forEach(admin => {
+          // Notify ALL admins and refresh their badge immediately
+          const adminList2 = (Array.isArray(users) ? users : []).filter(u => u.role === ROLES.ADMIN);
+          adminList2.forEach(admin => {
+            const adminUserId = admin.id || admin.username;
             addNotification(
-              admin.id || admin.username,
-              `<strong>${h(currentUser.name)}</strong> requested cancellation of <strong>"${h(mtg.eventName)}"</strong> on ${formatDateDisplay(mtg.date)}. Reason: ${h(reason.trim())}`,
+              adminUserId,
+              `<strong>${h(currentUser.name)}</strong> requested cancellation of <strong>"${h(mtg.eventName)}"</strong> scheduled on ${formatDateDisplay(mtg.date)}. Reason: <em>${h(reason.trim())}</em> — Please review in Meeting Logs.`,
               "warning",
               "meeting-logs"
             );
+            updateNotificationBadge(adminUserId);
           });
 
+          // Confirm to the user that their request was submitted
           addNotification(
             currentUser.id || currentUser.username,
-            `Your cancellation request for <strong>"${h(mtg.eventName)}"</strong> on ${formatDateDisplay(mtg.date)} has been submitted and is pending admin review.`,
+            `Your cancellation request for <strong>"${h(mtg.eventName)}"</strong> on ${formatDateDisplay(mtg.date)} has been submitted and is <strong>pending admin review</strong>.`,
             "info",
             "my-meetings"
           );
           updateNotificationBadge(currentUser.id || currentUser.username);
         }
-        return null; // no error
+        return null; // no error — close the modal
       },
       reenable
     );
@@ -2293,7 +2907,7 @@ function openDayScheduleModal(isoDate, readOnly) {
     modal.id = "day-schedule-modal";
     modal.className = "modal-backdrop";
     modal.innerHTML = `
-      <div class="modal" style="max-width:600px">
+      <div class="modal" style="max-width:600px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
         <div class="modal-header" style="flex-direction:column;align-items:flex-start;gap:4px;flex-shrink:0">
           <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
             <div class="modal-title" id="day-modal-title"></div>
@@ -2440,23 +3054,24 @@ function buildTimelineHTML(isoDate, dayMeetings) {
   function pct(mins) { return ((mins - WORK_START_HOUR * 60) / totalWork * 100).toFixed(2); }
   function wPct(mins) { return (mins / totalWork * 100).toFixed(2); }
 
-  // Hour ticks (lines inside bar) and labels (outside bar, below)
   const tickLines = [];
   const tickLabels = [];
   for (let hr = WORK_START_HOUR; hr <= WORK_END_HOUR; hr++) {
     tickLines.push(`<div style="position:absolute;left:${pct(hr*60)}%;top:0;bottom:0;border-left:1px dashed rgba(0,0,0,0.1);pointer-events:none"></div>`);
-    tickLabels.push(`<div style="position:absolute;left:${pct(hr*60)}%;font-size:0.58rem;color:var(--color-text-muted);transform:translateX(-50%)">${hr < 12 ? hr + 'a' : hr === 12 ? '12p' : (hr - 12) + 'p'}</div>`);
+    const label = hr < 12 ? hr + 'a' : hr === 12 ? '12p' : (hr - 12) + 'p';
+    let pos;
+    if (hr === WORK_START_HOUR)    pos = `left:0`;
+    else if (hr === WORK_END_HOUR) pos = `right:0`;
+    else                           pos = `left:${pct(hr*60)}%;transform:translateX(-50%)`;
+    tickLabels.push(`<div style="position:absolute;${pos};font-size:0.58rem;color:var(--color-text-muted);white-space:nowrap">${label}</div>`);
   }
-  const ticks = tickLines; // only lines go inside the bar now
 
-  // Approved blocks (solid red)
   const approvedBlocks = approved.map(m => {
     const s = minutesFromTimeStr(m.timeStart);
     const dur = (m.durationHours || SLOT_DURATION_HOURS) * 60;
     return `<div title="${h(m.eventName)} (Approved)" style="position:absolute;left:${pct(s)}%;width:${wPct(dur)}%;top:4px;bottom:4px;background:#16a34a;border-radius:4px;opacity:0.85;cursor:default"></div>`;
   }).join("");
 
-  // Pending blocks (amber)
   const pendingBlocks = pending.map(m => {
     const s = minutesFromTimeStr(m.timeStart);
     const dur = (m.durationHours || SLOT_DURATION_HOURS) * 60;
@@ -2465,22 +3080,22 @@ function buildTimelineHTML(isoDate, dayMeetings) {
 
   return `
     <div style="margin-bottom:16px">
-      <div style="font-size:0.71rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);margin-bottom:8px">Time Slots (8AM – 5PM)</div>
-      <div style="position:relative;height:32px;background:var(--color-bg);border:1px solid var(--color-border);border-radius:8px;overflow:hidden;margin-bottom:6px">
-        ${ticks.join("")}
+      <div style="font-size:0.71rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-muted);margin-bottom:8px">TIME SLOTS (8AM – 5PM)</div>
+      <div style="position:relative;height:32px;background:var(--color-bg);border:1px solid var(--color-border);border-radius:8px;overflow:hidden;margin-bottom:4px">
+        ${tickLines.join("")}
         ${approvedBlocks}
         ${pendingBlocks}
       </div>
-      <div style="position:relative;height:14px;margin-bottom:10px">${tickLabels.join("")}</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:-14px">
+      <div style="position:relative;height:16px;margin-bottom:10px">${tickLabels.join("")}</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--color-text-muted)">
-          <span style="width:12px;height:10px;border-radius:3px;background:#16a34a;display:inline-block"></span> Approved
+          <span style="width:12px;height:10px;border-radius:3px;background:#16a34a;display:inline-block;flex-shrink:0"></span> Approved
         </div>
         <div style="display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--color-text-muted)">
-          <span style="width:12px;height:10px;border-radius:3px;background:#f59e0b;display:inline-block"></span> Pending
+          <span style="width:12px;height:10px;border-radius:3px;background:#f59e0b;display:inline-block;flex-shrink:0"></span> Pending
         </div>
         <div style="display:flex;align-items:center;gap:5px;font-size:0.72rem;color:var(--color-text-muted)">
-          <span style="width:12px;height:10px;border-radius:3px;background:var(--color-bg);border:1px solid var(--color-border);display:inline-block"></span> Available
+          <span style="width:12px;height:10px;border-radius:3px;background:var(--color-bg);border:1px solid var(--color-border);display:inline-block;flex-shrink:0"></span> Available
         </div>
       </div>
     </div>`;
@@ -2494,10 +3109,9 @@ function buildTimelineHTML(isoDate, dayMeetings) {
 
 // ---------------------------------------------------------------------------
 // Smart Councilor / Researcher field setup
-// Admin → both show as dropdowns (lists registered accounts + N/A option)
-// Councilor → councilor field is auto-filled & locked; researcher is dropdown
-// Researcher → researcher field is auto-filled & locked; councilor is dropdown
-// Vice Mayor / Secretary → both show as dropdowns
+// Admin / Vice Mayor / Secretary → both show as styled dropdowns
+// Councilor → own name locked (styled readonly input), researcher is dropdown
+// Researcher → own name locked (styled readonly input), councilor is dropdown
 // ---------------------------------------------------------------------------
 function _setupCouncilorResearcherFields(currentUser) {
   const cSelect = $("#meeting-councilor-select");
@@ -2506,17 +3120,15 @@ function _setupCouncilorResearcherFields(currentUser) {
   const rInput  = $("#meeting-researcher");
   if (!cSelect || !rSelect || !cInput || !rInput) return;
 
-  const isAdmin = currentUser.role === ROLES.ADMIN;
   const isCouncilor  = currentUser.role === ROLES.COUNCILOR;
   const isResearcher = currentUser.role === ROLES.RESEARCHER;
 
   // Gather registered users
-  const councilors = users.filter(u => u.role === ROLES.COUNCILOR || u.role === ROLES.VICE_MAYOR);
+  const councilors  = users.filter(u => u.role === ROLES.COUNCILOR || u.role === ROLES.VICE_MAYOR);
   const researchers = users.filter(u => u.role === ROLES.RESEARCHER);
 
   // Helper: rebuild a <select> with given user list + N/A
-  function fillSelect(sel, userList, placeholder) {
-    // Keep first two options (placeholder + N/A)
+  function fillSelect(sel, userList) {
     while (sel.options.length > 2) sel.remove(2);
     userList.forEach(u => {
       const opt = document.createElement("option");
@@ -2526,36 +3138,40 @@ function _setupCouncilorResearcherFields(currentUser) {
     });
   }
 
-  fillSelect(cSelect, councilors, "— Select Councilor —");
-  fillSelect(rSelect, researchers, "— Select Researcher —");
+  fillSelect(cSelect, councilors);
+  fillSelect(rSelect, researchers);
 
-  // Reset visibility
-  cSelect.style.display = "none"; cInput.style.display = "";
-  rSelect.style.display = "none"; rInput.style.display = "";
+  // Reset everything hidden first
+  cSelect.style.display = "none"; cInput.style.display = "none";
+  rSelect.style.display = "none"; rInput.style.display = "none";
   cInput.readOnly = false; rInput.readOnly = false;
-  cInput.required = false; rInput.required = false;  // never put required on potentially-hidden inputs
+  cInput.required = false; rInput.required = false;
   cSelect.required = false; rSelect.required = false;
   cInput.value = ""; rInput.value = "";
   cSelect.value = ""; rSelect.value = "";
+  // Reset locked styling
+  cInput.classList.remove("field-locked"); rInput.classList.remove("field-locked");
 
   if (isCouncilor) {
-    // Councilor: lock own name in councilor input, show researcher dropdown
-    cInput.value = currentUser.name;
+    // Own name locked in a styled readonly input; researcher shows as dropdown
+    cInput.value    = currentUser.name;
     cInput.readOnly = true;
-    rInput.style.display = "none";
+    cInput.classList.add("field-locked");
+    cInput.style.display = "";
     rSelect.style.display = "";
-    rSelect.value = "";
+    rSelect.required = true;
   } else if (isResearcher) {
-    // Researcher: lock own name in researcher input, show councilor dropdown
-    rInput.value = currentUser.name;
+    // Own name locked in a styled readonly input; councilor shows as dropdown
+    rInput.value    = currentUser.name;
     rInput.readOnly = true;
-    cInput.style.display = "none";
+    rInput.classList.add("field-locked");
+    rInput.style.display = "";
     cSelect.style.display = "";
-    cSelect.value = "";
+    cSelect.required = true;
   } else {
     // Admin / Vice Mayor / Secretary: both as dropdowns
-    cInput.style.display = "none"; cSelect.style.display = "";
-    rInput.style.display = "none"; rSelect.style.display = "";
+    cSelect.style.display = ""; cSelect.required = true;
+    rSelect.style.display = ""; rSelect.required = true;
   }
 }
 
@@ -2955,7 +3571,7 @@ function updateStatistics() {
 
   const total = meetings.length;
   const pending = meetings.filter(m => m.status === "Pending").length;
-  const activeUsers = users.filter(u => u.role !== ROLES.ADMIN).length;
+  const activeUsers = users.filter(u => u.role !== ROLES.ADMIN && !u.deleted && !u._deleted).length;
   const now = new Date();
   const in7 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const upcoming = meetings.filter(m => { const d = new Date(m.date); return d >= now && d <= in7; }).length;
@@ -3436,80 +4052,22 @@ function exportMeetingsCSV() {
 }
 
 // ---------------------------------------------------------------------------
-// FEATURE: Print Meetings Table
+// FEATURE: Print Meetings (PDF-formatted forms)
 // ---------------------------------------------------------------------------
 
 function printMeetingsTable() {
   const list = getFilteredMeetingsList();
-  const filterType   = $("#filter-type-admin")?.value   || "all";
-  const filterStatus = $("#filter-status-admin")?.value || "all";
-
-  const filterLabel = [
-    filterType   !== "all" ? `Type: ${filterType}`     : "",
-    filterStatus !== "all" ? `Status: ${filterStatus}` : "",
-    adminMeetingsSearch    ? `Search: "${adminMeetingsSearch}"` : "",
-  ].filter(Boolean).join("  ·  ") || "All Records";
-
-  const rows = list.map(m => `
-    <tr>
-      <td>${h(m.eventName)}</td>
-      <td>${formatDateDisplay(m.date)}</td>
-      <td>${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)}</td>
-      <td>${h(m.type || m.meetingType || "—")}</td>
-      <td class="status-${(m.status||"").toLowerCase().replace(/\s+/g,"-")}">${h(m.status)}</td>
-      <td>${h(m.createdBy)}</td>
-      <td>${h(m.venue || "—")}</td>
-    </tr>`).join("");
-
-  const win = window.open("", "_blank", "width=960,height=700");
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
-  <title>SB Polangui — Meeting Requests</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#1e293b;padding:24px}
-    .print-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #1b4b8a}
-    .print-logo{font-size:17px;font-weight:800;color:#1b4b8a;letter-spacing:-0.3px}
-    .print-logo span{display:block;font-size:11px;font-weight:500;color:#64748b;margin-top:2px}
-    .print-meta{text-align:right;font-size:10.5px;color:#64748b}
-    .print-meta strong{display:block;font-size:12px;color:#1e293b;margin-bottom:2px}
-    h2{font-size:14px;font-weight:700;margin-bottom:4px;color:#1e293b}
-    .filter-label{font-size:10.5px;color:#64748b;margin-bottom:14px}
-    table{width:100%;border-collapse:collapse;font-size:11px}
-    thead tr{background:#1b4b8a;color:#fff}
-    th{padding:8px 10px;text-align:left;font-weight:600;font-size:10.5px;letter-spacing:0.03em;text-transform:uppercase}
-    td{padding:7px 10px;border-bottom:1px solid #e2e8f0;vertical-align:top}
-    tr:nth-child(even) td{background:#f8fafc}
-    .status-pending{color:#d97706;font-weight:600}
-    .status-approved{color:#16a34a;font-weight:600}
-    .status-rejected,.status-cancelled{color:#dc2626;font-weight:600}
-    .status-done{color:#1b4b8a;font-weight:600}
-    .status-cancellation-requested{color:#ea580c;font-weight:600}
-    .print-footer{margin-top:16px;font-size:10px;color:#94a3b8;text-align:center;padding-top:8px;border-top:1px solid #e2e8f0}
-    .count-badge{display:inline-block;background:#dbeafe;color:#1e40af;font-weight:700;padding:2px 8px;border-radius:999px;font-size:10px;margin-left:8px}
-    @media print{body{padding:12px}button{display:none}}
-  </style>
-  </head><body>
-  <div class="print-header">
-    <div>
-      <div class="print-logo">SB Polangui Legislative System<span>Sangguniang Bayan ng Polangui</span></div>
-    </div>
-    <div class="print-meta">
-      <strong>All Meeting Requests</strong>
-      Printed: ${new Date().toLocaleString("en-PH",{dateStyle:"medium",timeStyle:"short"})}
-    </div>
-  </div>
-  <h2>Meeting Requests <span class="count-badge">${list.length} record${list.length !== 1 ? "s" : ""}</span></h2>
-  <div class="filter-label">Filter: ${filterLabel}</div>
-  <table>
-    <thead><tr>
-      <th>Event Name</th><th>Date</th><th>Time</th><th>Type</th><th>Status</th><th>Requested By</th><th>Venue</th>
-    </tr></thead>
-    <tbody>${rows || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8">No records found.</td></tr>'}</tbody>
-  </table>
-  <div class="print-footer">SB Polangui Legislative Scheduling &amp; Monitoring System · Confidential</div>
-  <script>window.onload=()=>{window.print();}<\/script>
-  </body></html>`);
-  win.document.close();
+  if (!list.length) { showToast("No records to print.", "info"); return; }
+  // Space out printing to avoid blocking and allow popups
+  list.forEach((m, i) => {
+    const dt = m.status === "Cancelled"              ? "cancellation"
+             : m.status === "Cancellation Requested" ? "cancellation"
+             : m.status === "Rejected"                ? "rejection"
+             : m.status === "Pending"                 ? "request"
+             : "approval"; // Approved/Done
+    setTimeout(() => generateMeetingPdf(m, dt, true), i * 200);
+  });
+  showToast(`Preparing ${list.length} printable document${list.length !== 1 ? "s" : ""}…`, "success");
 }
 
 // ---------------------------------------------------------------------------
@@ -3932,29 +4490,78 @@ const SBP_COMMITTEES = [
   "COMMITTEE ON YOUTH AND SPORTS DEVELOPMENT",
 ];
 
-function initCommitteeCombobox() {
-  const input    = document.getElementById("meeting-committee");
-  const dropdown = document.getElementById("committee-dropdown");
-  const arrow    = document.querySelector(".committee-combo-arrow");
-  if (!input || !dropdown) return;
+// ---------------------------------------------------------------------------
+// Committee combobox — reusable, works on both desktop modal and mobile drawer
+// ---------------------------------------------------------------------------
+
+/**
+ * _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerEl)
+ *
+ * inputEl           — the <input> to attach the combo to
+ * staticDropdownEl  — the <ul> already in the DOM (desktop modal); null for
+ *                     the drawer input which has no static list
+ * arrowEl           — the toggle button; null = we create one automatically
+ * cleanupTriggerEl  — optional element to watch for class changes so we can
+ *                     destroy the portal when the container closes
+ */
+function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerEl) {
+  if (!inputEl) return;
+
+  // If this input hasn't been wrapped yet, wrap it now so the arrow sits inside
+  let wrap = inputEl.closest(".committee-combo-wrap");
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.className = "committee-combo-wrap";
+    inputEl.parentNode.insertBefore(wrap, inputEl);
+    wrap.appendChild(inputEl);
+    inputEl.classList.add("committee-combo-input");
+  }
+
+  // Create arrow button if not already present
+  if (!arrowEl) {
+    arrowEl = wrap.querySelector(".committee-combo-arrow");
+    if (!arrowEl) {
+      arrowEl = document.createElement("button");
+      arrowEl.type = "button";
+      arrowEl.className = "committee-combo-arrow";
+      arrowEl.tabIndex = -1;
+      arrowEl.setAttribute("aria-label", "Show committees");
+      arrowEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>`;
+      wrap.appendChild(arrowEl);
+    }
+  }
+
+  // Create static inline list if none was passed (we still need one for desktop)
+  let inlineList = staticDropdownEl;
+  if (!inlineList) {
+    inlineList = document.createElement("ul");
+    inlineList.className = "committee-dropdown";
+    inlineList.setAttribute("role", "listbox");
+    inlineList.style.display = "none";
+    wrap.appendChild(inlineList);
+  }
 
   let activeIndex = -1;
+  let _skipClose  = false;
+  let _portal     = null;   // fixed-position portal used on mobile
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   function renderList(filter) {
     const q = (filter || "").trim().toLowerCase();
     const matches = q
       ? SBP_COMMITTEES.filter(c => c.toLowerCase().includes(q))
       : SBP_COMMITTEES;
-
+    const target = _portal || inlineList;
     if (!matches.length) {
-      dropdown.innerHTML = `<li class="committee-dropdown-empty">No matching committee found</li>`;
+      target.innerHTML = `<li class="committee-dropdown-empty">No matching committee found</li>`;
     } else {
-      dropdown.innerHTML = matches.map((c, i) => {
-        const highlighted = q
-          ? c.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")})`, "gi"),
+      target.innerHTML = matches.map((c, i) => {
+        const hi = q
+          ? c.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"),
               `<mark class="committee-match">$1</mark>`)
           : c;
-        return `<li class="committee-dropdown-item" role="option" data-value="${c}" data-idx="${i}">${highlighted}</li>`;
+        return `<li class="committee-dropdown-item" role="option" data-value="${c}" data-idx="${i}">${hi}</li>`;
       }).join("");
     }
     activeIndex = -1;
@@ -3962,38 +4569,115 @@ function initCommitteeCombobox() {
   }
 
   function syncActive() {
-    const items = dropdown.querySelectorAll(".committee-dropdown-item");
+    const target = _portal || inlineList;
+    const items = target.querySelectorAll(".committee-dropdown-item");
     items.forEach((el, i) => el.classList.toggle("committee-dropdown-active", i === activeIndex));
     if (activeIndex >= 0 && items[activeIndex]) {
       items[activeIndex].scrollIntoView({ block: "nearest" });
     }
   }
 
+  // ── Portal (mobile) ────────────────────────────────────────────────────────
+  // Always portal on mobile so overflow:auto parents can't clip the list.
+
+  function _positionPortal() {
+    if (!_portal) return;
+    const rect       = inputEl.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const maxH       = 240;
+    const showAbove  = spaceBelow < maxH + 8 && spaceAbove > spaceBelow;
+
+    _portal.style.left  = rect.left + "px";
+    _portal.style.width = rect.width + "px";
+
+    if (showAbove) {
+      _portal.style.top    = "";
+      _portal.style.bottom = (window.innerHeight - rect.top + 4) + "px";
+    } else {
+      _portal.style.top    = (rect.bottom + 4) + "px";
+      _portal.style.bottom = "";
+    }
+  }
+
+  function _ensurePortal() {
+    if (_portal) return;
+    _portal = document.createElement("ul");
+    _portal.className = "committee-dropdown committee-dropdown-portal";
+    _portal.setAttribute("role", "listbox");
+    _portal.style.cssText = [
+      "position:fixed",
+      "display:none",
+      "margin:0",
+      "z-index:99999",
+      "max-height:240px",
+      "overflow-y:auto",
+      "-webkit-overflow-scrolling:touch",
+      "overscroll-behavior:contain"
+    ].join(";");
+    document.body.appendChild(_portal);
+
+    _portal.addEventListener("touchstart", e => {
+      const item = e.target.closest(".committee-dropdown-item");
+      if (item) { _skipClose = true; selectValue(item.dataset.value); }
+    }, { passive: true });
+
+    _portal.addEventListener("mousedown", e => {
+      const item = e.target.closest(".committee-dropdown-item");
+      if (item) { e.preventDefault(); selectValue(item.dataset.value); }
+    });
+  }
+
+  function _destroyPortal() {
+    if (_portal) { _portal.remove(); _portal = null; }
+  }
+
+  // ── Open / Close ──────────────────────────────────────────────────────────
+
+  function isOpen() {
+    if (_portal && _portal.style.display !== "none") return true;
+    return inlineList.style.display !== "none";
+  }
+
   function openDropdown() {
-    renderList(input.value);
-    dropdown.style.display = "block";
-    arrow.classList.add("open");
+    const mobile = window.innerWidth <= 768;
+    if (mobile) {
+      _ensurePortal();
+      renderList(inputEl.value);
+      _portal.style.display = "block";
+      _positionPortal();
+      inlineList.style.display = "none";
+    } else {
+      _destroyPortal();
+      renderList(inputEl.value);
+      inlineList.style.display = "block";
+    }
+    arrowEl.classList.add("open");
   }
 
   function closeDropdown() {
-    dropdown.style.display = "none";
-    arrow.classList.remove("open");
+    if (_portal) _portal.style.display = "none";
+    inlineList.style.display = "none";
+    arrowEl.classList.remove("open");
     activeIndex = -1;
   }
 
   function selectValue(val) {
-    input.value = val;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
+    inputEl.value = val;
+    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
     closeDropdown();
-    input.focus();
+    inputEl.focus();
   }
 
-  input.addEventListener("focus", () => openDropdown());
-  input.addEventListener("input", () => renderList(input.value));
+  // ── Events ────────────────────────────────────────────────────────────────
 
-  input.addEventListener("keydown", e => {
-    const items = dropdown.querySelectorAll(".committee-dropdown-item");
-    if (dropdown.style.display === "none") { openDropdown(); return; }
+  inputEl.addEventListener("focus", () => { if (!isOpen()) openDropdown(); });
+  inputEl.addEventListener("input", () => { if (!isOpen()) openDropdown(); else renderList(inputEl.value); });
+
+  inputEl.addEventListener("keydown", e => {
+    const target = _portal || inlineList;
+    const items  = target.querySelectorAll(".committee-dropdown-item");
+    if (!isOpen()) { openDropdown(); return; }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       activeIndex = Math.min(activeIndex + 1, items.length - 1);
@@ -4002,30 +4686,68 @@ function initCommitteeCombobox() {
       e.preventDefault();
       activeIndex = Math.max(activeIndex - 1, 0);
       syncActive();
-    } else if (e.key === "Enter") {
-      if (activeIndex >= 0 && items[activeIndex]) {
-        e.preventDefault();
-        selectValue(items[activeIndex].dataset.value);
-      }
+    } else if (e.key === "Enter" && activeIndex >= 0 && items[activeIndex]) {
+      e.preventDefault();
+      selectValue(items[activeIndex].dataset.value);
     } else if (e.key === "Escape") {
       closeDropdown();
     }
   });
 
-  dropdown.addEventListener("mousedown", e => {
+  // Arrow button — mouse + touch
+  function _toggleViaArrow(e) {
+    e.preventDefault();
+    if (isOpen()) closeDropdown();
+    else { inputEl.focus(); openDropdown(); }
+  }
+  arrowEl.addEventListener("mousedown", _toggleViaArrow);
+  arrowEl.addEventListener("touchend", e => { e.preventDefault(); _toggleViaArrow(e); }, { passive: false });
+
+  // Desktop inline list click
+  inlineList.addEventListener("mousedown", e => {
     const item = e.target.closest(".committee-dropdown-item");
     if (item) { e.preventDefault(); selectValue(item.dataset.value); }
   });
 
-  arrow.addEventListener("mousedown", e => {
-    e.preventDefault();
-    if (dropdown.style.display === "none") { input.focus(); openDropdown(); }
-    else closeDropdown();
-  });
+  // Outside close — touch + click
+  document.addEventListener("touchend", e => {
+    if (_skipClose) { _skipClose = false; return; }
+    if (!wrap.contains(e.target) && (!_portal || !_portal.contains(e.target))) closeDropdown();
+  }, { passive: true });
 
   document.addEventListener("click", e => {
-    if (!input.closest(".committee-combo-wrap").contains(e.target)) closeDropdown();
+    if (!wrap.contains(e.target) && (!_portal || !_portal.contains(e.target))) closeDropdown();
   });
+
+  // Reposition on resize / scroll
+  window.addEventListener("resize",  () => { if (isOpen()) _positionPortal(); }, { passive: true });
+  document.addEventListener("scroll", () => { if (isOpen() && _portal) _positionPortal(); }, { passive: true, capture: true });
+
+  // Cleanup when container closes
+  if (cleanupTriggerEl) {
+    new MutationObserver(() => {
+      const gone = !document.body.contains(cleanupTriggerEl) ||
+                   cleanupTriggerEl.classList.contains("drawer-open") === false;
+      if (gone) { closeDropdown(); _destroyPortal(); }
+    }).observe(cleanupTriggerEl.parentNode || document.body, { childList: true, subtree: false, attributes: true, attributeFilter: ["class"] });
+  }
+}
+
+// Wire up the desktop modal committee combobox (static HTML elements)
+function initCommitteeCombobox() {
+  const input    = document.getElementById("meeting-committee");
+  const dropdown = document.getElementById("committee-dropdown");
+  const arrow    = document.querySelector("#meeting-modal .committee-combo-arrow");
+  if (!input) return;
+  _makeCommitteeCombo(input, dropdown || null, arrow || null, document.getElementById("meeting-modal"));
+}
+
+// Wire up the booking drawer committee input (plain input — no wrap/arrow/list yet)
+// Called by openBookingDrawer after the drawer is inserted into the DOM
+function initDrawerCommitteeCombo(drawerEl) {
+  const input = drawerEl && drawerEl.querySelector("#db-committee");
+  if (!input) return;
+  _makeCommitteeCombo(input, null, null, drawerEl);
 }
 
 // ---------------------------------------------------------------------------
@@ -4034,6 +4756,7 @@ function initCommitteeCombobox() {
 
 function initSystemMaintenance() {
   const purgeBtn     = document.getElementById("sysdata-purge-junk-btn");
+  const purgeApprovedBtn = document.getElementById("sysdata-purge-approved-btn");
   const clearNotifsBtn = document.getElementById("sysdata-clear-notifs-btn");
 
   if (purgeBtn) {
@@ -4051,12 +4774,10 @@ function initSystemMaintenance() {
           let count = 0, errors = 0;
           for (const m of junk) {
             try {
-              if (window.db) {
-                await window.db.collection("meetings").doc(m.id).delete();
+              if (window.api && window.api.deleteMeeting) {
+                await window.api.deleteMeeting(m.id);
               } else {
-                // Fallback: remove from local array
-                const idx = meetings.indexOf(m);
-                if (idx > -1) meetings.splice(idx, 1);
+                const idx = meetings.indexOf(m); if (idx > -1) meetings.splice(idx, 1);
               }
               count++;
             } catch (err) {
@@ -4070,6 +4791,45 @@ function initSystemMaintenance() {
           if (typeof updateStatistics === "function") updateStatistics();
           if (typeof renderDashboardCharts === "function") renderDashboardCharts();
 
+          if (errors > 0) {
+            showToast(`Purged ${count} record${count !== 1 ? "s" : ""}. ${errors} failed — check console.`, "warning");
+          } else {
+            showToast(`Purged ${count} record${count !== 1 ? "s" : ""} successfully.`, "success");
+          }
+        }
+      );
+    });
+  }
+
+  if (purgeApprovedBtn) {
+    purgeApprovedBtn.addEventListener("click", async () => {
+      const safeMeetings = (typeof meetings !== "undefined" && Array.isArray(meetings)) ? meetings : [];
+      const targets = safeMeetings.filter(m => m.status === "Approved" || m.status === "Done");
+      if (!targets.length) { showToast("No Approved or Done records found.", "info"); return; }
+      openConfirmModal(
+        "Purge Approved & Done Records",
+        `This will <strong>permanently delete ${targets.length} record${targets.length !== 1 ? "s" : ""}</strong> (Approved &amp; Done) from Firebase.<br><br>
+        <span style="color:var(--color-danger);font-weight:700">Warning:</span> This cannot be undone.`,
+        async () => {
+          let count = 0, errors = 0;
+          for (const m of targets) {
+            try {
+              if (window.api && window.api.deleteMeeting) {
+                await window.api.deleteMeeting(m.id);
+              } else {
+                const idx = meetings.indexOf(m); if (idx > -1) meetings.splice(idx, 1);
+              }
+              count++;
+            } catch (err) {
+              console.error("Purge Approved/Done error for", m.id, err);
+              errors++;
+            }
+          }
+          if (typeof fetchAllData === "function") await fetchAllData();
+          if (typeof renderAdminMeetingsTable === "function") renderAdminMeetingsTable();
+          if (typeof renderCalendar === "function") renderCalendar();
+          if (typeof updateStatistics === "function") updateStatistics();
+          if (typeof renderDashboardCharts === "function") renderDashboardCharts();
           if (errors > 0) {
             showToast(`Purged ${count} record${count !== 1 ? "s" : ""}. ${errors} failed — check console.`, "warning");
           } else {
@@ -4160,10 +4920,26 @@ function _annTimeAgo(isoStr) {
   return new Date(isoStr).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Human-readable "expires in X" label for announcement cards
+function _annExpiresIn(isoStr) {
+  if (!isoStr) return "";
+  const diff = new Date(isoStr).getTime() - Date.now();
+  if (diff <= 0) return "expired";
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return mins + "m";
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + "h";
+  const days = Math.floor(hrs / 24);
+  return days + "d";
+}
+
 // Render announcement card HTML — shared between admin and user views
 function _renderAnnCard(ann, isAdmin) {
   const meta = _annMeta(ann.type);
   const pinHtml = ann.pinned ? `<span style="font-size:0.7rem;font-weight:700;letter-spacing:0.04em;color:#d97706;background:rgba(217,119,6,0.12);padding:2px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> PINNED</span>` : "";
+  const editHtml = isAdmin ? `<button class="btn btn-ghost btn-sm ann-edit-btn" data-id="${ann.id}" title="Edit announcement" style="color:var(--color-text-muted);padding:4px 8px;flex-shrink:0">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+  </button>` : "";
   const deleteHtml = isAdmin ? `<button class="btn btn-ghost btn-sm ann-delete-btn" data-id="${ann.id}" title="Delete announcement" style="color:var(--color-text-muted);padding:4px 8px;flex-shrink:0">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
   </button>` : "";
@@ -4186,13 +4962,25 @@ function _renderAnnCard(ann, isAdmin) {
         </div>
         <div style="font-weight:700;font-size:0.95rem;color:var(--color-text);line-height:1.3;word-break:break-word">${_escHtml(ann.title)}</div>
       </div>
-      ${deleteHtml}
+      ${editHtml}${deleteHtml}
     </div>
     <div style="font-size:0.875rem;color:var(--color-text-muted);line-height:1.6;white-space:pre-wrap;word-break:break-word;padding-left:46px">${_escHtml(ann.body)}</div>
-    <div style="font-size:0.75rem;color:var(--color-text-muted);padding-left:46px;display:flex;align-items:center;gap:6px">
+    <div style="font-size:0.75rem;color:var(--color-text-muted);padding-left:46px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       ${_annTimeAgo(ann.createdAt)}
       ${ann.postedBy ? `· Posted by <strong>${_escHtml(ann.postedBy)}</strong>` : ""}
+      ${ann.expiresAt ? (() => {
+        const diff = new Date(ann.expiresAt).getTime() - Date.now();
+        const label = diff <= 0 ? 'expired' : 'in ' + _annExpiresIn(ann.expiresAt);
+        const urgent = diff > 0 && diff < 3 * 24 * 60 * 60 * 1000; // < 3 days
+        const expiredNow = diff <= 0;
+        const bg    = expiredNow ? 'rgba(220,38,38,0.10)'  : urgent ? 'rgba(234,88,12,0.10)'  : 'rgba(107,114,128,0.08)';
+        const color = expiredNow ? '#dc2626'                : urgent ? '#ea580c'                : 'var(--color-text-muted)';
+        const icon  = urgent || expiredNow
+          ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+          : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+        return `· <span style="display:inline-flex;align-items:center;gap:3px;font-size:0.7rem;font-weight:600;padding:1px 7px;border-radius:999px;background:${bg};color:${color}">${icon}expires ${label}</span>`;
+      })() : ""}
     </div>
   </div>`;
 }
@@ -4303,9 +5091,95 @@ function renderAdminDashAnnouncements(list) {
         <div style="font-size:0.73rem;color:var(--color-text-muted)">${_annTimeAgo(a.createdAt)}</div>
       </div>
     </div>`;
-  }).join("") + `<div style="padding-top:8px;text-align:right">
-    <a href="#" class="dash-see-all" onclick="if(typeof switchSection==='function'){event.preventDefault();switchSection('announcements');}">Manage →</a>
-  </div>`;
+  }).join("");
+}
+
+function openAnnEditModal(ann) {
+  let modal = document.getElementById("ann-edit-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "ann-edit-modal";
+    modal.className = "modal-backdrop";
+    modal.innerHTML = `
+      <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+          <div class="modal-title">Edit Announcement</div>
+          <button id="ann-edit-close" class="btn btn-ghost btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body section-stack" id="ann-edit-body-wrap">
+          <div>
+            <label class="field-label" for="ann-edit-title">Title *</label>
+            <input id="ann-edit-title" class="field" maxlength="120" />
+          </div>
+          <div>
+            <label class="field-label" for="ann-edit-type">Category</label>
+            <select id="ann-edit-type" class="field">
+              <option value="general">General Info</option>
+              <option value="important">Important Notice</option>
+              <option value="reminder">Reminder</option>
+              <option value="event">Upcoming Event</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="ann-edit-body">Message *</label>
+            <textarea id="ann-edit-body" class="field" rows="4" style="resize:vertical;min-height:96px"></textarea>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;color:var(--color-text);user-select:none">
+            <input type="checkbox" id="ann-edit-pinned" style="width:15px;height:15px;accent-color:#d97706;cursor:pointer" />
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="color:#d97706;flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>Pin to top of announcements</span>
+          </label>
+          <div id="ann-edit-error" class="helper-text" style="color:var(--color-danger)"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="ann-edit-cancel" class="btn btn-ghost btn-sm">Cancel</button>
+          <button id="ann-edit-save" class="btn btn-primary btn-sm">Save Changes</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById("ann-edit-title").value = ann.title || "";
+  document.getElementById("ann-edit-type").value = ann.type || "general";
+  document.getElementById("ann-edit-body").value  = ann.body || "";
+  const pinEl = document.getElementById("ann-edit-pinned");
+  if (pinEl) pinEl.checked = !!ann.pinned;
+  const errEl = document.getElementById("ann-edit-error");
+  if (errEl) errEl.textContent = "";
+
+  const modalInner = modal.querySelector(".modal");
+  if (modalInner) { modalInner.style.animation = "none"; requestAnimationFrame(() => { modalInner.style.animation = ""; }); }
+  modal.classList.add("modal-open");
+
+  const close = () => { modal.classList.remove("modal-open"); };
+  document.getElementById("ann-edit-close").onclick = close;
+  document.getElementById("ann-edit-cancel").onclick = close;
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+
+  document.getElementById("ann-edit-save").onclick = async () => {
+    const title = (document.getElementById("ann-edit-title").value || "").trim();
+    const body  = (document.getElementById("ann-edit-body").value  || "").trim();
+    const type  = document.getElementById("ann-edit-type").value || "general";
+    const pinned= !!document.getElementById("ann-edit-pinned").checked;
+    if (!title) { if (errEl) errEl.textContent = "Title is required."; return; }
+    if (!body)  { if (errEl) errEl.textContent = "Message is required."; return; }
+    if (errEl) errEl.textContent = "";
+    try {
+      await window.api.updateAnnouncement(ann.id, { title, body, type, pinned });
+      showToast("Announcement updated.", "success");
+      // If no live subscription, refresh manually
+      if (!window.api.subscribeAnnouncements) {
+        const list = await window.api.getAnnouncements();
+        window.announcements = list;
+        renderAdminAnnouncements(list);
+        renderAdminDashAnnouncements(list);
+      }
+      close();
+    } catch (err) {
+      showToast("Failed to update announcement.", "error");
+    }
+  };
 }
 
 // ── Wire admin announcements form ──────────────────────────────────────────
@@ -4364,10 +5238,13 @@ function initAdminAnnouncements() {
       }
       showToast("Announcement posted successfully!", "success");
       form.reset();
-      // Refresh list
-      const list = await window.api.getAnnouncements();
-      renderAdminAnnouncements(list);
-      renderAdminDashAnnouncements(list);
+      // The subscribeAnnouncements callback fires automatically (local & Firestore).
+      // Only fetch manually if subscribe is not available (fallback).
+      if (!window.api.subscribeAnnouncements) {
+        const list = await window.api.getAnnouncements();
+        renderAdminAnnouncements(list);
+        renderAdminDashAnnouncements(list);
+      }
     } catch(err) {
       showToast("Failed to post announcement.", "error");
     } finally {
@@ -4375,26 +5252,34 @@ function initAdminAnnouncements() {
     }
   });
 
-  // Delete delegation
+  // Edit/Delete delegation
   document.getElementById("admin-announce-list")?.addEventListener("click", async e => {
-    const btn = e.target.closest(".ann-delete-btn");
-    if (!btn) return;
-    const id = btn.dataset.id;
+    const editBtn = e.target.closest(".ann-edit-btn");
+    const delBtn  = e.target.closest(".ann-delete-btn");
+    if (!editBtn && !delBtn) return;
+    const id = (editBtn || delBtn).dataset.id;
     if (!id) return;
-    openConfirmModal("Delete Announcement",
-      "Are you sure you want to delete this announcement? This cannot be undone.",
-      async () => {
-        try {
-          await window.api.deleteAnnouncement(id);
-          showToast("Announcement deleted.", "success");
-          const list = await window.api.getAnnouncements();
-          renderAdminAnnouncements(list);
-          renderAdminDashAnnouncements(list);
-        } catch(err) {
-          showToast("Failed to delete.", "error");
+    if (delBtn) {
+      openConfirmModal("Delete Announcement",
+        "Are you sure you want to delete this announcement? This cannot be undone.",
+        async () => {
+          try {
+            await window.api.deleteAnnouncement(id);
+            showToast("Announcement deleted.", "success");
+            if (!window.api.subscribeAnnouncements) {
+              const list = await window.api.getAnnouncements();
+              renderAdminAnnouncements(list);
+              renderAdminDashAnnouncements(list);
+            }
+          } catch(err) {
+            showToast("Failed to delete.", "error");
+          }
         }
-      }
-    );
+      );
+    } else if (editBtn) {
+      const ann = (window.announcements || []).find(a => a.id === id);
+      if (ann) openAnnEditModal(ann);
+    }
   });
 }
 
@@ -4402,34 +5287,63 @@ function initAdminAnnouncements() {
 function initUserAnnouncements() {
   if (!window.api?.subscribeAnnouncements) return;
 
-  let _prevCount = null; // track previous count to detect new arrivals
+  // Key stored per-user: timestamp of the newest announcement we have already
+  // pushed a bell notification for. Persisted in localStorage so it survives
+  // page refreshes and new logins on the same device.
+  const currentUser = getCurrentUser();
+  const notifKey = currentUser ? `sbp_ann_notif_ts_${currentUser.id || currentUser.username}` : null;
+
+  function getLastNotifiedTs() {
+    try { return parseInt(localStorage.getItem(notifKey) || "0", 10); } catch { return 0; }
+  }
+  function setLastNotifiedTs(ts) {
+    try { if (notifKey) localStorage.setItem(notifKey, String(ts)); } catch {}
+  }
+
+  // Wire search + filter inputs — re-render live
+  function getFilteredAnnouncements() {
+    const q = (document.getElementById("ann-search")?.value || "").trim().toLowerCase();
+    const t = (document.getElementById("ann-filter-type")?.value || "");
+    let list = window.announcements || [];
+    if (q) list = list.filter(a => (a.title || "").toLowerCase().includes(q) || (a.body || "").toLowerCase().includes(q));
+    if (t) list = list.filter(a => (a.type || "general") === t);
+    return list;
+  }
+  ["ann-search", "ann-filter-type"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", () => renderUserAnnouncements(getFilteredAnnouncements()));
+  });
 
   window.api.subscribeAnnouncements(list => {
     window.announcements = list;
-    renderUserAnnouncements(list);
+    renderUserAnnouncements(getFilteredAnnouncements());
     renderUserDashAnnouncements(list);
 
-    // ── Update sidebar "New" badge — driven by unseen timestamp, not raw count ──
-    // renderUserAnnouncements() handles this correctly; no override needed here.
+    // ── Push bell notifications for every announcement newer than last notified ──
+    // This fires on initial page load AND on real-time updates, so users always
+    // get notified even if they were offline when the admin posted.
+    if (!currentUser) return;
+    const lastTs = getLastNotifiedTs();
+    // Sort ascending so we fire oldest-new first and update the watermark correctly
+    const newAnns = list
+      .filter(a => a.createdAt && new Date(a.createdAt).getTime() > lastTs)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-    // ── Push bell notification when a new announcement arrives in real-time ──
-    // Only fire after initial load (when _prevCount is already set)
-    if (_prevCount !== null && list.length > _prevCount) {
-      const newest = list[0]; // list is ordered newest first
-      if (newest) {
-        const currentUser = getCurrentUser();
-        if (currentUser) {
-          addNotification(
-            currentUser.id || currentUser.username,
-            `New announcement: <strong>${h(newest.title || "Untitled")}</strong>`,
-            "info",
-            "announcements"
-          );
-          updateNotificationBadge(currentUser.id || currentUser.username);
-        }
-      }
+    if (newAnns.length > 0) {
+      const uid = currentUser.id || currentUser.username;
+      newAnns.forEach(a => {
+        addNotification(
+          uid,
+          `New announcement: <strong>${h(a.title || "Untitled")}</strong>`,
+          "info",
+          "announcements"
+        );
+      });
+      // Advance the watermark to the newest announcement we just notified
+      const newMaxTs = Math.max(...newAnns.map(a => new Date(a.createdAt).getTime()));
+      setLastNotifiedTs(newMaxTs);
+      updateNotificationBadge(uid);
     }
-    _prevCount = list.length;
   });
 }
 
@@ -4460,7 +5374,10 @@ function initUserAnnouncements() {
     if (_activeDrawer && _activeDrawer !== drawer) _destroyDrawer(_activeDrawer);
     _activeDrawer = drawer;
     document.body.appendChild(drawer);
-    document.body.style.overflow = "hidden";
+    // Lock scroll on the scrollable content area, NOT body
+    // Setting overflow:hidden on body clips position:fixed elements on iOS Safari
+    const mainScroll = document.querySelector(".main-scroll");
+    if (mainScroll) mainScroll.style.overflow = "hidden";
     overlay.classList.add("drawer-visible");
     // Force reflow so CSS transition fires
     drawer.offsetHeight;
@@ -4474,7 +5391,9 @@ function initUserAnnouncements() {
   function _destroyDrawer(drawer) {
     drawer.classList.remove("drawer-open");
     if (_overlay) _overlay.classList.remove("drawer-visible");
-    document.body.style.overflow = "";
+    // Restore scroll on main-scroll (not body — body overflow clips fixed elements on iOS)
+    const mainScroll = document.querySelector(".main-scroll");
+    if (mainScroll) mainScroll.style.overflow = "";
     setTimeout(() => {
       if (drawer.parentNode) drawer.parentNode.removeChild(drawer);
     }, 380);
@@ -4600,8 +5519,9 @@ function initUserAnnouncements() {
                ? formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS) : "—";
              const belongsToMe = meetingBelongsToUser(m, currentUser);
              const canCancel = belongsToMe && currentUser.role !== ROLES.ADMIN && ["Pending", "Approved"].includes(m.status);
-             const createdAt = m.createdAt ? new Date(m.createdAt) : null;
-             const within24h = createdAt && (new Date() - createdAt) < 24 * 60 * 60 * 1000;
+            const createdAt = m.createdAt ? new Date(m.createdAt) : null;
+            const nowM = getManilaNow();
+            const within24h = !!(createdAt && Math.max(0, nowM - createdAt) < 24 * 60 * 60 * 1000);
              const cancelLabel = within24h ? "Cancel (Free)" : "Request Cancel";
              return `
                <div style="background:${c.bg};border:1px solid ${c.border};border-left:4px solid ${c.border};border-radius:10px;padding:12px 14px${belongsToMe ? ';outline:2px solid #F5A31A;outline-offset:1px' : ''}">
@@ -4866,6 +5786,9 @@ function initUserAnnouncements() {
     _openDrawer(drawer);
 
     requestAnimationFrame(() => {
+      // Wire up committee combobox for this drawer instance
+      initDrawerCommitteeCombo(drawer);
+
       // Populate dropdowns
       _dbPopulateTime(activeDate);
       _dbPopulateDuration();
@@ -4948,7 +5871,7 @@ function initUserAnnouncements() {
         hint.textContent = "✓ All time slots available for this date";
       } else {
         hint.style.color = "var(--color-warning)";
-        hint.textContent = "⚠ Some slots are taken";
+        hint.textContent = "Some slots are taken";
       }
     }
   }
@@ -4983,7 +5906,7 @@ function initUserAnnouncements() {
     prev.style.color = endMins > WORK_END_HOUR * 60
       ? "var(--color-danger)" : "var(--color-text-muted)";
     prev.textContent = endMins > WORK_END_HOUR * 60
-      ? `⚠ End time ${label} exceeds office hours`
+      ? `End time ${label} exceeds office hours`
       : `End Time: ${label}`;
   }
 
@@ -5126,5 +6049,33 @@ function initUserAnnouncements() {
       });
     });
   };
+
+  window.switchSection = function(sectionId) {
+  // 1. Update the topbar title
+  const topbarTitle = document.getElementById('topbar-section-title');
+  if (topbarTitle) {
+    topbarTitle.textContent = sectionId.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  }
+
+  // 2. Toggle active class on sidebar links
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('nav-link-active', link.getAttribute('data-section') === sectionId);
+  });
+
+  // 3. Toggle visibility of sections
+  document.querySelectorAll('.admin-section').forEach(section => {
+    section.classList.toggle('active', section.id === 'section-' + sectionId);
+  });
+};
+
+document.querySelectorAll('.nav-link').forEach(link => {
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    const section = link.getAttribute('data-section');
+    if (section) switchSection(section);
+  });
+});
 
 })();
