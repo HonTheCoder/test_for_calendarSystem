@@ -494,14 +494,19 @@ function getCurrentUser() {
 function setCurrentUser(user) {
   if (!user) {
     // On logout, remove the current user identity and session stamp.
+    // SESSION_EXPIRY lives in sessionStorage (set by refreshSession) — clear
+    // it there. The old localStorage copy is also removed for legacy cleanup.
     // Also clear per-session cached data (meetings, notifications) so the
     // NEXT user who logs in on this device never sees stale data from the
     // previous session — which was causing the phantom pending-badge bug
     // on new accounts that have no meetings yet.
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-    localStorage.removeItem(STORAGE_KEYS.SESSION_EXPIRY);
+    sessionStorage.removeItem(STORAGE_KEYS.SESSION_EXPIRY);   // ← correct store
+    localStorage.removeItem(STORAGE_KEYS.SESSION_EXPIRY);     // ← legacy cleanup
     localStorage.removeItem(STORAGE_KEYS.MEETINGS);
     localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+    sessionStorage.removeItem('user_section');                 // ← clear saved section
+    sessionStorage.removeItem('sbp_just_logged_in');          // ← clear login flag
     // Do NOT clear STORAGE_KEYS.USERS — the user list is shared/synced from
     // Firestore and is needed for login on next load.
     // Do NOT clear announcements — they are global, not per-user.

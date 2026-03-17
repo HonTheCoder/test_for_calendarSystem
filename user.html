@@ -321,7 +321,7 @@
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-blue-dark"></span> Ongoing</span>
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-green" style="opacity:0.55"></span> Others' Approved</span>
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-yellow" style="opacity:0.55"></span> Pending</span>
-                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-purple"></span> Admin Scheduled</span>
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-purple"></span> Admin Scheduled (Mine)</span>
                   <span class="calendar-legend-item"><span class="icon-dot" style="background:#fcd34d;border:1px solid #f59e0b"></span> PH Holiday</span>
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-blue" style="opacity:0.85"></span> Done</span>
                   <span class="calendar-legend-item"><span style="width:8px;height:8px;border-radius:3px;background:#dc2626;display:inline-block;flex-shrink:0"></span> Full</span>
@@ -544,7 +544,7 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Office hours: Mon–Fri, 8:00 AM – 5:00 PM
               <span id="meeting-end-preview" class="meeting-end-preview-val"></span>
-              <!-- Bug Fix #3: removed duplicate id="meeting-duration-hint" that was hidden here; the real one is in the Duration row above -->
+              <!-- Bug Fix #3: removed duplicate id="meeting-duration-hint-drawer" that was hidden here; the real one is in the Duration row above -->
               <div class="calendar-lunch-block" style="display:none"></div>
             </div>
 
@@ -699,7 +699,6 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="./react-init.js"></script>
     <script src="./config-PRIVATE-6e93a2d7.js"></script>
     <script src="./firebase.js"></script>
@@ -771,13 +770,14 @@
         // override ensures the inline onclick buttons on the dashboard work properly.
         window.switchSection = switchSection;
 
-        document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
-          a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
-        });
-        document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
-          a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
-        });
         document.addEventListener('DOMContentLoaded', function () {
+          // Register nav + bottom-nav click listeners after DOM is ready
+          document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
+            a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+          });
+          document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
+            a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+          });
           initDirtyTracking('meeting-form');
           // Always land on dashboard when coming fresh from login
           var fromLogin = sessionStorage.getItem('sbp_just_logged_in');
