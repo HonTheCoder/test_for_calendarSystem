@@ -6,9 +6,13 @@
     <!-- Dark mode anti-flicker: must run before any CSS renders -->
     <script>if(localStorage.getItem('sbp_dark')==='1')document.documentElement.setAttribute('data-theme','dark');</script>
     <!-- If a logged-in user lands back on the login page (e.g. via browser history),
-         immediately redirect them to their dashboard so they can never see the login form. -->
+         immediately redirect them to their dashboard so they can never see the login form.
+         Also replaceState so this login page entry is wiped from browser history. -->
     <script>
       (function () {
+        // Wipe the login page from history immediately — replaceState overwrites
+        // this entry so the back button can never land here from the dashboard.
+        history.replaceState({ sbpLogin: true }, '', window.location.href);
         try {
           var cu = JSON.parse(localStorage.getItem('sbp_current_user'));
           var exp = parseInt(sessionStorage.getItem('sbp_session_expiry') || '0', 10);

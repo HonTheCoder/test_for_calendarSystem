@@ -752,7 +752,31 @@ mark.gs-hl {
 .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 600px) { .form-grid-2 { grid-template-columns: 1fr; } }
 
-.user-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; padding: 0 20px 20px; align-items: end; }
+.user-form-grid { display: grid; grid-template-columns: 1fr 1.4fr 1fr 1fr 0.8fr auto; gap: 12px; padding: 0 20px 20px; align-items: end; }
+@media (max-width: 1100px) { .user-form-grid { grid-template-columns: 1fr 1fr 1fr; } }
+@media (max-width: 600px)  { .user-form-grid { grid-template-columns: 1fr; } }
+
+/* Username preview sits below the field without affecting row height */
+.user-form-grid > div { position: relative; }
+.user-form-grid .helper-text[id$="-preview"] {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+/* Password strength bar also shouldn't inflate height */
+.user-form-grid .pwd-strength-wrap {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 3px;
+}
 
 .search-bar-wrap           { position: relative; flex: 1; min-width: 160px; max-width: 280px; }
 .search-bar-wrap svg       { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }

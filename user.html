@@ -1069,12 +1069,26 @@
       })();
     </script>
 
-    <!-- Back-button lock -->
+    <!-- Back-button lock (bulletproof) -->
     <script>
       (function () {
-        history.pushState({ sbpLocked: true }, '', window.location.href);
+        var LOCK_URL = window.location.href;
+        var STACK    = 50;
+
+        // Replace current entry so login is gone from history
+        history.replaceState({ sbpLocked: true, idx: 0 }, '', LOCK_URL);
+        // Flood forward
+        for (var i = 1; i <= STACK; i++) {
+          history.pushState({ sbpLocked: true, idx: i }, '', LOCK_URL);
+        }
+
         window.addEventListener('popstate', function () {
-          history.pushState({ sbpLocked: true }, '', window.location.href);
+          // Jump far forward to absorb any back press
+          history.go(STACK);
+          // Keep the stack deep
+          for (var j = 0; j < 5; j++) {
+            history.pushState({ sbpLocked: true, idx: j }, '', LOCK_URL);
+          }
         });
       })();
     </script>

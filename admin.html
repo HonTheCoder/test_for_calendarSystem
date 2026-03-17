@@ -366,7 +366,7 @@
             <div class="page-header">
               <div>
                 <div class="page-header-title">User Management</div>
-                <div class="page-header-sub">Manage all user accounts. Regular users (Councilor + Researcher): max 20 total. Special accounts: Vice Mayor (1), Secretary (1).</div>
+                <div class="page-header-sub">Manage all user accounts. Regular users: Councilor (max 30), Researcher (max 20). Special accounts: Vice Mayor (1), Secretary (1).</div>
               </div>
             </div>
 
@@ -452,8 +452,8 @@
                   <div>
                     <div class="card-title">Regular User Accounts</div>
                     <div class="card-subtitle">
-                      Councilor and Researcher accounts — max <strong>20</strong> total.
-                      &nbsp;<span id="user-count-badge" style="font-size:0.75rem;font-weight:500;color:var(--color-text-muted);background:var(--color-bg);border:1px solid var(--color-border);border-radius:999px;padding:1px 10px;vertical-align:middle">0 / 20 users</span>
+                      Councilor and Researcher accounts — max <strong>30</strong> Councilors, <strong>20</strong> Researchers.
+                      &nbsp;<span id="user-count-badge" style="font-size:0.75rem;font-weight:500;color:var(--color-text-muted);background:var(--color-bg);border:1px solid var(--color-border);border-radius:999px;padding:1px 10px;vertical-align:middle">0 / 50 users</span>
                     </div>
                   </div>
                 </div>
@@ -1707,14 +1707,29 @@
 </script>
 
 <script>
-  // ── Back-button lock ───────────────────────────────────────────────────────
-  // Push a dummy history entry so the browser back button can never exit to
-  // the login page while the user is authenticated. On every popstate (back/
-  // forward press) we push another entry, keeping the user on this page.
+  // ── Back-button lock (bulletproof) ────────────────────────────────────────
+  // Flood the history stack with 50 identical entries on load so there is
+  // no reachable "back" entry. On every popstate (back/forward press) we
+  // immediately jump forward 50 steps AND push another batch, making it
+  // impossible to navigate back to the login page via the browser button.
   (function () {
-    history.pushState({ sbpLocked: true }, '', window.location.href);
+    var LOCK_URL = window.location.href;
+    var STACK    = 50;
+
+    // Replace current entry first so login is gone from history
+    history.replaceState({ sbpLocked: true, idx: 0 }, '', LOCK_URL);
+    // Flood forward
+    for (var i = 1; i <= STACK; i++) {
+      history.pushState({ sbpLocked: true, idx: i }, '', LOCK_URL);
+    }
+
     window.addEventListener('popstate', function () {
-      history.pushState({ sbpLocked: true }, '', window.location.href);
+      // Jump far forward to absorb any back press
+      history.go(STACK);
+      // Also push more entries to keep the stack deep
+      for (var j = 0; j < 5; j++) {
+        history.pushState({ sbpLocked: true, idx: j }, '', LOCK_URL);
+      }
     });
   })();
 </script>
