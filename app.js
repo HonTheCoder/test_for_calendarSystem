@@ -17,14 +17,14 @@ const ROLES = {
 };
 
 const ROLE_LIMITS = {
-  [ROLES.COUNCILOR]: 10,
-  [ROLES.RESEARCHER]: 10,
+  [ROLES.COUNCILOR]: 30,
+  [ROLES.RESEARCHER]: 20,
   [ROLES.VICE_MAYOR]: 1,
   [ROLES.SECRETARY]: 1,
 };
 
 // Hard cap on total regular (non-admin, non-special) user accounts
-const MAX_REGULAR_USERS = 20;
+const MAX_REGULAR_USERS = 50;
 
 // Roles that are special accounts (not full admins) routed to user.html
 const SPECIAL_ROLES = [ROLES.VICE_MAYOR, ROLES.SECRETARY];
@@ -2539,7 +2539,7 @@ function handleMyMeetingsClick(e) {
       ? `<div style="margin-bottom:10px">
            <span style="display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;font-size:0.75rem;font-weight:700;padding:4px 10px;border-radius:999px;margin-bottom:8px">
              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-             Within 24-hour free cancellation window
+             Within 24-hour allowed cancellation window
            </span>
            <div style="font-size:0.87rem;color:var(--color-text)">You are cancelling <strong>${h(mtg.eventName)}</strong> on <strong>${formatDateDisplay(mtg.date)}</strong>.</div>
            <div style="font-size:0.82rem;color:var(--color-text-muted);margin-top:4px">This will be cancelled immediately without admin approval. Please briefly state why:</div>
