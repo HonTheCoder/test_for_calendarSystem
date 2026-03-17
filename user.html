@@ -83,14 +83,33 @@
         <!-- TOPBAR -->
         <header class="topbar">
           <div class="topbar-left">
-            <div class="topbar-portal-badge">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              User Portal
-            </div>
-            <div class="topbar-divider"></div>
             <div id="topbar-section-title" class="topbar-section-title">Dashboard</div>
           </div>
           <div class="topbar-right">
+            <!-- Global Search -->
+            <div class="global-search-wrap" id="global-search-wrap">
+              <button class="global-search-trigger" id="global-search-trigger" title="Search (Ctrl+K)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span class="global-search-trigger-label">Search…</span>
+                <kbd class="global-search-kbd">⌘K</kbd>
+              </button>
+              <div class="global-search-dropdown" id="global-search-dropdown">
+                <div class="global-search-input-wrap">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="global-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" id="global-search-input" class="global-search-input" placeholder="Search your meetings…" autocomplete="off" spellcheck="false" />
+                  <button class="global-search-clear" id="global-search-clear" title="Clear">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+                <div class="global-search-results" id="global-search-results">
+                  <div class="global-search-empty">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span>Start typing to search…</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <button class="dark-toggle" id="dark-toggle-btn" title="Toggle dark mode">
               <svg id="dark-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
             </button>
@@ -745,6 +764,12 @@
           }
           doSwitch();
         }
+
+        // Expose the correct user-page switchSection to window.
+        // app.js also writes window.switchSection but targets .admin-section — this
+        // override ensures the inline onclick buttons on the dashboard work properly.
+        window.switchSection = switchSection;
+
         document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
           a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
         });
@@ -916,6 +941,141 @@
         }
         applyTheme(localStorage.getItem('sbp_dark') === '1');
         if (btn) btn.addEventListener('click', function() { applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark'); });
+      })();
+    </script>
+
+    <!-- Global Search (User) -->
+    <script>
+      (function () {
+        var wrap     = document.getElementById('global-search-wrap');
+        var trigger  = document.getElementById('global-search-trigger');
+        var dropdown = document.getElementById('global-search-dropdown');
+        var input    = document.getElementById('global-search-input');
+        var results  = document.getElementById('global-search-results');
+        var clearBtn = document.getElementById('global-search-clear');
+        var open     = false;
+        var debounceT = null;
+
+        var STATUS_COLORS = {
+          'Approved':'#16a34a','Pending':'#f59e0b','Cancelled':'#dc2626',
+          'Rejected':'#dc2626','Done':'#3b82f6','Cancellation Requested':'#f97316'
+        };
+
+        function esc(s) {
+          if (s == null) return '';
+          return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function highlight(text, query) {
+          if (!query) return esc(text);
+          var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
+          return esc(text).replace(re, '<mark class="gs-hl">$1</mark>');
+        }
+
+        function openSearch() {
+          open = true;
+          wrap.classList.add('gs-open');
+          dropdown.style.display = 'flex';
+          setTimeout(function () { input.focus(); }, 30);
+        }
+
+        function closeSearch() {
+          open = false;
+          wrap.classList.remove('gs-open');
+          dropdown.style.display = 'none';
+          input.value = '';
+          clearBtn.style.display = 'none';
+          showEmpty();
+        }
+
+        function showEmpty(msg) {
+          results.innerHTML = '<div class="global-search-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>' + (msg || 'Start typing to search…') + '</span></div>';
+        }
+
+        function getCurrentUser() {
+          try { return JSON.parse(localStorage.getItem('sbp_current_user')); } catch(e) { return null; }
+        }
+
+        function doSearch(q) {
+          q = (q || '').trim();
+          clearBtn.style.display = q ? 'flex' : 'none';
+          if (!q) { showEmpty(); return; }
+
+          var currentUser = getCurrentUser();
+          var allMeetings = window.meetings || [];
+          var lq = q.toLowerCase();
+
+          // Filter to only this user's meetings
+          var mine = allMeetings.filter(function(m) {
+            if (!currentUser) return false;
+            if (currentUser.role === 'Councilor')  return m.councilor === currentUser.name || m.createdBy === currentUser.username;
+            if (currentUser.role === 'Researcher') return m.researcher === currentUser.name || m.createdBy === currentUser.username;
+            return m.createdBy === currentUser.username;
+          });
+
+          var mResults = mine.filter(function(m) {
+            return [m.eventName, m.status, m.date, m.venue, m.type, m.meetingType, m.committee, m.councilor, m.researcher, m.stakeholders]
+              .some(function(v) { return v && String(v).toLowerCase().includes(lq); });
+          }).slice(0, 10);
+
+          if (!mResults.length) { showEmpty('No results for "' + esc(q) + '"'); return; }
+
+          var html = '<div class="gs-group-label">Your Meetings</div>';
+          mResults.forEach(function(m) {
+            var color = STATUS_COLORS[m.status] || '#9ca3af';
+            var dateStr = m.date ? new Date(m.date + 'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
+            html += '<button class="gs-item" data-section="my-meetings">' +
+              '<span class="gs-item-icon gs-icon-meeting"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>' +
+              '<div class="gs-item-body">' +
+                '<div class="gs-item-title">' + highlight(m.eventName || 'Meeting', q) + '</div>' +
+                '<div class="gs-item-meta">' + esc(dateStr) + (m.venue ? ' · ' + esc(m.venue) : '') + (m.type ? ' · ' + esc(m.type) : '') + '</div>' +
+              '</div>' +
+              '<span class="gs-badge" style="background:' + color + '">' + esc(m.status) + '</span>' +
+            '</button>';
+          });
+          results.innerHTML = html;
+
+          results.querySelectorAll('.gs-item').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var section = btn.getAttribute('data-section');
+              closeSearch();
+              if (section && typeof switchSection === 'function') switchSection(section);
+            });
+          });
+        }
+
+        trigger.addEventListener('click', function () { open ? closeSearch() : openSearch(); });
+
+        input.addEventListener('input', function () {
+          clearTimeout(debounceT);
+          debounceT = setTimeout(function () { doSearch(input.value); }, 120);
+        });
+
+        clearBtn.addEventListener('click', function () {
+          input.value = '';
+          clearBtn.style.display = 'none';
+          showEmpty();
+          input.focus();
+        });
+
+        document.addEventListener('keydown', function (e) {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); open ? closeSearch() : openSearch(); }
+          if (e.key === 'Escape' && open) closeSearch();
+        });
+
+        document.addEventListener('mousedown', function (e) {
+          if (open && !wrap.contains(e.target)) closeSearch();
+        });
+      })();
+    </script>
+
+    <!-- Back-button lock -->
+    <script>
+      (function () {
+        history.pushState({ sbpLocked: true }, '', window.location.href);
+        window.addEventListener('popstate', function () {
+          history.pushState({ sbpLocked: true }, '', window.location.href);
+        });
       })();
     </script>
 

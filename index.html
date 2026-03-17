@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Dark mode anti-flicker: must run before any CSS renders -->
     <script>if(localStorage.getItem('sbp_dark')==='1')document.documentElement.setAttribute('data-theme','dark');</script>
+    <!-- If a logged-in user lands back on the login page (e.g. via browser history),
+         immediately redirect them to their dashboard so they can never see the login form. -->
+    <script>
+      (function () {
+        try {
+          var cu = JSON.parse(localStorage.getItem('sbp_current_user'));
+          var exp = parseInt(sessionStorage.getItem('sbp_session_expiry') || '0', 10);
+          if (cu && cu.role && (!exp || Date.now() < exp)) {
+            window.location.replace(cu.role === 'Admin' ? './admin.html' : './user.html');
+          }
+        } catch (e) {}
+      })();
+    </script>
     <title>SB Polangui | Sign In</title>
     <link rel="icon" type="image/x-icon" href="images/SB_logo.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
