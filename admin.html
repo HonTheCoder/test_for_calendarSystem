@@ -366,7 +366,7 @@
             <div class="page-header">
               <div>
                 <div class="page-header-title">User Management</div>
-                <div class="page-header-sub">Manage all user accounts. Regular users: Councilor (max 30), Researcher (max 20). Special accounts: Vice Mayor (1), Secretary (1).</div>
+                <div class="page-header-sub">Manage all user accounts. Regular users: Councilor (max 30), Researcher (max 20). Special accounts: Vice Mayor (max 5), Secretary (max 5).</div>
               </div>
             </div>
 
@@ -379,7 +379,7 @@
                   </div>
                   <div>
                     <div class="card-title">Special Accounts</div>
-                    <div class="card-subtitle">Vice Mayor and Secretary — behave as users but have dedicated accounts.</div>
+                    <div class="card-subtitle">Vice Mayor and Secretary — behave as users but have dedicated accounts. Max <strong>5</strong> Vice Mayors, <strong>5</strong> Secretaries.</div>
                   </div>
                 </div>
                 <div class="search-bar-wrap">
@@ -959,11 +959,27 @@
             <input type="hidden" id="password-user-id" />
             <div>
               <label for="password-new" class="field-label">New Password</label>
-              <input id="password-new" type="password" class="field" required placeholder="Min. 6 characters" />
+              <div class="pw-wrap">
+                <input id="password-new" type="password" class="field" required placeholder="Min. 6 characters" style="padding-right:40px" />
+                <button type="button" class="pw-toggle" id="pw-new-toggle" aria-label="Toggle password visibility">
+                  <svg id="pw-new-eye-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg id="pw-new-eye-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+              <div class="pwd-strength-wrap" id="chpwd-strength" style="display:none">
+                <div class="pwd-strength-bar"><div class="pwd-strength-fill" id="chpwd-fill"></div></div>
+                <span class="pwd-strength-label" id="chpwd-label"></span>
+              </div>
             </div>
             <div>
               <label for="password-confirm" class="field-label">Confirm Password</label>
-              <input id="password-confirm" type="password" class="field" required placeholder="Re-enter new password" />
+              <div class="pw-wrap">
+                <input id="password-confirm" type="password" class="field" required placeholder="Re-enter new password" style="padding-right:40px" />
+                <button type="button" class="pw-toggle" id="pw-confirm-toggle" aria-label="Toggle confirm password visibility">
+                  <svg id="pw-confirm-eye-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg id="pw-confirm-eye-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
             </div>
             <div id="password-form-message" class="helper-text" style="color:var(--color-danger)"></div>
           </div>

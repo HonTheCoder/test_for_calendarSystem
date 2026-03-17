@@ -19,8 +19,8 @@ const ROLES = {
 const ROLE_LIMITS = {
   [ROLES.COUNCILOR]: 30,
   [ROLES.RESEARCHER]: 20,
-  [ROLES.VICE_MAYOR]: 1,
-  [ROLES.SECRETARY]: 1,
+  [ROLES.VICE_MAYOR]: 5,
+  [ROLES.SECRETARY]: 5,
 };
 
 // Hard cap on total regular (non-admin, non-special) user accounts
@@ -396,10 +396,9 @@ function initNotificationBell(user) {
     const isOpen = notifPanel.classList.toggle("notif-panel-open");
     if (isOpen) {
       renderNotificationPanel(userId);
-      setTimeout(() => {
-        markAllNotificationsRead(userId);
-        updateNotificationBadge(userId);
-      }, 800);
+      // Mark all as read immediately when user clicks to open — no delay
+      markAllNotificationsRead(userId);
+      updateNotificationBadge(userId);
     }
   });
 
@@ -1713,7 +1712,20 @@ function openPasswordModal(userId) {
   $("#password-user-id").value = userId;
   $("#password-new").value = "";
   $("#password-confirm").value = "";
-  $("#password-form-message").textContent = "";
+  // Reset strength bar
+  const strength = $("#chpwd-strength");
+  if (strength) strength.style.display = "none";
+  // Reset show/hide eyes
+  const showNew  = $("#pw-new-eye-show");  const hideNew  = $("#pw-new-eye-hide");
+  const showConf = $("#pw-confirm-eye-show"); const hideConf = $("#pw-confirm-eye-hide");
+  const inpNew   = $("#password-new");     const inpConf  = $("#password-confirm");
+  if (inpNew)   inpNew.type   = "password";
+  if (inpConf)  inpConf.type  = "password";
+  if (showNew)  showNew.style.display  = "";  if (hideNew)  hideNew.style.display  = "none";
+  if (showConf) showConf.style.display = "";  if (hideConf) hideConf.style.display = "none";
+  // Clear any previous error message
+  const msg = $("#password-form-message");
+  if (msg) msg.textContent = "";
   const backdrop = $("#password-modal");
   if (backdrop) backdrop.classList.add("modal-open");
 }
@@ -1730,25 +1742,23 @@ async function handlePasswordSubmit(e) {
   const confirmPwd = $("#password-confirm").value;
   const msg = $("#password-form-message");
 
-  if (pwd.length < 6) { msg.textContent = "Password must be at least 6 characters."; return; }
-  if (pwd !== confirmPwd) { msg.textContent = "Passwords do not match."; showToast("Passwords do not match.", "error"); return; }
+  if (pwd.length < 6) { if(msg) msg.textContent = "Password must be at least 6 characters."; return; }
+  if (pwd !== confirmPwd) { if(msg) msg.textContent = "Passwords do not match."; showToast("Passwords do not match.", "error"); return; }
 
   const user = users.find(u => u.id === userId);
-  if (!user) { msg.textContent = "User not found."; return; }
+  if (!user) { if(msg) msg.textContent = "User not found."; return; }
 
   const hashedPwd = await hashPassword(pwd);
 
   if (window.api && window.api.updateUserPassword) {
     window.api.updateUserPassword(user.id, hashedPwd).then(async () => {
       users = await window.api.getUsers();
-      msg.textContent = "Password updated.";
       showToast("Password updated.", "success");
       setTimeout(closePasswordModal, 700);
     });
   } else {
     user.password = hashedPwd;
     persistUsers();
-    msg.textContent = "Password updated.";
     showToast("Password updated.", "success");
     setTimeout(closePasswordModal, 700);
   }
@@ -2763,6 +2773,49 @@ function renderCalendar() {
       return n.getHours() * 60 + n.getMinutes();
     })();
 
+    // ── Dot indicators — rendered ABOVE badges so they sit at the top of the cell ──
+    if (activeMeetings.length || dayHistory.length) {
+      const dotsRow = document.createElement("div");
+      dotsRow.className = "calendar-cell-dots";
+
+      const isFullBooked = dayMeetings
+        .filter(m => m.status === "Approved")
+        .reduce((s, m) => s + (m.durationHours || SLOT_DURATION_HOURS) * 60, 0) >= (WORK_END_HOUR - WORK_START_HOUR) * 60;
+
+      if (isFullBooked && isWorkday && !isHoliday) {
+        const dot = document.createElement("div");
+        dot.className = "calendar-dot calendar-dot-full";
+        dotsRow.appendChild(dot);
+      } else {
+        const statusMap = { "Approved": "approved", "Pending": "pending", "Cancelled": "cancelled", "Rejected": "cancelled" };
+        const seen = new Set();
+        activeMeetings.slice(0, 3).forEach(m => {
+          const isMineCheck = currentUser && (
+            m.createdBy === currentUser.username ||
+            m.councilor === currentUser.name ||
+            m.researcher === currentUser.name
+          );
+          const cls = statusMap[m.status] || "other";
+          const dotKey = cls + (isMineCheck ? "-mine" : "");
+          if (!seen.has(dotKey)) {
+            seen.add(dotKey);
+            const dot = document.createElement("div");
+            // Mine dots get gold color to match the badge highlight
+            dot.className = isMineCheck
+              ? "calendar-dot calendar-dot-mine"
+              : `calendar-dot calendar-dot-${cls}`;
+            dotsRow.appendChild(dot);
+          }
+        });
+        if (dayHistory.length && activeMeetings.length === 0) {
+          const dot = document.createElement("div");
+          dot.className = "calendar-dot calendar-dot-other";
+          dotsRow.appendChild(dot);
+        }
+      }
+      cell.appendChild(dotsRow);
+    }
+
     activeMeetings.slice(0, MAX_BADGES).forEach(m => {
       const isAdminCreated = m.createdByRole === ROLES.ADMIN;
       // "Mine" = the logged-in user created this meeting OR is the assigned councilor/researcher
@@ -2815,41 +2868,6 @@ function renderCalendar() {
       block.textContent = "Archived";
       block.title = "Archived — read-only";
       cell.appendChild(block);
-    }
-
-    // ── Mobile dot indicators (visible only via CSS on small screens) ──
-    if (activeMeetings.length || dayHistory.length) {
-      const dotsRow = document.createElement("div");
-      dotsRow.className = "calendar-cell-dots";
-
-      const isFullBooked = dayMeetings
-        .filter(m => m.status === "Approved")
-        .reduce((s, m) => s + (m.durationHours || SLOT_DURATION_HOURS) * 60, 0) >= (WORK_END_HOUR - WORK_START_HOUR) * 60;
-
-      if (isFullBooked && isWorkday && !isHoliday) {
-        const dot = document.createElement("div");
-        dot.className = "calendar-dot calendar-dot-full";
-        dotsRow.appendChild(dot);
-      } else {
-        // One dot per unique status (max 3)
-        const statusMap = { "Approved": "approved", "Pending": "pending", "Cancelled": "cancelled", "Rejected": "cancelled" };
-        const seen = new Set();
-        activeMeetings.slice(0, 3).forEach(m => {
-          const cls = statusMap[m.status] || "other";
-          if (!seen.has(cls)) {
-            seen.add(cls);
-            const dot = document.createElement("div");
-            dot.className = `calendar-dot calendar-dot-${cls}`;
-            dotsRow.appendChild(dot);
-          }
-        });
-        if (dayHistory.length && activeMeetings.length === 0) {
-          const dot = document.createElement("div");
-          dot.className = "calendar-dot calendar-dot-other";
-          dotsRow.appendChild(dot);
-        }
-      }
-      cell.appendChild(dotsRow);
     }
 
     // ── Fully booked indicator ──
@@ -3816,6 +3834,26 @@ async function initAdminPage() {
   // Password strength meters
   initPwdStrength("user-password",    "user-pwd-strength",    "user-pwd-fill",    "user-pwd-label");
   initPwdStrength("special-password", "special-pwd-strength", "special-pwd-fill", "special-pwd-label");
+
+  // Change-password modal: strength indicator + show/hide toggles
+  initPwdStrength("password-new", "chpwd-strength", "chpwd-fill", "chpwd-label");
+  (function () {
+    function wireToggle(btnId, inputId, showId, hideId) {
+      const btn  = document.getElementById(btnId);
+      const inp  = document.getElementById(inputId);
+      const show = document.getElementById(showId);
+      const hide = document.getElementById(hideId);
+      if (!btn || !inp) return;
+      btn.addEventListener("click", function () {
+        const isHidden = inp.type === "password";
+        inp.type = isHidden ? "text" : "password";
+        if (show) show.style.display = isHidden ? "none" : "";
+        if (hide) hide.style.display = isHidden ? ""     : "none";
+      });
+    }
+    wireToggle("pw-new-toggle",     "password-new",     "pw-new-eye-show",     "pw-new-eye-hide");
+    wireToggle("pw-confirm-toggle", "password-confirm", "pw-confirm-eye-show", "pw-confirm-eye-hide");
+  })();
 }
 
 // ---------------------------------------------------------------------------

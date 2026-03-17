@@ -165,8 +165,8 @@
 [data-theme="dark"] .calendar-badge-mine-approved { background: #16a34a; color: #fff; border-color: #15803d; opacity: 1; font-weight: 600; }
 [data-theme="dark"] .calendar-badge-done { background: rgba(59,130,246,0.15); color: #93C5FD; border-color: rgba(59,130,246,0.35); opacity: 0.85; }
 [data-theme="dark"] .calendar-badge-mine-pending  { background: rgba(245,163,26,0.18); color: #FCD34D; border-color: #F59E0B; opacity: 1; }
-[data-theme="dark"] .calendar-badge-is-mine { outline: 2px solid #F5A31A; outline-offset: 1px; }
-[data-theme="dark"] .calendar-badge-is-admin-mine { outline: 2px solid #A78BFA; outline-offset: 1px; }
+[data-theme="dark"] .calendar-badge-is-mine { background: linear-gradient(135deg,#F5A31A,#D97706) !important; color: #fff !important; border-color: #B45309 !important; }
+[data-theme="dark"] .calendar-badge-is-admin-mine { background: linear-gradient(135deg,#7C3AED,#6D28D9) !important; color: #fff !important; border-color: #5B21B6 !important; }
 [data-theme="dark"] .calendar-legend-mine { color: #4ADE80; background: rgba(22,163,74,0.12); border-color: rgba(22,163,74,0.4); outline: 2px solid rgba(245,163,26,0.7); outline-offset: 1px; }
 [data-theme="dark"] .auth-page         { background: radial-gradient(circle at top left, #0B1628, #172038 60%, #0B1628); }
 [data-theme="dark"] .auth-card         { background: rgba(17,30,53,0.98); border-color: var(--color-border); }
@@ -962,17 +962,20 @@ tbody tr:hover { background: var(--color-primary-soft); }
 .calendar-badge-mine-approved { background: #16A34A; color: #fff; border: 1px solid #15803D; opacity: 1; font-weight: 600; }
 .calendar-badge-mine-pending  { background: #FEF9C3; color: #92400E; opacity: 1; border: 1.5px solid #F5A31A; font-weight: 700; }
 
-/* --- YOUR OWN MEETINGS: yellow glowing outline ring on top of the badge colour --- */
-/* This class is added regardless of status, so the user always spots their own meeting */
+/* --- YOUR OWN MEETINGS: bold gold badge so it's unmissable --- */
 @keyframes mine-outline-pulse {
-  0%   { box-shadow: 0 0 0 0px rgba(245,163,26,0.8), 0 0 0 0px rgba(245,163,26,0.4); }
-  60%  { box-shadow: 0 0 0 3px rgba(245,163,26,0.3), 0 0 0 5px rgba(245,163,26,0); }
-  100% { box-shadow: 0 0 0 0px rgba(245,163,26,0), 0 0 0 0px rgba(245,163,26,0); }
+  0%   { box-shadow: 0 0 0 0px rgba(245,163,26,0.9), 0 2px 8px rgba(245,163,26,0.5); }
+  60%  { box-shadow: 0 0 0 4px rgba(245,163,26,0.25), 0 2px 12px rgba(245,163,26,0.3); }
+  100% { box-shadow: 0 0 0 0px rgba(245,163,26,0), 0 2px 8px rgba(245,163,26,0.5); }
 }
 .calendar-badge-is-mine {
-  outline: 2px solid #F5A31A;
-  outline-offset: 1px;
-  animation: mine-outline-pulse 2.6s ease-out infinite;
+  background: linear-gradient(135deg, #F5A31A 0%, #E08A00 100%) !important;
+  color: #fff !important;
+  border: 1.5px solid #C97F0A !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.18);
+  animation: mine-outline-pulse 2.4s ease-out infinite;
 }
 
 /* Admin-scheduled meeting that belongs to me — purple outline */
@@ -982,9 +985,12 @@ tbody tr:hover { background: var(--color-primary-soft); }
   100% { box-shadow: 0 0 0 0px rgba(139,92,246,0), 0 0 0 0px rgba(139,92,246,0); }
 }
 .calendar-badge-is-admin-mine {
-  outline: 2px solid #8B5CF6;
-  outline-offset: 1px;
-  animation: admin-mine-outline-pulse 2.6s ease-out infinite;
+  background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%) !important;
+  color: #fff !important;
+  border: 1.5px solid #5B21B6 !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
+  animation: admin-mine-outline-pulse 2.4s ease-out infinite;
 }
 
 /* Ongoing — today's day cell pulse ring */
@@ -1978,6 +1984,8 @@ body[data-page="login"] {
 .calendar-dot-cancelled { background: #9ca3af; }
 .calendar-dot-other     { background: #3b82f6; }
 .calendar-dot-full      { background: #dc2626; width: 100%; height: 3px; border-radius: 2px; margin-top: 1px; }
+/* Gold dot for YOUR OWN meetings — matches the badge highlight */
+.calendar-dot-mine      { background: #F5A31A; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(245,163,26,0.3); }
 /* ─── Committee Combobox ──────────────────────────────────────── */
 .committee-combo-wrap {
   position: relative;
