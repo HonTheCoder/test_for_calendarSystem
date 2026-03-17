@@ -2015,7 +2015,7 @@ function renderAdminMeetingsTable() {
     const adminWindowTag = (["Pending","Approved"].includes(m.status) && within24hAdmin)
       ? `<div style="margin-top:3px;display:inline-flex;align-items:center;gap:3px;font-size:0.65rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,0.1);border:1px solid rgba(22,163,74,0.2);border-radius:999px;padding:1px 7px">
            <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-           Free cancel: ${hoursLeftAdmin > 0 ? hoursLeftAdmin + "h " : ""}${minsLeftAdmin}m left
+           Cancel window: ${hoursLeftAdmin > 0 ? hoursLeftAdmin + "h " : ""}${minsLeftAdmin}m left
          </div>` : "";
     const notesCell = m.adminNote
       ? `<button class="admin-note-tap" data-note="${h(m.adminNote)}" title="${h(m.adminNote)}"
