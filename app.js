@@ -564,6 +564,15 @@ function getStartTimeOptionsWithDisabled(durationHours, isoDate) {
     ? meetings.filter(m => m.date === isoDate && m.status === "Approved")
     : [];
 
+  // For today: get current Manila time in minutes so we can block past slots
+  const todayISO = getTodayISOManila();
+  const isToday  = isoDate === todayISO;
+  const nowManilaMinutes = (() => {
+    if (!isToday) return 0;
+    const n = getManilaNow();
+    return n.getHours() * 60 + n.getMinutes();
+  })();
+
   return [8,9,10,11,12,13,14,15,16].map(h => {
     const startMin = h * 60;
     const endMin   = startMin + dur * 60;
@@ -571,6 +580,16 @@ function getStartTimeOptionsWithDisabled(durationHours, isoDate) {
     // Block if goes past work hours
     if (endMin > WORK_END_HOUR * 60) {
       return { value: `${String(h).padStart(2,"0")}:00`, text: formatTime12h(startMin), hour: h, disabled: true, reason: "exceeds office hours" };
+    }
+
+    // Block if the slot's END time has already passed today
+    if (isToday && endMin <= nowManilaMinutes) {
+      return { value: `${String(h).padStart(2,"0")}:00`, text: formatTime12h(startMin), hour: h, disabled: true, reason: "time has passed" };
+    }
+
+    // Block if the slot START has already passed today (can't book a slot that already started)
+    if (isToday && startMin <= nowManilaMinutes) {
+      return { value: `${String(h).padStart(2,"0")}:00`, text: formatTime12h(startMin), hour: h, disabled: true, reason: "already started" };
     }
 
     // Block if overlaps any approved meeting
@@ -603,7 +622,7 @@ function populateTimeOptions(isoDate) {
   timeSelect.innerHTML = '<option value="">Select start time</option>' +
     options.map(o => {
       const label = o.disabled
-        ? `${o.text} — ${o.reason || "unavailable"}`
+        ? `${o.text} — ${o.reason === "time has passed" || o.reason === "already started" ? "time has passed" : o.reason || "unavailable"}`
         : o.text;
       return `<option value="${o.value}" ${o.disabled ? "disabled" : ""} ${o.disabled ? 'style="color:#9ca3af"' : ""}>${label}</option>`;
     }).join("");
@@ -2838,16 +2857,86 @@ function renderCalendar() {
       const badge = document.createElement("div");
       if (isOngoing) {
         badge.className = "calendar-badge calendar-badge-ongoing";
+        const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
+        badge.textContent = timeLabel + (m.eventName || "Meeting");
+      } else if (isMine) {
+        // ── NEON MINE BADGE — completely custom DOM, zero CSS class conflicts ──
+        badge.removeAttribute("class");
+        const isAdmMine = isMine && isAdminCreated;
+        const neonBg    = isAdmMine ? "linear-gradient(90deg,#6D28D9,#A855F7,#C084FC,#A855F7,#6D28D9)" : "linear-gradient(90deg,#b45309,#f59e0b,#fde68a,#f59e0b,#b45309)";
+        const neonBorder= isAdmMine ? "#A855F7" : "#f59e0b";
+        const neonColor = isAdmMine ? "#fff" : "#1a0800";
+        const neonShadow= isAdmMine
+          ? "0 0 8px 3px rgba(168,85,247,1),0 0 18px 6px rgba(139,92,246,0.85),0 0 35px 10px rgba(109,40,217,0.6)"
+          : "0 0 8px 3px rgba(251,191,36,1),0 0 18px 6px rgba(245,158,11,0.85),0 0 35px 10px rgba(234,88,12,0.6)";
+        badge.style.cssText = [
+          "display:block",
+          "position:relative",
+          "border-radius:4px",
+          "padding:2px 5px",
+          "margin-bottom:2px",
+          "font-size:0.72rem",
+          "font-weight:900",
+          "line-height:1.4",
+          "overflow:hidden",
+          "white-space:nowrap",
+          "text-overflow:ellipsis",
+          "cursor:pointer",
+          `background:${neonBg}`,
+          "background-size:300% auto",
+          `color:${neonColor}`,
+          `border:2px solid ${neonBorder}`,
+          `box-shadow:${neonShadow}`,
+          "text-shadow:0 0 6px rgba(255,220,100,0.5)",
+        ].join(";");
+        // ★ MINE label pin
+        const pin = document.createElement("span");
+        pin.style.cssText = [
+          "position:absolute",
+          "top:1px",
+          "right:3px",
+          "font-size:0.55rem",
+          "font-weight:900",
+          "letter-spacing:0.05em",
+          "color:" + (isAdmMine ? "#e9d5ff" : "#7c2d12"),
+          "opacity:0.85",
+          "pointer-events:none",
+          "line-height:1",
+        ].join(";");
+        pin.textContent = isAdmMine ? "ADMIN" : "★ MINE";
+        badge.appendChild(pin);
+        const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
+        const txt = document.createTextNode(timeLabel + (m.eventName || "Meeting"));
+        badge.insertBefore(txt, pin);
+        // JS-driven glow animation
+        let _t0 = null;
+        const colorA = isAdmMine ? [168,85,247] : [251,191,36];
+        const colorB = isAdmMine ? [109,40,217] : [234,88,12];
+        function animBadge(ts) {
+          if (!badge.isConnected) return;
+          if (!_t0) _t0 = ts;
+          const p = 0.5 - 0.5 * Math.cos(((ts - _t0) / 1600) * Math.PI * 2);
+          const sp = (((ts - _t0) / 1800) % 1) * 300;
+          const g1 = 6 + p * 8, g2 = 16 + p * 14, g3 = 32 + p * 20;
+          const o1 = 0.85 + p * 0.15, o2 = 0.7 + p * 0.2, o3 = 0.4 + p * 0.25;
+          badge.style.backgroundPositionX = sp + "%";
+          badge.style.boxShadow = [
+            `0 0 ${g1.toFixed(0)}px 3px rgba(${colorA.join(",")},${o1.toFixed(2)})`,
+            `0 0 ${g2.toFixed(0)}px 6px rgba(${colorA[0]},${colorA[1]-20},${colorA[2]-20},${o2.toFixed(2)})`,
+            `0 0 ${g3.toFixed(0)}px 10px rgba(${colorB.join(",")},${o3.toFixed(2)})`,
+            "inset 0 1px 0 rgba(255,255,255,0.35)",
+          ].join(",");
+          requestAnimationFrame(animBadge);
+        }
+        requestAnimationFrame(animBadge);
       } else {
         badge.className = statusColorForCalendar(m.status, isAdminCreated, isMine);
-        if (isMine && isAdminCreated) {
-          badge.classList.add("calendar-badge-is-admin-mine"); // purple outline — admin scheduled for me
-        } else if (isMine) {
-          badge.classList.add("calendar-badge-is-mine"); // yellow outline — I scheduled this
-        }
+        const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
+        badge.textContent = timeLabel + (m.eventName || "Meeting");
       }
-      const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
-      badge.textContent = timeLabel + (m.eventName || "Meeting");
+      if (!isMine) {
+        // title already handled below
+      }
       badge.title = `${h(m.eventName)} — ${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)} [${m.status}]${isOngoing ? " · NOW ONGOING" : ""}${isMine ? " · Your meeting" : ""}${isAdminCreated ? " · Admin scheduled" : ""}`;
       cell.appendChild(badge);
     });
@@ -5870,6 +5959,12 @@ function initUserAnnouncements() {
     const approved = meetings.filter(
       m => m.date === isoDate && m.status === "Approved"
     );
+
+    // For today: block slots that have already started or passed
+    const todayISO = getTodayISOManila();
+    const isToday  = isoDate === todayISO;
+    const nowMins  = isToday ? (() => { const n = getManilaNow(); return n.getHours() * 60 + n.getMinutes(); })() : 0;
+
     sel.innerHTML = "";
     let count = 0;
 
@@ -5879,6 +5974,9 @@ function initUserAnnouncements() {
 
       // Skip if duration would exceed office hours
       if (slotEnd > WORK_END_HOUR * 60) continue;
+
+      // Skip if slot has already started or passed today
+      if (isToday && slotStart <= nowMins) continue;
 
       // Skip if this slot overlaps any approved meeting
       const blocked = approved.some(m => {
@@ -5900,16 +5998,28 @@ function initUserAnnouncements() {
       }
     }
 
+    const ICON_X    = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:-1px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
+    const ICON_OK   = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:-1px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>`;
+    const ICON_WARN = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:-1px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+    const ICON_CLK  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block;vertical-align:-1px;flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
     if (hint) {
+      hint.style.display = "flex";
+      hint.style.alignItems = "center";
+      hint.style.gap = "5px";
       if (count === 0) {
         hint.style.color = "var(--color-danger)";
-        hint.textContent = "✗ No time slots available for this date";
+        hint.innerHTML = isToday
+          ? `${ICON_CLK} No remaining slots for today — all times have passed or are booked`
+          : `${ICON_X} No time slots available for this date`;
+      } else if (isToday) {
+        hint.style.color = "var(--color-warning)";
+        hint.innerHTML = `${ICON_CLK} ${count} slot${count > 1 ? "s" : ""} remaining today (past times hidden)`;
       } else if (approved.length === 0) {
         hint.style.color = "var(--color-success)";
-        hint.textContent = "✓ All time slots available for this date";
+        hint.innerHTML = `${ICON_OK} All time slots available for this date`;
       } else {
         hint.style.color = "var(--color-warning)";
-        hint.textContent = "Some slots are taken";
+        hint.innerHTML = `${ICON_WARN} Some slots are taken — check availability above`;
       }
     }
   }
