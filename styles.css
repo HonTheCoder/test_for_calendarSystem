@@ -165,8 +165,8 @@
 [data-theme="dark"] .calendar-badge-mine-approved { background: #16a34a; color: #fff; border-color: #15803d; opacity: 1; font-weight: 600; }
 [data-theme="dark"] .calendar-badge-done { background: rgba(59,130,246,0.15); color: #93C5FD; border-color: rgba(59,130,246,0.35); opacity: 0.85; }
 [data-theme="dark"] .calendar-badge-mine-pending  { background: rgba(245,163,26,0.18); color: #FCD34D; border-color: #F59E0B; opacity: 1; }
-[data-theme="dark"] .calendar-badge-is-mine { background: linear-gradient(90deg,#FF9500,#FFD000,#FF9500) !important; background-size: 200% auto !important; color: #1A0A00 !important; border-color: #FF8C00 !important; }
-[data-theme="dark"] .calendar-badge-is-admin-mine { background: linear-gradient(90deg,#7C3AED,#C084FC,#7C3AED) !important; background-size: 200% auto !important; color: #fff !important; border-color: #A855F7 !important; }
+[data-theme="dark"] .calendar-badge-is-mine { background: rgba(245,158,11,0.18) !important; color: #FCD34D !important; border-color: #F59E0B !important; box-shadow: 0 0 0 2px rgba(245,158,11,0.15), 0 2px 8px rgba(245,158,11,0.2) !important; animation: none !important; }
+[data-theme="dark"] .calendar-badge-is-admin-mine { background: rgba(167,139,250,0.18) !important; color: #C4B5FD !important; border-color: #A855F7 !important; box-shadow: 0 0 0 2px rgba(168,85,247,0.15), 0 2px 8px rgba(168,85,247,0.2) !important; animation: none !important; }
 [data-theme="dark"] .calendar-legend-mine { color: #4ADE80; background: rgba(22,163,74,0.12); border-color: rgba(22,163,74,0.4); outline: 2px solid rgba(245,163,26,0.7); outline-offset: 1px; }
 [data-theme="dark"] .auth-page         { background: radial-gradient(circle at top left, #0B1628, #172038 60%, #0B1628); }
 [data-theme="dark"] .auth-card         { background: rgba(17,30,53,0.98); border-color: var(--color-border); }
@@ -963,68 +963,55 @@ tbody tr:hover { background: var(--color-primary-soft); }
 .calendar-badge-mine-pending  { background: #FEF9C3; color: #92400E; opacity: 1; border: 1.5px solid #F5A31A; font-weight: 700; }
 
 /* ============================================================
-   YOUR OWN MEETINGS — NEON GOLD. Unmissable.
+   YOUR OWN MEETINGS — gold highlight with soft glow (user view)
    ============================================================ */
-@keyframes mine-neon-pulse {
-  0%   {
-    box-shadow:
-      0 0 6px  3px rgba(255,180,0,1),
-      0 0 14px 5px rgba(255,140,0,0.85),
-      0 0 28px 8px rgba(255,100,0,0.6),
-      0 0 44px 14px rgba(255,60,0,0.3),
-      inset 0 1px 0 rgba(255,255,255,0.4);
-  }
-  50%  {
-    box-shadow:
-      0 0 10px 4px rgba(255,220,0,1),
-      0 0 22px 8px rgba(255,180,0,0.9),
-      0 0 40px 14px rgba(255,130,0,0.65),
-      0 0 60px 20px rgba(255,80,0,0.35),
-      inset 0 1px 0 rgba(255,255,255,0.5);
-  }
-  100% {
-    box-shadow:
-      0 0 6px  3px rgba(255,180,0,1),
-      0 0 14px 5px rgba(255,140,0,0.85),
-      0 0 28px 8px rgba(255,100,0,0.6),
-      0 0 44px 14px rgba(255,60,0,0.3),
-      inset 0 1px 0 rgba(255,255,255,0.4);
-  }
-}
-@keyframes mine-shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position:  200% center; }
-}
 .calendar-badge-is-mine {
-  background: linear-gradient(
-    90deg,
-    #FF8C00 0%, #FFD000 30%, #FFEE44 50%, #FFD000 70%, #FF8C00 100%
-  ) !important;
-  background-size: 300% auto !important;
-  color: #1a0800 !important;
-  border: 2px solid #FF9500 !important;
-  font-weight: 800 !important;
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+  border: 1.5px solid #F59E0B !important;
+  font-weight: 700 !important;
   font-size: 0.73rem !important;
   opacity: 1 !important;
-  text-shadow: 0 0 8px rgba(255,200,0,0.7), 0 1px 0 rgba(255,255,255,0.3);
-  animation: mine-neon-pulse 1.8s ease-in-out infinite, mine-shimmer 2.5s linear infinite !important;
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.22), 0 2px 8px rgba(245,158,11,0.28) !important;
+  text-shadow: none !important;
+  animation: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 4px !important;
 }
 
-/* Admin-scheduled meeting that belongs to me — neon purple */
-@keyframes admin-mine-neon-pulse {
-  0%   { box-shadow: 0 0 6px 3px rgba(192,132,252,1), 0 0 14px 5px rgba(167,139,250,0.85), 0 0 28px 8px rgba(139,92,246,0.6), 0 0 44px 14px rgba(109,40,217,0.3); }
-  50%  { box-shadow: 0 0 10px 4px rgba(216,180,254,1), 0 0 22px 8px rgba(192,132,252,0.9), 0 0 40px 14px rgba(167,139,250,0.65), 0 0 60px 20px rgba(139,92,246,0.35); }
-  100% { box-shadow: 0 0 6px 3px rgba(192,132,252,1), 0 0 14px 5px rgba(167,139,250,0.85), 0 0 28px 8px rgba(139,92,246,0.6), 0 0 44px 14px rgba(109,40,217,0.3); }
-}
+/* Admin-scheduled meeting that belongs to me — subtle purple glow */
 .calendar-badge-is-admin-mine {
-  background: linear-gradient(90deg, #7C3AED 0%, #A855F7 30%, #C084FC 50%, #A855F7 70%, #7C3AED 100%) !important;
-  background-size: 300% auto !important;
-  color: #fff !important;
-  border: 2px solid #A855F7 !important;
-  font-weight: 800 !important;
+  background: #EDE9FE !important;
+  color: #5B21B6 !important;
+  border: 1.5px solid #A855F7 !important;
+  font-weight: 700 !important;
   opacity: 1 !important;
-  text-shadow: 0 0 8px rgba(216,180,254,0.8), 0 1px 2px rgba(0,0,0,0.3);
-  animation: admin-mine-neon-pulse 1.8s ease-in-out infinite, mine-shimmer 2.5s linear infinite !important;
+  box-shadow: 0 0 0 2px rgba(168,85,247,0.2), 0 2px 8px rgba(168,85,247,0.25) !important;
+  text-shadow: none !important;
+  animation: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 4px !important;
+}
+
+/* Dot inside the mine badge — sits at the right end */
+.calendar-badge-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.calendar-badge-dot-mine {
+  background: #F59E0B;
+  box-shadow: 0 0 4px 2px rgba(245,158,11,0.5);
+}
+.calendar-badge-dot-admin {
+  background: #A855F7;
+  box-shadow: 0 0 4px 2px rgba(168,85,247,0.5);
 }
 
 /* Ongoing — today's day cell pulse ring */
@@ -2018,13 +2005,21 @@ body[data-page="login"] {
 .calendar-dot-cancelled { background: #9ca3af; }
 .calendar-dot-other     { background: #3b82f6; }
 .calendar-dot-full      { background: #dc2626; width: 100%; height: 3px; border-radius: 2px; margin-top: 1px; }
-/* Gold dot for YOUR OWN meetings — neon to match the badge */
+/* Gold dot for YOUR OWN meetings — subtle, no animation */
 .calendar-dot-mine      {
-  background: #FFB800;
+  background: #F59E0B;
   width: 9px; height: 9px;
   border-radius: 50%;
-  box-shadow: 0 0 4px 2px rgba(255,180,0,0.9), 0 0 10px 3px rgba(255,150,0,0.6);
-  animation: mine-neon-pulse 1.8s ease-in-out infinite;
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.25);
+  animation: none;
+}
+/* Soft purple dot for admin-scheduled meetings that are yours */
+.calendar-dot-admin-mine {
+  background: #A855F7;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(168,85,247,0.2);
+  animation: none;
 }
 /* ─── Committee Combobox ──────────────────────────────────────── */
 .committee-combo-wrap {

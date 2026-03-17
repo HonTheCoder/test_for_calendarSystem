@@ -2792,47 +2792,20 @@ function renderCalendar() {
       return n.getHours() * 60 + n.getMinutes();
     })();
 
-    // ── Dot indicators — rendered ABOVE badges so they sit at the top of the cell ──
+    // ── Full-booked bar only (mine dots now live inside each badge) ──
     if (activeMeetings.length || dayHistory.length) {
-      const dotsRow = document.createElement("div");
-      dotsRow.className = "calendar-cell-dots";
-
       const isFullBooked = dayMeetings
         .filter(m => m.status === "Approved")
         .reduce((s, m) => s + (m.durationHours || SLOT_DURATION_HOURS) * 60, 0) >= (WORK_END_HOUR - WORK_START_HOUR) * 60;
 
       if (isFullBooked && isWorkday && !isHoliday) {
+        const dotsRow = document.createElement("div");
+        dotsRow.className = "calendar-cell-dots";
         const dot = document.createElement("div");
         dot.className = "calendar-dot calendar-dot-full";
         dotsRow.appendChild(dot);
-      } else {
-        const statusMap = { "Approved": "approved", "Pending": "pending", "Cancelled": "cancelled", "Rejected": "cancelled" };
-        const seen = new Set();
-        activeMeetings.slice(0, 3).forEach(m => {
-          const isMineCheck = currentUser && (
-            m.createdBy === currentUser.username ||
-            m.councilor === currentUser.name ||
-            m.researcher === currentUser.name
-          );
-          const cls = statusMap[m.status] || "other";
-          const dotKey = cls + (isMineCheck ? "-mine" : "");
-          if (!seen.has(dotKey)) {
-            seen.add(dotKey);
-            const dot = document.createElement("div");
-            // Mine dots get gold color to match the badge highlight
-            dot.className = isMineCheck
-              ? "calendar-dot calendar-dot-mine"
-              : `calendar-dot calendar-dot-${cls}`;
-            dotsRow.appendChild(dot);
-          }
-        });
-        if (dayHistory.length && activeMeetings.length === 0) {
-          const dot = document.createElement("div");
-          dot.className = "calendar-dot calendar-dot-other";
-          dotsRow.appendChild(dot);
-        }
+        cell.appendChild(dotsRow);
       }
-      cell.appendChild(dotsRow);
     }
 
     activeMeetings.slice(0, MAX_BADGES).forEach(m => {
@@ -2860,75 +2833,14 @@ function renderCalendar() {
         const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
         badge.textContent = timeLabel + (m.eventName || "Meeting");
       } else if (isMine) {
-        // ── NEON MINE BADGE — completely custom DOM, zero CSS class conflicts ──
-        badge.removeAttribute("class");
         const isAdmMine = isMine && isAdminCreated;
-        const neonBg    = isAdmMine ? "linear-gradient(90deg,#6D28D9,#A855F7,#C084FC,#A855F7,#6D28D9)" : "linear-gradient(90deg,#b45309,#f59e0b,#fde68a,#f59e0b,#b45309)";
-        const neonBorder= isAdmMine ? "#A855F7" : "#f59e0b";
-        const neonColor = isAdmMine ? "#fff" : "#1a0800";
-        const neonShadow= isAdmMine
-          ? "0 0 8px 3px rgba(168,85,247,1),0 0 18px 6px rgba(139,92,246,0.85),0 0 35px 10px rgba(109,40,217,0.6)"
-          : "0 0 8px 3px rgba(251,191,36,1),0 0 18px 6px rgba(245,158,11,0.85),0 0 35px 10px rgba(234,88,12,0.6)";
-        badge.style.cssText = [
-          "display:block",
-          "position:relative",
-          "border-radius:4px",
-          "padding:2px 5px",
-          "margin-bottom:2px",
-          "font-size:0.72rem",
-          "font-weight:900",
-          "line-height:1.4",
-          "overflow:hidden",
-          "white-space:nowrap",
-          "text-overflow:ellipsis",
-          "cursor:pointer",
-          `background:${neonBg}`,
-          "background-size:300% auto",
-          `color:${neonColor}`,
-          `border:2px solid ${neonBorder}`,
-          `box-shadow:${neonShadow}`,
-          "text-shadow:0 0 6px rgba(255,220,100,0.5)",
-        ].join(";");
-        // ★ MINE label pin
-        const pin = document.createElement("span");
-        pin.style.cssText = [
-          "position:absolute",
-          "top:1px",
-          "right:3px",
-          "font-size:0.55rem",
-          "font-weight:900",
-          "letter-spacing:0.05em",
-          "color:" + (isAdmMine ? "#e9d5ff" : "#7c2d12"),
-          "opacity:0.85",
-          "pointer-events:none",
-          "line-height:1",
-        ].join(";");
-        pin.textContent = isAdmMine ? "ADMIN" : "★ MINE";
-        badge.appendChild(pin);
+        badge.className = "calendar-badge " + (isAdmMine ? "calendar-badge-is-admin-mine" : "calendar-badge-is-mine");
         const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
-        const txt = document.createTextNode(timeLabel + (m.eventName || "Meeting"));
-        badge.insertBefore(txt, pin);
-        // JS-driven glow animation
-        let _t0 = null;
-        const colorA = isAdmMine ? [168,85,247] : [251,191,36];
-        const colorB = isAdmMine ? [109,40,217] : [234,88,12];
-        function animBadge(ts) {
-          if (!badge.isConnected) return;
-          if (!_t0) _t0 = ts;
-          const p = 0.5 - 0.5 * Math.cos(((ts - _t0) / 1600) * Math.PI * 2);
-          const sp = (((ts - _t0) / 1800) % 1) * 300;
-          const g1 = 6 + p * 8, g2 = 16 + p * 14, g3 = 32 + p * 20;
-          const o1 = 0.85 + p * 0.15, o2 = 0.7 + p * 0.2, o3 = 0.4 + p * 0.25;
-          badge.style.backgroundPositionX = sp + "%";
-          badge.style.boxShadow = [
-            `0 0 ${g1.toFixed(0)}px 3px rgba(${colorA.join(",")},${o1.toFixed(2)})`,
-            `0 0 ${g2.toFixed(0)}px 6px rgba(${colorA[0]},${colorA[1]-20},${colorA[2]-20},${o2.toFixed(2)})`,
-            `0 0 ${g3.toFixed(0)}px 10px rgba(${colorB.join(",")},${o3.toFixed(2)})`,
-            "inset 0 1px 0 rgba(255,255,255,0.35)",
-          ].join(",");
-          requestAnimationFrame(animBadge);
-        }
-        requestAnimationFrame(animBadge);
+        badge.textContent = timeLabel + (m.eventName || "Meeting");
+        // Dot indicator at the end of the badge row
+        const dot = document.createElement("span");
+        dot.className = isAdmMine ? "calendar-badge-dot calendar-badge-dot-admin" : "calendar-badge-dot calendar-badge-dot-mine";
+        badge.appendChild(dot);
       } else {
         badge.className = statusColorForCalendar(m.status, isAdminCreated, isMine);
         const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
@@ -3532,6 +3444,11 @@ function handleMeetingSubmit(e) {
   if (!eventName || !committee || !venue) {
     msg.textContent = "Please complete all required fields (*).";
     showToast("Please complete all required fields.", "error");
+    return;
+  }
+  if (!stakeholders) {
+    msg.textContent = "Stakeholders / External Participants is required.";
+    showToast("Please fill in the Stakeholders field.", "error");
     return;
   }
   if (!councilor) {
@@ -4633,6 +4550,9 @@ const SBP_COMMITTEES = [
  */
 function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerEl) {
   if (!inputEl) return;
+  // Guard: only initialize once per input element to prevent stacking listeners
+  if (inputEl.dataset.comboInit === "1") return;
+  inputEl.dataset.comboInit = "1";
 
   // If this input hasn't been wrapped yet, wrap it now so the arrow sits inside
   let wrap = inputEl.closest(".committee-combo-wrap");
@@ -4836,26 +4756,29 @@ function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerE
     if (item) { e.preventDefault(); selectValue(item.dataset.value); }
   });
 
-  // Outside close — touch + click
+  // Outside close — use AbortController so listeners are properly removed on cleanup
+  const _ac = new AbortController();
+  const _sig = { signal: _ac.signal };
+
   document.addEventListener("touchend", e => {
     if (_skipClose) { _skipClose = false; return; }
     if (!wrap.contains(e.target) && (!_portal || !_portal.contains(e.target))) closeDropdown();
-  }, { passive: true });
+  }, { passive: true, ..._sig });
 
   document.addEventListener("click", e => {
     if (!wrap.contains(e.target) && (!_portal || !_portal.contains(e.target))) closeDropdown();
-  });
+  }, _sig);
 
   // Reposition on resize / scroll
-  window.addEventListener("resize",  () => { if (isOpen()) _positionPortal(); }, { passive: true });
-  document.addEventListener("scroll", () => { if (isOpen() && _portal) _positionPortal(); }, { passive: true, capture: true });
+  window.addEventListener("resize",  () => { if (isOpen()) _positionPortal(); }, { passive: true, ..._sig });
+  document.addEventListener("scroll", () => { if (isOpen() && _portal) _positionPortal(); }, { passive: true, capture: true, ..._sig });
 
   // Cleanup when container closes
   if (cleanupTriggerEl) {
     new MutationObserver(() => {
       const gone = !document.body.contains(cleanupTriggerEl) ||
                    cleanupTriggerEl.classList.contains("drawer-open") === false;
-      if (gone) { closeDropdown(); _destroyPortal(); }
+      if (gone) { closeDropdown(); _destroyPortal(); _ac.abort(); }
     }).observe(cleanupTriggerEl.parentNode || document.body, { childList: true, subtree: false, attributes: true, attributeFilter: ["class"] });
   }
 }
@@ -5013,7 +4936,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Re-init if the modal gets re-created dynamically
     const mo = document.getElementById("meeting-modal");
     if (mo) {
+      // Guard: only observe once — the combo itself guards against double-init
+    if (!mo.dataset.comboObserved) {
+      mo.dataset.comboObserved = "1";
       new MutationObserver(() => initCommitteeCombobox()).observe(mo, { childList: true, subtree: true });
+    }
     }
   }
 });
@@ -5887,9 +5814,9 @@ function initUserAnnouncements() {
                  style="display:none;margin-top:8px" />
         </div>
         <div>
-          <label class="field-label" for="db-stakeholders">Stakeholders / External Participants</label>
-          <input id="db-stakeholders" class="field" placeholder="e.g. DILG, DSWD, Barangay Representatives (comma-separated)" autocomplete="off" />
-          <div class="helper-text" style="margin-top:3px;font-size:0.78rem">Optional — list organizations or individuals attending from outside.</div>
+          <label class="field-label" for="db-stakeholders">Stakeholders / External Participants *</label>
+          <input id="db-stakeholders" class="field" required placeholder="e.g. DILG, DSWD, Barangay Representatives (comma-separated)" autocomplete="off" />
+          <div class="helper-text" style="margin-top:3px;font-size:0.78rem">Required — list organizations or individuals attending from outside.</div>
         </div>
         <div>
           <label class="field-label" for="db-notes">Notes</label>
@@ -6081,6 +6008,10 @@ function initUserAnnouncements() {
 
     if (!eventName || !committee || !date || !timeStart) {
       if (msg) msg.textContent = "Please fill in all required fields.";
+      return;
+    }
+    if (!stakeholders) {
+      if (msg) msg.textContent = "Stakeholders / External Participants is required.";
       return;
     }
     if (!councilor) {
