@@ -88,23 +88,23 @@
           <div class="topbar-right">
             <!-- Global Search -->
             <div class="global-search-wrap" id="global-search-wrap">
-              <button class="global-search-trigger" id="global-search-trigger" title="Search (Ctrl+K)">
+              <button class="global-search-trigger" id="global-search-trigger" title="Search meetings (Ctrl+K)">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <span class="global-search-trigger-label">Search…</span>
                 <kbd class="global-search-kbd">⌘K</kbd>
               </button>
               <div class="global-search-dropdown" id="global-search-dropdown">
                 <div class="global-search-input-wrap">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="global-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input type="text" id="global-search-input" class="global-search-input" placeholder="Search your meetings…" autocomplete="off" spellcheck="false" />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="global-search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input type="text" id="global-search-input" class="global-search-input" placeholder="Search by meeting name, date, venue…" autocomplete="off" spellcheck="false" />
                   <button class="global-search-clear" id="global-search-clear" title="Clear">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </div>
                 <div class="global-search-results" id="global-search-results">
                   <div class="global-search-empty">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <span>Start typing to search…</span>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span>Type to search your meetings</span>
                   </div>
                 </div>
               </div>
@@ -321,7 +321,7 @@
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-blue-dark"></span> Ongoing</span>
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-green" style="opacity:0.55"></span> Others' Approved</span>
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-yellow" style="opacity:0.55"></span> Pending</span>
-                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-purple"></span> Admin Scheduled (Mine)</span>
+                  <span class="calendar-legend-item"><span class="icon-dot icon-dot-purple"></span> Admin</span>
                   <span class="calendar-legend-item"><span class="icon-dot" style="background:#fcd34d;border:1px solid #f59e0b"></span> PH Holiday</span>
                   <span class="calendar-legend-item"><span class="icon-dot icon-dot-blue" style="opacity:0.85"></span> Done</span>
                   <span class="calendar-legend-item"><span style="width:8px;height:8px;border-radius:3px;background:#dc2626;display:inline-block;flex-shrink:0"></span> Full</span>
@@ -839,7 +839,8 @@
         var statusCounts = {};
         mine.forEach(function(m) { statusCounts[m.status] = (statusCounts[m.status] || 0) + 1; });
         var statusKeys = Object.keys(statusCounts);
-        var total = mine.length || 1;
+        // Bug fix: guard against divide-by-zero — keep total as 0 when no meetings
+        var total = mine.length > 0 ? mine.length : 0;
         var segs = document.getElementById('user-donut-segments');
         var legend = document.getElementById('user-donut-legend');
         var center = document.getElementById('user-donut-center-text');
@@ -848,34 +849,61 @@
           var skArc = document.getElementById('donut-skeleton-arc');
           if (skArc) skArc.remove();
           var r = 60, cx = 80, cy = 80, circ = 2 * Math.PI * r, offset = 0;
-          statusKeys.forEach(function(s) {
-            var count = statusCounts[s];
-            var pct = count / total;
-            var dash = pct * circ, gap = circ - dash;
-            var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', r);
-            circle.setAttribute('fill', 'none');
-            circle.setAttribute('stroke', STATUS_COLORS[s] || '#9ca3af');
-            circle.setAttribute('stroke-width', '20');
-            circle.setAttribute('stroke-linecap', 'butt');
-            circle.setAttribute('stroke-dasharray', dash + ' ' + gap);
-            circle.setAttribute('stroke-dashoffset', -(offset - circ * 0.25));
-            circle.style.transition = 'stroke-dasharray 0.5s cubic-bezier(.4,0,.2,1)';
-            segs.appendChild(circle); offset += dash;
-            var pctLabel = total > 0 ? Math.round(pct * 100) + '%' : '';
-            var item = document.createElement('div');
-            item.className = 'donut-legend-item';
-            item.innerHTML =
-              '<span class="donut-dot" style="background:' + (STATUS_COLORS[s]||'#9ca3af') + ';width:10px;height:10px;border-radius:3px;flex-shrink:0"></span>' +
-              '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s + '</span>' +
-              '<span style="font-weight:700;color:var(--color-text);margin-left:6px;flex-shrink:0">' + count + '</span>' +
-              '<span style="font-size:0.68rem;color:var(--color-text-muted);margin-left:4px;flex-shrink:0">(' + pctLabel + ')</span>';
-            legend.appendChild(item);
-          });
+          if (total === 0) {
+            // Empty state: grey ring + label
+            var emptyCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            emptyCircle.setAttribute('cx', cx); emptyCircle.setAttribute('cy', cy); emptyCircle.setAttribute('r', r);
+            emptyCircle.setAttribute('fill', 'none');
+            emptyCircle.setAttribute('stroke', 'var(--color-border)');
+            emptyCircle.setAttribute('stroke-width', '20');
+            segs.appendChild(emptyCircle);
+            var emptyItem = document.createElement('div');
+            emptyItem.className = 'donut-legend-item';
+            emptyItem.style.cssText = 'color:var(--color-text-muted);font-size:0.78rem;padding:8px 0;';
+            emptyItem.textContent = 'No meetings yet';
+            legend.appendChild(emptyItem);
+          } else {
+            statusKeys.forEach(function(s) {
+              var count = statusCounts[s];
+              var pct = count / total;
+              var dash = pct * circ, gap = circ - dash;
+              var circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+              circle.setAttribute('cx', cx); circle.setAttribute('cy', cy); circle.setAttribute('r', r);
+              circle.setAttribute('fill', 'none');
+              circle.setAttribute('stroke', STATUS_COLORS[s] || '#9ca3af');
+              circle.setAttribute('stroke-width', '20');
+              circle.setAttribute('stroke-linecap', 'butt');
+              circle.setAttribute('stroke-dasharray', dash + ' ' + gap);
+              circle.setAttribute('stroke-dashoffset', -(offset - circ * 0.25));
+              circle.style.transition = 'stroke-dasharray 0.5s cubic-bezier(.4,0,.2,1)';
+              segs.appendChild(circle); offset += dash;
+              var pctLabel = Math.round(pct * 100) + '%';
+              var item = document.createElement('div');
+              item.className = 'donut-legend-item';
+              item.innerHTML =
+                '<span class="donut-dot" style="background:' + (STATUS_COLORS[s]||'#9ca3af') + ';width:10px;height:10px;border-radius:3px;flex-shrink:0"></span>' +
+                '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + s + '</span>' +
+                '<span style="font-weight:700;color:var(--color-text);margin-left:6px;flex-shrink:0">' + count + '</span>' +
+                '<span style="font-size:0.68rem;color:var(--color-text-muted);margin-left:4px;flex-shrink:0">(' + pctLabel + ')</span>';
+              legend.appendChild(item);
+            });
+          }
           var centerEl = document.getElementById('user-donut-center-text');
-          if (centerEl) centerEl.textContent = mine.length > 0 ? mine.length : '–';
+          if (centerEl) centerEl.textContent = total > 0 ? total : '–';
         }
-        var TYPE_COLORS = { 'Regular': '#1d4ed8', 'Special': '#7c3aed' };
+        // Bug fix: TYPE_COLORS now covers all actual meeting types
+        var TYPE_COLORS = {
+          'Committee Meeting':      '#1d4ed8',
+          'Committee Hearing':      '#7c3aed',
+          'Committee Deliberation': '#0891b2',
+          'Public Meeting':         '#16a34a',
+          'Consultative Meeting':   '#d97706',
+          'Regular Session':        '#1d4ed8',
+          'Special Session':        '#7c3aed',
+          'Regular':                '#1d4ed8',
+          'Special':                '#7c3aed',
+          'Others':                 '#6b7280'
+        };
         var typeCounts = {};
         mine.forEach(function(m) { var t = m.type || m.meetingType || 'Other'; typeCounts[t] = (typeCounts[t] || 0) + 1; });
         var typeKeys = Object.keys(typeCounts);
@@ -922,7 +950,9 @@
       var _userPollCount = 0;
       function pollUserCharts() {
         _userPollCount++;
-        if (window.meetings !== undefined || _userPollCount > 30) { renderUserDashboardCharts(); }
+        // Bug fix: window.meetings is always defined as [], check actual data length
+        var hasData = Array.isArray(window.meetings) && window.meetings.length > 0;
+        if (hasData || _userPollCount > 30) { renderUserDashboardCharts(); }
         else { setTimeout(pollUserCharts, 200); }
       }
       document.addEventListener('DOMContentLoaded', function() { setTimeout(pollUserCharts, 400); });
@@ -957,9 +987,14 @@
         var open     = false;
         var debounceT = null;
 
-        var STATUS_COLORS = {
-          'Approved':'#16a34a','Pending':'#f59e0b','Cancelled':'#dc2626',
-          'Rejected':'#dc2626','Done':'#3b82f6','Cancellation Requested':'#f97316'
+        // Status → { bg, color, label }
+        var STATUS_META = {
+          'Approved':              { bg:'#dcfce7', color:'#166534', label:'Approved' },
+          'Pending':               { bg:'#fef3c7', color:'#92400e', label:'Pending' },
+          'Done':                  { bg:'#dbeafe', color:'#1e40af', label:'Done' },
+          'Cancelled':             { bg:'#fee2e2', color:'#991b1b', label:'Cancelled' },
+          'Rejected':              { bg:'#fee2e2', color:'#991b1b', label:'Rejected' },
+          'Cancellation Requested':{ bg:'#fff7ed', color:'#c2410c', label:'Cancel Req.' }
         };
 
         function esc(s) {
@@ -971,6 +1006,25 @@
           if (!query) return esc(text);
           var re = new RegExp('(' + query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')', 'gi');
           return esc(text).replace(re, '<mark class="gs-hl">$1</mark>');
+        }
+
+        function formatDate(dateStr) {
+          if (!dateStr) return '';
+          try {
+            var d = new Date(dateStr + 'T00:00:00');
+            return d.toLocaleDateString('en-PH', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+          } catch(e) { return dateStr; }
+        }
+
+        function formatTime(timeStr) {
+          if (!timeStr) return '';
+          try {
+            var parts = timeStr.split(':');
+            var h = parseInt(parts[0], 10), m = parseInt(parts[1] || '0', 10);
+            var ampm = h >= 12 ? 'PM' : 'AM';
+            h = h % 12 || 12;
+            return h + ':' + (m < 10 ? '0' + m : m) + ' ' + ampm;
+          } catch(e) { return timeStr; }
         }
 
         function openSearch() {
@@ -990,7 +1044,12 @@
         }
 
         function showEmpty(msg) {
-          results.innerHTML = '<div class="global-search-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>' + (msg || 'Start typing to search…') + '</span></div>';
+          var iconColor = 'var(--color-text-faint)';
+          results.innerHTML =
+            '<div class="global-search-empty">' +
+              '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="' + iconColor + '" stroke-width="1.3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+              '<span>' + (msg || 'Type to search your meetings') + '</span>' +
+            '</div>';
         }
 
         function getCurrentUser() {
@@ -1006,34 +1065,63 @@
           var allMeetings = window.meetings || [];
           var lq = q.toLowerCase();
 
-          // Filter to only this user's meetings
+          // Only this user's meetings
           var mine = allMeetings.filter(function(m) {
             if (!currentUser) return false;
             if (currentUser.role === 'Councilor')  return m.councilor === currentUser.name || m.createdBy === currentUser.username;
             if (currentUser.role === 'Researcher') return m.researcher === currentUser.name || m.createdBy === currentUser.username;
+            if (currentUser.role === 'Vice Mayor' || currentUser.role === 'Secretary') return m.createdBy === currentUser.username;
             return m.createdBy === currentUser.username;
           });
 
-          var mResults = mine.filter(function(m) {
+          var matched = mine.filter(function(m) {
             return [m.eventName, m.status, m.date, m.venue, m.type, m.meetingType, m.committee, m.councilor, m.researcher, m.stakeholders]
               .some(function(v) { return v && String(v).toLowerCase().includes(lq); });
-          }).slice(0, 10);
-
-          if (!mResults.length) { showEmpty('No results for "' + esc(q) + '"'); return; }
-
-          var html = '<div class="gs-group-label">Your Meetings</div>';
-          mResults.forEach(function(m) {
-            var color = STATUS_COLORS[m.status] || '#9ca3af';
-            var dateStr = m.date ? new Date(m.date + 'T00:00:00').toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}) : '';
-            html += '<button class="gs-item" data-section="my-meetings">' +
-              '<span class="gs-item-icon gs-icon-meeting"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>' +
-              '<div class="gs-item-body">' +
-                '<div class="gs-item-title">' + highlight(m.eventName || 'Meeting', q) + '</div>' +
-                '<div class="gs-item-meta">' + esc(dateStr) + (m.venue ? ' · ' + esc(m.venue) : '') + (m.type ? ' · ' + esc(m.type) : '') + '</div>' +
-              '</div>' +
-              '<span class="gs-badge" style="background:' + color + '">' + esc(m.status) + '</span>' +
-            '</button>';
           });
+
+          // Sort: upcoming first, then past
+          var today = new Date().toISOString().slice(0,10);
+          matched.sort(function(a, b) {
+            var aFut = (a.date || '') >= today, bFut = (b.date || '') >= today;
+            if (aFut !== bFut) return aFut ? -1 : 1;
+            return (a.date || '').localeCompare(b.date || '');
+          });
+          matched = matched.slice(0, 8);
+
+          if (!matched.length) {
+            showEmpty('No meetings found for "' + esc(q) + '"');
+            return;
+          }
+
+          var html = '<div class="gs-group-label">Your Meetings <span style="font-weight:400;opacity:0.6">(' + matched.length + ')</span></div>';
+          matched.forEach(function(m) {
+            var sm = STATUS_META[m.status] || { bg:'#f3f4f6', color:'#6b7280', label: esc(m.status) };
+            var dateStr   = formatDate(m.date);
+            var timeStr   = formatTime(m.timeStart);
+            var isAdminSched = m.createdByRole === 'Admin';
+            var adminTag  = isAdminSched
+              ? '<span style="font-size:0.62rem;background:#ede9fe;color:#5b21b6;border-radius:4px;padding:1px 5px;font-weight:700;flex-shrink:0;">Admin</span>'
+              : '';
+            html +=
+              '<button class="gs-item gs-item-user" data-section="my-meetings">' +
+                '<div class="gs-item-icon gs-icon-meeting">' +
+                  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' +
+                '</div>' +
+                '<div class="gs-item-body">' +
+                  '<div class="gs-item-title-row">' +
+                    '<span class="gs-item-title">' + highlight(m.eventName || 'Meeting', q) + '</span>' +
+                    adminTag +
+                  '</div>' +
+                  '<div class="gs-item-meta">' +
+                    (dateStr ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' + esc(dateStr) : '') +
+                    (timeStr ? ' · <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> ' + esc(timeStr) : '') +
+                    (m.venue ? ' · ' + esc(m.venue) : '') +
+                  '</div>' +
+                '</div>' +
+                '<span class="gs-badge-user" style="background:' + sm.bg + ';color:' + sm.color + '">' + sm.label + '</span>' +
+              '</button>';
+          });
+
           results.innerHTML = html;
 
           results.querySelectorAll('.gs-item').forEach(function(btn) {
@@ -1062,6 +1150,22 @@
         document.addEventListener('keydown', function (e) {
           if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); open ? closeSearch() : openSearch(); }
           if (e.key === 'Escape' && open) closeSearch();
+
+          // Arrow key navigation through results
+          if (open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+            e.preventDefault();
+            var items = Array.from(results.querySelectorAll('.gs-item'));
+            if (!items.length) return;
+            var focused = document.activeElement;
+            var idx = items.indexOf(focused);
+            if (e.key === 'ArrowDown') idx = (idx + 1) % items.length;
+            else idx = idx <= 0 ? items.length - 1 : idx - 1;
+            items[idx].focus();
+          }
+
+          if (open && e.key === 'Enter' && document.activeElement.classList.contains('gs-item')) {
+            document.activeElement.click();
+          }
         });
 
         document.addEventListener('mousedown', function (e) {
@@ -1103,6 +1207,7 @@
           var exp = parseInt(sessionStorage.getItem('sbp_session_expiry') || '0', 10);
           if (exp && Date.now() > exp) {
             sessionStorage.removeItem('sbp_current_user'); sessionStorage.removeItem('sbp_session_expiry');
+            localStorage.removeItem('sbp_current_user'); // prevent auto-login after timeout
             window.location.href = './index.html?timeout=1';
           }
         }

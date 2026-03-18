@@ -50,7 +50,7 @@ function h(str) {
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 // Table pagination
-const MEETINGS_PAGE_SIZE = 10;
+const MEETINGS_PAGE_SIZE = 7;
 let adminMeetingsPage = 1;
 let myMeetingsPage = 1;
 let usersPage = 1;
@@ -261,10 +261,14 @@ function addNotification(userId, message, type = "info", section = null) {
     read: false,
     createdAt: new Date().toISOString(),
   });
-  // Keep last 50 per user
-  const mine = all.filter(n => n.userId === userId).slice(0, 50);
-  const others = all.filter(n => n.userId !== userId);
-  save(STORAGE_KEYS.NOTIFICATIONS, [...others, ...mine]);
+  // Keep last 50 per user — cap ALL users to prevent localStorage bloat
+  const grouped = {};
+  all.forEach(n => {
+    if (!grouped[n.userId]) grouped[n.userId] = [];
+    grouped[n.userId].push(n);
+  });
+  const capped = Object.values(grouped).flatMap(arr => arr.slice(0, 50));
+  save(STORAGE_KEYS.NOTIFICATIONS, capped);
 }
 
 function markAllNotificationsRead(userId) {
@@ -555,6 +559,19 @@ function hasMeetingEnded(m) {
   return nowMinutes >= end;
 }
 
+// Returns true if the meeting's START time is already in the past (Manila time).
+// Used to block approving a meeting that has already begun or already ended.
+function hasMeetingStarted(m) {
+  if (!m || !m.date || !m.timeStart) return false;
+  const todayISO = getTodayISOManila();
+  if (m.date < todayISO) return true;
+  if (m.date > todayISO) return false;
+  const now = getManilaNow();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const start = minutesFromTimeStr(m.timeStart);
+  return nowMinutes >= start;
+}
+
 function isWeekend(dateObj) {
   const day = dateObj.getDay();
   return day === 0 || day === 6;
@@ -741,6 +758,14 @@ function requireAuth({ allowAdmin, allowCouncilor, allowResearcher, onFail }) {
               (role === ROLES.SECRETARY && allowCouncilor);
   if (!ok) {
     if (onFail === "button") { showAccessDeniedPage("Your role cannot access this page."); return null; }
+    window.location.href = "./index.html";
+    return null;
+  }
+  // Security: if the stored user record still has mustChangePassword set,
+  // redirect back to login so the force-change modal is shown.
+  // This blocks bypassing the password change by navigating directly to admin.html / user.html.
+  if (user.mustChangePassword) {
+    setCurrentUser(null);
     window.location.href = "./index.html";
     return null;
   }
@@ -1112,12 +1137,16 @@ async function initLoginPage() {
     let account = null;
     try {
       if (window.api && window.api.signIn) {
-        // For Firestore mode — passwords may still be plain (legacy)
-        account = await window.api.signIn(username, password);
-        // If not found, try hashed
-        if (!account) {
-          const hashed = await hashPassword(password);
-          account = await window.api.signIn(username, hashed);
+        // signIn(username) fetches the user record from Firestore by username only.
+        // Password verification always happens below via verifyPassword() — the
+        // second signIn call with a hashed password was a bug: firebase.js ignores
+        // the second argument entirely, so it was a redundant wasted Firestore read.
+        const record = await window.api.signIn(username);
+        if (record) {
+          // Verify the supplied password against the stored hash (PBKDF2 or legacy SHA-256)
+          const passwordMatch = await verifyPassword(password, record.password)
+            || record.password === password; // plain-text legacy fallback
+          if (passwordMatch) account = record;
         }
       } else {
         const allUsers = load(STORAGE_KEYS.USERS, []);
@@ -1967,16 +1996,22 @@ function renderAdminMeetingsTable() {
       Referred
     </span>`;
 
-    // Fix 15: When cancellation is requested, show a clear prominent action instead of generic buttons
-    const canMarkDone = m.status === "Approved" && hasMeetingEnded(m);
-    const doneBtn = `<button class="action-btn action-btn-done" data-action="status" data-status="Done" data-meeting-id="${m.id}" ${canMarkDone ? "" : "disabled title=\"Available after meeting end\""}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Done
-          </button>`;
+    // isPendingExpired: Pending meeting whose start time has passed — lock all actions except Delete
+    const isPendingExpired = m.status === "Pending" && hasMeetingStarted(m);
+
     const delBtn = `<button class="action-btn action-btn-cancel" data-action="delete" data-meeting-id="${m.id}">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>Delete
           </button>`;
-    const actionButtons = isCancelRequest
-      ? `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+
+    // Expired badge for past-start-time pending meetings
+    const expiredBadge = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.68rem;font-weight:700;color:#92400E;background:#FEF3C7;border:1px solid rgba(217,119,6,0.45);border-radius:6px;padding:3px 8px;">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Expired
+    </span>`;
+
+    let actionButtons;
+    if (isCancelRequest) {
+      actionButtons = `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
           <span style="font-size:0.72rem;color:#c2410c;font-weight:600;display:inline-flex;align-items:center;gap:4px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
             Cancellation Requested
@@ -1989,21 +2024,56 @@ function renderAdminMeetingsTable() {
           </button>
           ${delBtn}
           ${printBtns}
-        </div>`
-      : `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
-          ${isAdminCreated && m.status === "Pending" ? referredBadge : !isAdminCreated ? `<button class="action-btn action-btn-approve" data-action="status" data-status="Approved" data-meeting-id="${m.id}">
+        </div>`;
+    } else if (isPendingExpired) {
+      // Past start time — lock Approve/Reject/Cancel, only Delete allowed
+      actionButtons = `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+          ${expiredBadge}
+          <button class="action-btn action-btn-approve" disabled title="Start time has passed">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Approve
-          </button>` : ""}
+          </button>
+          <button class="action-btn action-btn-reject" disabled title="Start time has passed">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
+          </button>
+          <button class="action-btn action-btn-cancel" disabled title="Start time has passed">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Cancel
+          </button>
+          ${delBtn}
+          ${printBtns}
+        </div>`;
+    } else if (m.status === "Pending") {
+      actionButtons = `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+          ${isAdminCreated ? referredBadge : `<button class="action-btn action-btn-approve" data-action="status" data-status="Approved" data-meeting-id="${m.id}">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Approve
+          </button>`}
           ${!isAdminCreated ? `<button class="action-btn action-btn-reject" data-action="status" data-status="Rejected" data-meeting-id="${m.id}">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
           </button>` : ""}
           <button class="action-btn action-btn-cancel" data-action="status" data-status="Cancelled" data-meeting-id="${m.id}">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Cancel
           </button>
-          ${doneBtn}
           ${delBtn}
           ${printBtns}
         </div>`;
+    } else if (m.status === "Approved") {
+      // Already approved — disable Approve, show Cancel + Delete + PDF only
+      actionButtons = `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+          <button class="action-btn action-btn-approve" disabled title="Already approved">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Approved
+          </button>
+          <button class="action-btn action-btn-cancel" data-action="status" data-status="Cancelled" data-meeting-id="${m.id}">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Cancel
+          </button>
+          ${delBtn}
+          ${printBtns}
+        </div>`;
+    } else {
+      // Done, Rejected, Cancelled — Delete + PDF only
+      actionButtons = `<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+          ${delBtn}
+          ${printBtns}
+        </div>`;
+    }
     const cancelReasonCell = m.cancelReason ? `<div style="font-size:0.7rem;color:#9ca3af;margin-top:2px;font-style:italic" title="${h(m.cancelReason)}">Reason: ${h(m.cancelReason)}</div>` : "";
     const submittedAt = m.createdAt ? new Date(m.createdAt) : null;
     const submittedTag = submittedAt
@@ -2028,13 +2098,14 @@ function renderAdminMeetingsTable() {
            onclick="(function(btn){var p=document.getElementById('admin-note-popover');if(!p){p=document.createElement('div');p.id='admin-note-popover';p.style.cssText='position:fixed;z-index:9999;max-width:300px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-size:0.82rem;color:var(--color-text);line-height:1.5;white-space:pre-wrap;word-break:break-word';var close=document.createElement('button');close.textContent='✕';close.style.cssText='float:right;background:none;border:none;cursor:pointer;font-size:0.9rem;color:var(--color-text-muted);margin:-4px -4px 6px 8px';close.onclick=function(){p.remove()};p.appendChild(close);document.body.appendChild(p);document.addEventListener('click',function h(e){if(!p.contains(e.target)&&e.target!==btn){p.remove();document.removeEventListener('click',h)}},{once:true})}var r=btn.getBoundingClientRect();p.querySelector('button').nextSibling?p.childNodes[1].textContent=btn.dataset.note:p.appendChild(document.createTextNode(btn.dataset.note));p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-316)+'px';p.style.display='block'})(this)"
          >${h(m.adminNote)}</button>`
       : `<span style="color:var(--color-text-faint);font-size:0.78rem">—</span>`;
-    return `<tr${isCancelRequest ? ' style="background:rgba(249,115,22,0.04)"' : ''}>
+    return `<tr${isCancelRequest ? ' style="background:rgba(249,115,22,0.04)"' : ''}${isPendingExpired ? ' class="row-expired"' : ''}>
       <td>${h(m.eventName)}</td>
       <td>${formatDateDisplay(m.date)}</td>
       <td>${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)}</td>
       <td>${h(m.type || m.meetingType || "—")}</td>
       <td>${(() => {
             const parts = [meetingStatusBadge(m.status)];
+            if (isPendingExpired) parts.push('<div style="margin-top:3px;display:inline-flex;align-items:center;gap:3px;font-size:0.65rem;font-weight:700;color:#b45309;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.25);border-radius:999px;padding:1px 7px"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Start time passed</div>');
             if (cancelReasonCell) parts.push(cancelReasonCell);
             if (adminWindowTag) parts.push(adminWindowTag);
             if (submittedTag) parts.push(submittedTag);
@@ -2057,6 +2128,169 @@ function renderAdminMeetingsTable() {
   }).join("");
 
   renderPagination("admin-meetings-pagination", totalPages, adminMeetingsPage, (p) => { adminMeetingsPage = p; renderAdminMeetingsTable(); });
+
+  // ── Mobile card view ─────────────────────────────────────────────────────
+  // Renders the same paginated list as cards into #admin-meetings-cards,
+  // which is shown on ≤768 px and hidden on desktop (controlled by CSS).
+  const cardsWrap = document.getElementById("admin-meetings-cards");
+  if (cardsWrap) {
+    if (!paginated.length) {
+      cardsWrap.innerHTML = '<div class="admin-mtg-cards-empty">No meetings found.</div>';
+    } else {
+      cardsWrap.innerHTML = paginated.map(m => {
+        const isCancelRequest = m.status === "Cancellation Requested";
+        const isAdminCreated  = m.createdByRole === ROLES.ADMIN;
+        const isPendingExpired = m.status === "Pending" && hasMeetingStarted(m);
+
+        // ── Status tags ──
+        let statusTags = meetingStatusBadge(m.status);
+        if (isPendingExpired) {
+          statusTags += `<span class="card-tag card-tag-expired">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Start time passed
+          </span>`;
+        }
+        if (m.cancelReason) {
+          statusTags += `<div class="card-cancel-reason">Reason: ${h(m.cancelReason)}</div>`;
+        }
+        // Cancel window tag
+        const createdAt2 = m.createdAt ? new Date(m.createdAt) : null;
+        if (createdAt2 && ["Pending","Approved"].includes(m.status)) {
+          const now2 = getManilaNow();
+          const elapsed2 = Math.max(0, now2 - createdAt2);
+          if (elapsed2 < 24 * 60 * 60 * 1000) {
+            const msLeft2 = 24 * 60 * 60 * 1000 - elapsed2;
+            const hLeft2  = Math.floor(msLeft2 / 3600000);
+            const mLeft2  = Math.floor((msLeft2 % 3600000) / 60000);
+            statusTags += `<span class="card-tag card-tag-window">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Cancel window: ${hLeft2 > 0 ? hLeft2 + "h " : ""}${mLeft2}m left
+            </span>`;
+          }
+        }
+        // Referred-to tag for admin-created meetings
+        if (isAdminCreated) {
+          const refRaw2 = (m.councilor && m.councilor !== "N/A") ? m.councilor
+                        : (m.researcher && m.researcher !== "N/A") ? m.researcher : null;
+          if (refRaw2) {
+            const refUser2 = Array.isArray(users) ? users.find(u => u.name === refRaw2 || u.username === refRaw2) : null;
+            const refName2 = refUser2 ? (refUser2.name || refUser2.username || refRaw2) : refRaw2;
+            statusTags += `<span class="card-tag card-tag-referred">
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Referred to: ${h(refName2)}
+            </span>`;
+          }
+        }
+        // Submitted time
+        if (m.createdAt) {
+          const subAt = new Date(m.createdAt);
+          statusTags += `<div class="card-submitted">Submitted ${_annTimeAgo(m.createdAt)} · ${subAt.toLocaleString('en-PH',{ hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'Asia/Manila' })}</div>`;
+        }
+
+        // ── Action buttons (same logic as table) ──
+        const delBtnC = `<button class="action-btn action-btn-cancel" data-action="delete" data-meeting-id="${m.id}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>Delete
+        </button>`;
+        const pdfBtnC = `<button class="btn btn-sm btn-ghost" data-action="print" data-meeting-id="${m.id}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>PDF
+        </button>`;
+        const referredBadgeC = `<span class="card-tag card-tag-referred" style="padding:5px 10px;font-size:0.72rem">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Referred
+        </span>`;
+
+        let cardActions;
+        if (isCancelRequest) {
+          cardActions = `
+            <span style="font-size:0.72rem;color:#c2410c;font-weight:600;display:inline-flex;align-items:center;gap:4px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:4px 10px;">Cancellation Requested</span>
+            <button class="action-btn action-btn-cancel" data-action="status" data-status="Cancelled" data-meeting-id="${m.id}" style="font-weight:700;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Confirm Cancel
+            </button>
+            <button class="action-btn action-btn-approve" data-action="status" data-status="Approved" data-meeting-id="${m.id}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Deny Request
+            </button>
+            ${delBtnC}${pdfBtnC}`;
+        } else if (isPendingExpired) {
+          cardActions = `
+            <button class="action-btn action-btn-approve" disabled>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Approve
+            </button>
+            <button class="action-btn action-btn-reject" disabled>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
+            </button>
+            <button class="action-btn action-btn-cancel" disabled>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Cancel
+            </button>
+            ${delBtnC}${pdfBtnC}`;
+        } else if (m.status === "Pending") {
+          cardActions = `
+            ${isAdminCreated ? referredBadgeC : `<button class="action-btn action-btn-approve" data-action="status" data-status="Approved" data-meeting-id="${m.id}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Approve
+            </button>`}
+            ${!isAdminCreated ? `<button class="action-btn action-btn-reject" data-action="status" data-status="Rejected" data-meeting-id="${m.id}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
+            </button>` : ""}
+            <button class="action-btn action-btn-cancel" data-action="status" data-status="Cancelled" data-meeting-id="${m.id}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Cancel
+            </button>
+            ${delBtnC}${pdfBtnC}`;
+        } else if (m.status === "Approved") {
+          cardActions = `
+            <button class="action-btn action-btn-approve" disabled>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Approved
+            </button>
+            <button class="action-btn action-btn-cancel" data-action="status" data-status="Cancelled" data-meeting-id="${m.id}">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Cancel
+            </button>
+            ${delBtnC}${pdfBtnC}`;
+        } else {
+          // Done, Rejected, Cancelled
+          cardActions = `${delBtnC}${pdfBtnC}`;
+        }
+
+        // ── Note row ──
+        const noteRow = m.adminNote
+          ? `<div class="admin-mtg-card-note">
+               <span class="card-note-label">Note</span>
+               <span class="card-note-text">${h(m.adminNote)}</span>
+             </div>` : "";
+
+        return `
+          <div class="admin-mtg-card${isCancelRequest ? " card-cancel-req" : ""}${isPendingExpired ? " row-expired" : ""}">
+            <div class="admin-mtg-card-head">
+              <div class="admin-mtg-card-title">${h(m.eventName)}</div>
+              <div class="admin-mtg-card-status">${statusTags}</div>
+            </div>
+            <div class="admin-mtg-card-meta">
+              <div class="card-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                ${formatDateDisplay(m.date)}
+              </div>
+              <div class="card-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                ${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)}
+              </div>
+              <div class="card-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+                ${h(m.type || m.meetingType || "—")}
+              </div>
+              <div class="card-meta-item">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                ${h(m.createdBy)}
+              </div>
+            </div>
+            ${noteRow}
+            <div class="admin-mtg-card-actions">${cardActions}</div>
+          </div>`;
+      }).join("");
+    }
+    // Wire up action buttons via event delegation.
+    // Re-attach by cloning the node to prevent stacking duplicate listeners
+    // on every re-render call.
+    const freshWrap = cardsWrap.cloneNode(false);
+    freshWrap.innerHTML = cardsWrap.innerHTML;
+    cardsWrap.parentNode.replaceChild(freshWrap, cardsWrap);
+    freshWrap.addEventListener("click", handleAdminMeetingsClick);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -2149,8 +2383,20 @@ function handleAdminMeetingsClick(e) {
   const adminUser = getCurrentUser();
   const adminId = adminUser ? (adminUser.id || adminUser.username) : null;
 
+  // Block Approve if the meeting's start time has already passed
+  if (status === "Approved" && hasMeetingStarted(mtg)) {
+    showToast("This meeting's start time has already passed and can no longer be approved.", "warning");
+    reenable();
+    return;
+  }
+  // Block all status actions (except Delete) on expired pending meetings
+  if (action === "status" && mtg.status === "Pending" && hasMeetingStarted(mtg) && status !== "Done") {
+    showToast("This meeting has already passed its start time. Only Delete is allowed.", "warning");
+    reenable();
+    return;
+  }
   if (status === "Done" && !hasMeetingEnded(mtg)) {
-    showToast("You can only mark as Done after the meeting end time.", "warning");
+    showToast("This meeting has not ended yet.", "warning");
     reenable();
     return;
   }
@@ -2251,7 +2497,10 @@ function applyMeetingStatus(mtg, status, note, adminId) {
   mtg.adminNote = note;
 
   if (window.api && window.api.updateMeetingStatus) {
-    window.api.updateMeetingStatus(mtg.id, status, note).then(() => {});
+    window.api.updateMeetingStatus(mtg.id, status, note).then(() => {}).catch(err => {
+      console.error("updateMeetingStatus failed:", err);
+      showToast("Status update may not have saved. Please refresh.", "error");
+    });
   } else {
     persistMeetings();
   }
@@ -2310,7 +2559,9 @@ function applyMeetingStatus(mtg, status, note, adminId) {
       m.status = "Cancelled";
       m.adminNote = "Auto-cancelled due to conflict with an approved meeting.";
       if (window.api && window.api.updateMeetingStatus) {
-        window.api.updateMeetingStatus(m.id, "Cancelled", m.adminNote).then(() => {});
+        window.api.updateMeetingStatus(m.id, "Cancelled", m.adminNote).then(() => {}).catch(err => {
+          console.error("Auto-cancel conflict update failed:", err);
+        });
       }
       const conflictOwner = users.find(u => u.username === m.createdBy) ||
                             users.find(u => u.name === m.councilor);
@@ -2339,6 +2590,16 @@ const _SBP_HEADER_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBww
 const _SBP_FOOTER_B64 = "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";
 
 function generateMeetingPdf(mtg, docType, autoPrint) {
+  // Wrap entire PDF generation in try/catch so a jsPDF failure never
+  // crashes the page silently — show a user-facing toast instead.
+  try {
+    _generateMeetingPdfInner(mtg, docType, autoPrint);
+  } catch (err) {
+    console.error("PDF generation failed:", err);
+    showToast("Could not generate PDF. Please try again.", "error");
+  }
+}
+function _generateMeetingPdfInner(mtg, docType, autoPrint) {
   // docType controls the document title and filename:
   //   'approval'      → Meeting Approval Slip  (default)
   //   'cancellation'  → Cancellation Letter
@@ -2379,7 +2640,16 @@ function generateMeetingPdf(mtg, docType, autoPrint) {
     const LINE_H = 6;   // line height for body text
     const INDENT = ML;
 
+    // ── Document title heading ────────────────────────────────────────────────
+    doc.setFontSize(12);
+    doc.setFont("times", "bold");
+    doc.setTextColor(20, 20, 20);
+    doc.text(dtype.title, PW / 2, y, { align: "center" });
+    y += LINE_H * 2;
+
     // ── Date ──────────────────────────────────────────────────────────────────
+    // The date at the top of the letter is always today — the date it was issued/printed.
+    // The meeting's scheduled date appears separately inside the details block below.
     const refDate = new Date().toLocaleDateString("en-PH", { year:"numeric", month:"long", day:"numeric" });
     doc.setFontSize(10);
     doc.setFont("times", "normal");
@@ -2457,10 +2727,15 @@ function generateMeetingPdf(mtg, docType, autoPrint) {
       y += Math.max(1, nLines.length) * LINE_H + LINE_H;
     }
 
-    // ── Closing paragraph ─────────────────────────────────────────────────────
-    const closePara = docType === "cancellation" || docType === "rejection"
-      ? "We will conduct the said hearing under the leadership of the above-named Chairperson to discuss matters within the jurisdiction of the committee.\n\nIn this regard, we respectfully seek your approval for the conduct of the said meeting. Thank you."
-      : "We will conduct the said hearing under the leadership of the above-named Chairperson to discuss matters within the jurisdiction of the committee.\n\nIn this regard, we respectfully seek your approval for the conduct of the said meeting. Thank you.";
+    // ── Closing paragraph — unique per document type ────────────────────────
+    let closePara;
+    if (docType === "cancellation") {
+      closePara = "We regret any inconvenience this cancellation may have caused. Should it be necessary to reschedule, we will coordinate with your office at the earliest opportunity.\n\nThank you for your understanding and continued support.";
+    } else if (docType === "rejection") {
+      closePara = "We appreciate your effort in submitting this request. We encourage you to re-submit a revised request at a more appropriate time, ensuring that all requirements and schedules are properly observed.\n\nThank you for your understanding.";
+    } else {
+      closePara = "We will conduct the said hearing under the leadership of the above-named Chairperson to discuss matters within the jurisdiction of the committee.\n\nIn this regard, we respectfully seek your approval for the conduct of the said meeting. Thank you.";
+    }
 
     doc.setFont("times", "normal");
     doc.setFontSize(10.5);
@@ -2585,7 +2860,10 @@ function handleMyMeetingsClick(e) {
 
           const extraFields = { cancelReason: mtg.cancelReason, cancelledAt: mtg.cancelledAt };
           if (window.api && window.api.updateMeetingStatus) {
-            window.api.updateMeetingStatus(mtg.id, "Cancelled", "", extraFields).then(() => {});
+            window.api.updateMeetingStatus(mtg.id, "Cancelled", "", extraFields).then(() => {}).catch(err => {
+              console.error("Cancel update failed:", err);
+              showToast("Cancellation may not have saved. Please refresh.", "error");
+            });
           } else {
             persistMeetings();
           }
@@ -2621,7 +2899,10 @@ function handleMyMeetingsClick(e) {
 
           const extraFields = { cancelReason: mtg.cancelReason };
           if (window.api && window.api.updateMeetingStatus) {
-            window.api.updateMeetingStatus(mtg.id, "Cancellation Requested", "", extraFields).then(() => {});
+            window.api.updateMeetingStatus(mtg.id, "Cancellation Requested", "", extraFields).then(() => {}).catch(err => {
+              console.error("Cancellation request failed:", err);
+              showToast("Cancellation request may not have saved. Please refresh.", "error");
+            });
           } else {
             persistMeetings();
           }
@@ -2691,7 +2972,14 @@ function changeCalendarMonth(offset) {
   loadPHHolidays(calendarYear).then(() => renderCalendar());
 }
 
+let _calendarDebounceTimer = null;
 function renderCalendar() {
+  // Debounce: coalesce rapid successive calls (e.g. from subscribeMeetings +
+  // updateStatistics firing back-to-back) into a single redraw after 80ms.
+  clearTimeout(_calendarDebounceTimer);
+  _calendarDebounceTimer = setTimeout(_renderCalendarNow, 80);
+}
+function _renderCalendarNow() {
   const grid = $("#calendar-grid");
   const monthLabel = $("#calendar-month");
   const yearLabel = $("#calendar-year");
@@ -2774,70 +3062,63 @@ function renderCalendar() {
 
     const MAX_BADGES = 2;
 
-    // Compute current Manila time in minutes for "ongoing" detection
     const _manilaMinutes = (() => {
       const n = getManilaNow();
       return n.getHours() * 60 + n.getMinutes();
     })();
 
-    // ── Full-booked bar only (mine dots now live inside each badge) ──
-    if (activeMeetings.length || dayHistory.length) {
-      const isFullBooked = dayMeetings
-        .filter(m => m.status === "Approved")
-        .reduce((s, m) => s + (m.durationHours || SLOT_DURATION_HOURS) * 60, 0) >= (WORK_END_HOUR - WORK_START_HOUR) * 60;
+    const isAdminPage = document.body.dataset.page === "admin";
 
-      if (isFullBooked && isWorkday && !isHoliday) {
-        const dotsRow = document.createElement("div");
-        dotsRow.className = "calendar-cell-dots";
-        const dot = document.createElement("div");
-        dot.className = "calendar-dot calendar-dot-full";
-        dotsRow.appendChild(dot);
-        cell.appendChild(dotsRow);
-      }
-    }
-
-    activeMeetings.slice(0, MAX_BADGES).forEach(m => {
-      const isAdminCreated = m.createdByRole === ROLES.ADMIN;
-      // "Mine" = the logged-in user created this meeting OR is the assigned councilor/researcher
-      const isMine = currentUser && (
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function _isMine(m) {
+      return !!(currentUser && (
         m.createdBy === currentUser.username ||
         m.councilor === currentUser.name ||
         m.researcher === currentUser.name
-      );
+      ));
+    }
+    function _isOngoing(m) {
+      if (!isToday || m.status !== "Approved" || !m.timeStart) return false;
+      const s = minutesFromTimeStr(m.timeStart);
+      return _manilaMinutes >= s && _manilaMinutes < s + (m.durationHours || SLOT_DURATION_HOURS) * 60;
+    }
 
-      // Ongoing = today + Approved + current time falls within the meeting window
-      const isOngoing = isToday &&
-        m.status === "Approved" &&
-        m.timeStart &&
-        (() => {
-          const start = minutesFromTimeStr(m.timeStart);
-          const end   = start + (m.durationHours || SLOT_DURATION_HOURS) * 60;
-          return _manilaMinutes >= start && _manilaMinutes < end;
-        })();
+    // ── DESKTOP: Text badges ──────────────────────────────────────────────────
+    activeMeetings.slice(0, MAX_BADGES).forEach(m => {
+      const isAdminCreated = m.createdByRole === ROLES.ADMIN;
+      const mine    = _isMine(m);
+      const ongoing = _isOngoing(m);
+      const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
 
       const badge = document.createElement("div");
-      if (isOngoing) {
+
+      if (ongoing) {
+        // Blue gradient — always stands out
         badge.className = "calendar-badge calendar-badge-ongoing";
-        const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
-        badge.textContent = timeLabel + (m.eventName || "Meeting");
-      } else if (isMine) {
-        const isAdmMine = isMine && isAdminCreated;
-        badge.className = "calendar-badge " + (isAdmMine ? "calendar-badge-is-admin-mine" : "calendar-badge-is-mine");
-        const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
-        badge.textContent = timeLabel + (m.eventName || "Meeting");
-        // Dot indicator at the end of the badge row
-        const dot = document.createElement("span");
-        dot.className = isAdmMine ? "calendar-badge-dot calendar-badge-dot-admin" : "calendar-badge-dot calendar-badge-dot-mine";
-        badge.appendChild(dot);
+        badge.appendChild(document.createTextNode(timeLabel + (m.eventName || "Meeting")));
+
+      } else if (isAdminPage) {
+        // ── ADMIN PAGE: pure status colors, no ownership indicator ───────────
+        // Admin sees all meetings equally — Approved=green, Pending=yellow, Done=blue
+        badge.className = statusColorForCalendar(m.status, isAdminCreated, false);
+        badge.appendChild(document.createTextNode(timeLabel + (m.eventName || "Meeting")));
+
+      } else if (mine) {
+        // ── USER PAGE — MINE: gold (self) or purple (admin-scheduled) ─────────
+        const usePurple = isAdminCreated;
+        badge.className = "calendar-badge " + (usePurple ? "calendar-badge-is-admin-mine" : "calendar-badge-is-mine");
+        badge.appendChild(document.createTextNode(timeLabel + (m.eventName || "Meeting")));
+        const pip = document.createElement("span");
+        pip.className = "calendar-badge-dot " + (usePurple ? "calendar-badge-dot-admin" : "calendar-badge-dot-mine");
+        badge.appendChild(pip);
+
       } else {
-        badge.className = statusColorForCalendar(m.status, isAdminCreated, isMine);
-        const timeLabel = m.timeStart ? `${formatTime12h(minutesFromTimeStr(m.timeStart))} ` : "";
-        badge.textContent = timeLabel + (m.eventName || "Meeting");
+        // ── USER PAGE — OTHERS: status-colored but dimmed so user can tell "not mine" ─
+        badge.className = statusColorForCalendar(m.status, isAdminCreated, false) + " calendar-badge-others";
+        badge.appendChild(document.createTextNode(timeLabel + (m.eventName || "Meeting")));
       }
-      if (!isMine) {
-        // title already handled below
-      }
-      badge.title = `${h(m.eventName)} — ${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)} [${m.status}]${isOngoing ? " · NOW ONGOING" : ""}${isMine ? " · Your meeting" : ""}${isAdminCreated ? " · Admin scheduled" : ""}`;
+
+      badge.title = `${h(m.eventName)} — ${formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS)} [${m.status}]${ongoing ? " · NOW ONGOING" : ""}${!isAdminPage && mine ? " · Your meeting" : ""}`;
       cell.appendChild(badge);
     });
 
@@ -2848,7 +3129,6 @@ function renderCalendar() {
       cell.appendChild(more);
     }
 
-    // Show archived if no active meetings
     if (dayHistory.length && activeMeetings.length === 0) {
       const block = document.createElement("div");
       block.className = "calendar-badge";
@@ -2859,7 +3139,66 @@ function renderCalendar() {
       cell.appendChild(block);
     }
 
-    // ── Fully booked indicator ──
+    // ── MOBILE: Dot row (hidden on desktop via CSS display:none) ─────────────
+    // Admin: status-colored dot per meeting (full visibility)
+    // User:  own meetings = colored dot | others = small grey dot (slot taken)
+    if (activeMeetings.length > 0 || (isAdminPage && dayHistory.length > 0)) {
+      const dotsRow = document.createElement("div");
+      dotsRow.className = "calendar-cell-dots";
+
+      const MAX_DOTS = 4;
+      let dotCount = 0;
+
+      activeMeetings.forEach(m => {
+        if (dotCount >= MAX_DOTS) return;
+        const mine    = _isMine(m);
+        const ongoing = _isOngoing(m);
+        const dot     = document.createElement("div");
+
+        if (isAdminPage) {
+          // Admin: full status color — no ownership tint
+          if (ongoing)             dot.className = "calendar-dot calendar-dot-ongoing";
+          else if (m.status === "Approved") dot.className = "calendar-dot calendar-dot-approved";
+          else if (m.status === "Pending" ||
+                   m.status === "Cancellation Requested") dot.className = "calendar-dot calendar-dot-pending";
+          else if (m.status === "Done")    dot.className = "calendar-dot calendar-dot-done";
+          else                     dot.className = "calendar-dot calendar-dot-other";
+        } else {
+          // User: mine = full color, others = status-colored but slightly dimmed
+          if (ongoing && mine)                              dot.className = "calendar-dot calendar-dot-ongoing";
+          else if (mine && m.createdByRole === ROLES.ADMIN) dot.className = "calendar-dot calendar-dot-admin-own";
+          else if (mine)                                    dot.className = "calendar-dot calendar-dot-mine";
+          else if (m.status === "Approved")                 dot.className = "calendar-dot calendar-dot-others-approved";
+          else if (m.status === "Pending" || m.status === "Cancellation Requested") dot.className = "calendar-dot calendar-dot-pending calendar-dot-others-dim";
+          else if (m.status === "Done")                     dot.className = "calendar-dot calendar-dot-done calendar-dot-others-dim";
+          else                                              dot.className = "calendar-dot calendar-dot-occupied";
+        }
+
+        dot.title = !isAdminPage && mine
+          ? `${m.eventName || "Meeting"} [${m.status}] · Your meeting`
+          : `${m.eventName || "Meeting"} [${m.status}]`;
+        dotsRow.appendChild(dot);
+        dotCount++;
+      });
+
+      if (activeMeetings.length > MAX_DOTS) {
+        const overflow = document.createElement("div");
+        overflow.className = "calendar-dot calendar-dot-overflow";
+        overflow.title = `+${activeMeetings.length - MAX_DOTS} more`;
+        dotsRow.appendChild(overflow);
+      }
+
+      if (isAdminPage && dayHistory.length > 0 && activeMeetings.length === 0) {
+        const archDot = document.createElement("div");
+        archDot.className = "calendar-dot calendar-dot-other";
+        archDot.title = "Archived";
+        dotsRow.appendChild(archDot);
+      }
+
+      cell.appendChild(dotsRow);
+    }
+
+    // ── Fully booked indicator ────────────────────────────────────────────────
     const approvedMins = dayMeetings
       .filter(m => m.status === "Approved")
       .reduce((s, m) => s + (m.durationHours || SLOT_DURATION_HOURS) * 60, 0);
@@ -3338,7 +3677,10 @@ function submitMeetingFromPolicy() {
   };
 
   if (window.api && window.api.addMeeting) {
-    window.api.addMeeting(meeting).then(() => {});
+    window.api.addMeeting(meeting).then(() => {}).catch(err => {
+      console.error("addMeeting failed:", err);
+      showToast("Failed to save meeting. Please try again.", "error");
+    });
   } else {
     meetings.push(meeting);
     persistMeetings();
@@ -3822,6 +4164,33 @@ async function initAdminPage() {
   renderUsersTable();
   renderAdminMeetingsTable();
   updateStatistics();
+
+  // ── Auto-Done: scan every 60s, flip Approved→Done once end time passes ──
+  (function startAutoDoneInterval() {
+    function runAutoDone() {
+      if (!Array.isArray(meetings)) return;
+      let changed = false;
+      meetings.forEach(function(m) {
+        if (m.status === "Approved" && hasMeetingEnded(m)) {
+          m.status = "Done";
+          changed = true;
+          if (window.api && window.api.updateMeetingStatus) {
+            window.api.updateMeetingStatus(m.id, "Done", m.adminNote || "").catch(function(){});
+          } else if (typeof persistMeetings === "function") {
+            persistMeetings();
+          }
+        }
+      });
+      if (changed) {
+        renderAdminMeetingsTable();
+        renderCalendar();
+        updateStatistics();
+      }
+    }
+    runAutoDone();
+    setInterval(runAutoDone, 60 * 1000);
+  })();
+
   initAdminAnnouncements();
   initSystemSettings();
 
@@ -4523,26 +4892,132 @@ function closeUserDrawer() {
 // Admin Management
 // ---------------------------------------------------------------------------
 
-function openAdminMgmtModal() { document.getElementById("admin-mgmt-modal")?.classList.add("modal-open"); }
-function closeAdminMgmtModal() { document.getElementById("admin-mgmt-modal")?.classList.remove("modal-open"); }
+function openAdminMgmtModal() {
+  const modal = document.getElementById("admin-mgmt-modal");
+  if (!modal) return;
+
+  // Reset form and error on open
+  document.getElementById("admin-mgmt-form")?.reset();
+  const errEl = document.getElementById("admin-mgmt-error");
+  if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+  const preview = document.getElementById("admin-mgmt-username-preview");
+  if (preview) preview.innerHTML = "";
+
+  // ── Populate "Created By" card with current admin's info ──
+  const me = getCurrentUser();
+  if (me) {
+    const nameEl   = document.getElementById("admin-mgmt-creator-name");
+    const unEl     = document.getElementById("admin-mgmt-creator-username");
+    const avatarEl = document.getElementById("admin-mgmt-creator-avatar");
+    const timeEl   = document.getElementById("admin-mgmt-creator-time");
+    if (nameEl)   nameEl.textContent   = me.name || me.username || "Administrator";
+    if (unEl)     unEl.textContent     = "@" + (me.username || "admin");
+    if (avatarEl) avatarEl.textContent = (me.name || me.username || "A").charAt(0).toUpperCase();
+    if (timeEl) {
+      const now = new Date();
+      timeEl.textContent = now.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })
+        + " · " + now.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", hour12: true });
+    }
+  }
+
+  modal.classList.add("modal-open");
+
+  // Live username preview — strip spaces, lowercase
+  const unInput = document.getElementById("admin-mgmt-username");
+  if (unInput) {
+    unInput.oninput = function() {
+      if (!preview) return;
+      const val = this.value.trim().toLowerCase().replace(/\s+/g, "_");
+      preview.innerHTML = val
+        ? `Will be saved as: <strong style="color:var(--brand-blue)">${h(val)}</strong>`
+        : "";
+    };
+  }
+}
+function closeAdminMgmtModal() {
+  document.getElementById("admin-mgmt-modal")?.classList.remove("modal-open");
+}
 
 async function handleAddAdminSubmit(e) {
   e.preventDefault();
-  const email = document.getElementById("admin-mgmt-email")?.value.trim() || "";
-  const reason = document.getElementById("admin-mgmt-reason")?.value.trim() || "";
-  const pwd = document.getElementById("admin-mgmt-password")?.value || "";
-  if (!email || !reason || !pwd) { showToast("All fields are required.", "error"); return; }
-  if (!(window.firebase && firebase.auth && firebase.functions)) { showToast("Requires Firebase Auth & Functions.", "error"); return; }
+
+  const nameVal    = document.getElementById("admin-mgmt-name")?.value.trim()            || "";
+  const rawUN      = document.getElementById("admin-mgmt-username")?.value.trim()        || "";
+  const newPwd     = document.getElementById("admin-mgmt-new-password")?.value           || "";
+  const confirmPwd = document.getElementById("admin-mgmt-confirm-password")?.value       || "";
+  const reason     = document.getElementById("admin-mgmt-reason")?.value.trim()          || "";
+  const myPwd      = document.getElementById("admin-mgmt-password")?.value               || "";
+
+  const errEl  = document.getElementById("admin-mgmt-error");
+  const submitBtn = document.getElementById("admin-mgmt-submit");
+
+  function showErr(msg) {
+    if (errEl) { errEl.textContent = msg; errEl.style.display = "block"; }
+    showToast(msg, "error");
+  }
+  function clearErr() {
+    if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
+  }
+  clearErr();
+
+  // ── Validation ──
+  if (!nameVal)                    { showErr("Full name is required."); return; }
+  if (!rawUN)                      { showErr("Username is required."); return; }
+  if (newPwd.length < 6)           { showErr("Password must be at least 6 characters."); return; }
+  if (newPwd !== confirmPwd)       { showErr("Passwords do not match."); return; }
+  if (!reason)                     { showErr("Justification is required."); return; }
+  if (!myPwd)                      { showErr("Your current password is required."); return; }
+
+  const username = rawUN.toLowerCase().replace(/\s+/g, "_");
+
+  if (users.some(u => u.username === username)) {
+    showErr(`Username "${username}" already exists.`); return;
+  }
+
+  // ── Verify current admin's password ──
+  const currentUser = getCurrentUser();
+  if (!currentUser) { showErr("No active session found."); return; }
+
+  const isValidPwd = await verifyPassword(myPwd, currentUser.password);
+  if (!isValidPwd) { showErr("Incorrect current password."); return; }
+
+  // ── Create the admin account ──
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Creating…"; }
+
   try {
-    const current = firebase.auth().currentUser;
-    if (!current?.email) { showToast("Sign in with Firebase Auth to continue.", "error"); return; }
-    const cred = firebase.auth.EmailAuthProvider.credential(current.email, pwd);
-    await current.reauthenticateWithCredential(cred);
-    const callable = firebase.functions().httpsCallable("secureAddAdmin");
-    await callable({ email, reason });
-    showToast("Admin privileges granted.", "success");
+    const hashedPwd = await hashPassword(newPwd);
+    const newAdmin = {
+      id:       `user_${Math.random().toString(36).slice(2, 9)}`,
+      username,
+      name:     nameVal,
+      password: hashedPwd,
+      role:     ROLES.ADMIN,
+      createdAt: new Date().toISOString(),
+      createdBy: currentUser.username || currentUser.name || "admin",
+      justification: reason,
+    };
+
+    if (window.api && window.api.createUser) {
+      await window.api.createUser(newAdmin);
+      users = await window.api.getUsers();
+    } else {
+      users.push(newAdmin);
+      persistUsers();
+    }
+
+    showToast(`Admin account "${username}" created successfully.`, "success");
     closeAdminMgmtModal();
-  } catch { showToast("Unable to add admin.", "error"); }
+    renderUsersTable();
+    renderSysDataStats();
+    updateStatistics();
+  } catch (err) {
+    showErr("Failed to create admin account. Please try again.");
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Create Admin`;
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -5264,58 +5739,167 @@ function _annExpiresIn(isoStr) {
   return days + "d";
 }
 
-// Render announcement card HTML — shared between admin and user views
+// ── Announcement detail modal ──────────────────────────────────────────────
+function _openAnnModal(ann) {
+  const meta = _annMeta(ann.type);
+  let expHtml = "";
+  if (ann.expiresAt) {
+    const diff = new Date(ann.expiresAt).getTime() - Date.now();
+    const label = diff <= 0 ? "Expired" : "Expires in " + _annExpiresIn(ann.expiresAt);
+    const urgent = diff > 0 && diff < 3 * 24 * 60 * 60 * 1000;
+    const expiredNow = diff <= 0;
+    const bg    = expiredNow ? "rgba(220,38,38,0.10)" : urgent ? "rgba(234,88,12,0.10)" : "rgba(107,114,128,0.08)";
+    const color = expiredNow ? "#dc2626" : urgent ? "#ea580c" : "var(--color-text-muted)";
+    const border= expiredNow ? "rgba(220,38,38,0.25)" : urgent ? "rgba(234,88,12,0.25)" : "var(--color-border-soft)";
+    expHtml = `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:600;padding:3px 10px;border-radius:999px;background:${bg};color:${color};border:1px solid ${border}">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${label}</span>`;
+  }
+  const pinHtml = ann.pinned
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;font-weight:700;letter-spacing:0.05em;color:#d97706;background:rgba(217,119,6,0.12);padding:3px 10px;border-radius:999px;border:1px solid rgba(217,119,6,0.25)">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg> PINNED</span>` : "";
+  const existing = document.getElementById("ann-view-modal");
+  if (existing) existing.remove();
+  const modal = document.createElement("div");
+  modal.id = "ann-view-modal";
+  modal.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,0);transition:background 0.25s;";
+  const iconInner = (meta.icon.match(/<svg[^>]*>([\s\S]*?)<\/svg>/) || ["",""])[1];
+  modal.innerHTML = `
+    <div id="ann-modal-backdrop" style="position:absolute;inset:0;cursor:pointer;"></div>
+    <div id="ann-modal-sheet" style="position:relative;width:100%;max-width:680px;max-height:92dvh;background:var(--color-surface);border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 -4px 40px rgba(0,0,0,0.18);transform:translateY(100%);transition:transform 0.32s cubic-bezier(0.32,0.72,0,1);">
+      <div style="height:4px;background:linear-gradient(90deg,${meta.color},${meta.color}99);flex-shrink:0;"></div>
+      <div style="display:flex;justify-content:center;padding:10px 0 0;flex-shrink:0;">
+        <div style="width:36px;height:4px;border-radius:2px;background:var(--color-border);"></div>
+      </div>
+      <div style="padding:14px 20px 14px;display:flex;align-items:flex-start;gap:14px;flex-shrink:0;border-bottom:1px solid var(--color-border-soft);">
+        <div style="width:44px;height:44px;border-radius:12px;background:${meta.bg};border:1px solid ${meta.color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${meta.color};">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${iconInner}</svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+            <span style="font-size:0.68rem;font-weight:700;letter-spacing:0.07em;color:${meta.color};text-transform:uppercase;background:${meta.bg};padding:2px 9px;border-radius:999px;border:1px solid ${meta.color}22;">${meta.label}</span>
+            ${pinHtml}${expHtml}
+          </div>
+          <div style="font-weight:700;font-size:1.05rem;color:var(--color-text);line-height:1.4;word-break:break-word;">${_escHtml(ann.title)}</div>
+        </div>
+        <button onclick="_closeAnnModal()" style="flex-shrink:0;width:34px;height:34px;border-radius:8px;background:var(--color-bg-subtle,rgba(0,0,0,0.05));border:1px solid var(--color-border-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:22px;-webkit-overflow-scrolling:touch;">
+        <div style="font-size:0.9rem;color:var(--color-text);line-height:1.9;white-space:pre-wrap;word-break:break-word;">${_escHtml(ann.body || "")}</div>
+      </div>
+      <div style="padding:12px 20px;border-top:1px solid var(--color-border-soft);display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;background:var(--color-surface);">
+        <div style="display:flex;align-items:center;gap:5px;font-size:0.73rem;color:var(--color-text-muted);">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>${_annTimeAgo(ann.createdAt)}</span>
+        </div>
+        ${ann.postedBy ? `<span style="color:var(--color-border);font-size:0.7rem;">·</span>
+        <div style="display:flex;align-items:center;gap:5px;font-size:0.73rem;color:var(--color-text-muted);">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Posted by <strong style="color:var(--color-text);font-weight:600;">${_escHtml(ann.postedBy)}</strong></span>
+        </div>` : ""}
+        <div style="margin-left:auto;">
+          <button onclick="_closeAnnModal()" style="display:inline-flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;padding:7px 20px;border-radius:8px;cursor:pointer;background:var(--color-bg-subtle,rgba(0,0,0,0.05));color:var(--color-text-muted);border:1px solid var(--color-border-soft);">Close</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  requestAnimationFrame(() => {
+    modal.style.background = "rgba(0,0,0,0.45)";
+    const sheet = document.getElementById("ann-modal-sheet");
+    if (sheet) sheet.style.transform = "translateY(0)";
+  });
+  function _applyLayout() {
+    const sheet = document.getElementById("ann-modal-sheet");
+    if (!sheet) return;
+    if (window.innerWidth >= 640) {
+      modal.style.alignItems = "center";
+      sheet.style.borderRadius = "16px";
+      sheet.style.margin = "0 16px";
+    } else {
+      modal.style.alignItems = "flex-end";
+      sheet.style.borderRadius = "20px 20px 0 0";
+      sheet.style.margin = "0";
+    }
+  }
+  _applyLayout();
+  window.addEventListener("resize", _applyLayout);
+  document.getElementById("ann-modal-backdrop").addEventListener("click", _closeAnnModal);
+  function _escKey(e) { if (e.key === "Escape") _closeAnnModal(); }
+  document.addEventListener("keydown", _escKey);
+  modal._escKey = _escKey;
+  modal._resizeFn = _applyLayout;
+}
+function _closeAnnModal() {
+  const modal = document.getElementById("ann-view-modal");
+  if (!modal) return;
+  modal.style.background = "rgba(0,0,0,0)";
+  const sheet = document.getElementById("ann-modal-sheet");
+  if (sheet) sheet.style.transform = "translateY(100%)";
+  if (modal._escKey) document.removeEventListener("keydown", modal._escKey);
+  if (modal._resizeFn) window.removeEventListener("resize", modal._resizeFn);
+  setTimeout(() => { if (modal.parentNode) modal.remove(); }, 320);
+}
+window._openAnnModal  = _openAnnModal;
+window._closeAnnModal = _closeAnnModal;
+
+// ── Render announcement card (compact preview — full content opens in modal) ──
 function _renderAnnCard(ann, isAdmin) {
   const meta = _annMeta(ann.type);
-  const pinHtml = ann.pinned ? `<span style="font-size:0.7rem;font-weight:700;letter-spacing:0.04em;color:#d97706;background:rgba(217,119,6,0.12);padding:2px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg> PINNED</span>` : "";
-  const editHtml = isAdmin ? `<button class="btn btn-ghost btn-sm ann-edit-btn" data-id="${ann.id}" title="Edit announcement" style="color:var(--color-text-muted);padding:4px 8px;flex-shrink:0">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-  </button>` : "";
-  const deleteHtml = isAdmin ? `<button class="btn btn-ghost btn-sm ann-delete-btn" data-id="${ann.id}" title="Delete announcement" style="color:var(--color-text-muted);padding:4px 8px;flex-shrink:0">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-  </button>` : "";
-
-  return `<div class="ann-card" data-id="${ann.id}" style="
-    border:1px solid var(--color-border-soft);
-    border-left: 4px solid ${meta.color};
-    border-radius:12px;
-    padding:16px 18px;
-    background:var(--color-surface);
-    display:flex;flex-direction:column;gap:8px;
-    transition:box-shadow 0.15s;
-  ">
-    <div style="display:flex;align-items:flex-start;gap:10px">
-      <div style="width:36px;height:36px;border-radius:10px;background:${meta.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${meta.color}">${meta.icon}</div>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px">
-          ${pinHtml}
-          <span style="font-size:0.7rem;font-weight:600;letter-spacing:0.05em;color:${meta.color};text-transform:uppercase">${meta.label}</span>
+  const pinHtml = ann.pinned
+    ? `<span style="font-size:0.68rem;font-weight:700;letter-spacing:0.05em;color:#d97706;background:rgba(217,119,6,0.12);padding:2px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;border:1px solid rgba(217,119,6,0.2)">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg> PINNED</span>` : "";
+  const editHtml = isAdmin
+    ? `<button class="btn btn-ghost btn-sm ann-edit-btn" data-id="${ann.id}" title="Edit" style="color:var(--color-text-muted);padding:5px 7px;border-radius:7px;flex-shrink:0;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>` : "";
+  const deleteHtml = isAdmin
+    ? `<button class="btn btn-ghost btn-sm ann-delete-btn" data-id="${ann.id}" title="Delete" style="color:var(--color-text-muted);padding:5px 7px;border-radius:7px;flex-shrink:0;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>` : "";
+  const expBadge = ann.expiresAt ? (() => {
+    const diff = new Date(ann.expiresAt).getTime() - Date.now();
+    const label = diff <= 0 ? "Expired" : "in " + _annExpiresIn(ann.expiresAt);
+    const urgent = diff > 0 && diff < 3 * 24 * 60 * 60 * 1000;
+    const expiredNow = diff <= 0;
+    const bg    = expiredNow ? "rgba(220,38,38,0.10)" : urgent ? "rgba(234,88,12,0.10)" : "rgba(107,114,128,0.08)";
+    const color = expiredNow ? "#dc2626" : urgent ? "#ea580c" : "var(--color-text-muted)";
+    const border= expiredNow ? "rgba(220,38,38,0.2)" : urgent ? "rgba(234,88,12,0.2)" : "transparent";
+    return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:0.66rem;font-weight:600;padding:2px 7px;border-radius:999px;background:${bg};color:${color};border:1px solid ${border}">
+      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>expires ${label}</span>`;
+  })() : "";
+  const bodyText = ann.body || "";
+  const isLong   = bodyText.length > 180;
+  const preview  = isLong ? bodyText.slice(0, 180).trimEnd() + "…" : bodyText;
+  if (!window.__annStore) window.__annStore = {};
+  window.__annStore[ann.id] = ann;
+  return `<div class="ann-card" data-id="${ann.id}" style="border:1px solid var(--color-border-soft);border-radius:14px;background:var(--color-surface);overflow:hidden;transition:box-shadow 0.2s,transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.05);"
+    onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.09)';this.style.transform='translateY(-1px)'"
+    onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.05)';this.style.transform='translateY(0)'">
+    <div style="height:4px;background:linear-gradient(90deg,${meta.color},${meta.color}77);"></div>
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:10px;background:${meta.bg};border:1px solid ${meta.color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${meta.color};">${meta.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+            <span style="font-size:0.66rem;font-weight:700;letter-spacing:0.07em;color:${meta.color};text-transform:uppercase;background:${meta.bg};padding:2px 8px;border-radius:999px;border:1px solid ${meta.color}22;">${meta.label}</span>
+            ${pinHtml}${expBadge}
+          </div>
+          <div style="font-weight:700;font-size:0.96rem;color:var(--color-text);line-height:1.35;word-break:break-word;">${_escHtml(ann.title)}</div>
         </div>
-        <div style="font-weight:700;font-size:0.95rem;color:var(--color-text);line-height:1.3;word-break:break-word">${_escHtml(ann.title)}</div>
+        ${isAdmin ? `<div style="display:flex;gap:2px;flex-shrink:0;">${editHtml}${deleteHtml}</div>` : ""}
       </div>
-      ${editHtml}${deleteHtml}
-    </div>
-    <div style="font-size:0.875rem;color:var(--color-text-muted);line-height:1.6;white-space:pre-wrap;word-break:break-word;padding-left:46px">${_escHtml(ann.body)}</div>
-    <div style="font-size:0.75rem;color:var(--color-text-muted);padding-left:46px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      ${_annTimeAgo(ann.createdAt)}
-      ${ann.postedBy ? `· Posted by <strong>${_escHtml(ann.postedBy)}</strong>` : ""}
-      ${ann.expiresAt ? (() => {
-        const diff = new Date(ann.expiresAt).getTime() - Date.now();
-        const label = diff <= 0 ? 'expired' : 'in ' + _annExpiresIn(ann.expiresAt);
-        const urgent = diff > 0 && diff < 3 * 24 * 60 * 60 * 1000; // < 3 days
-        const expiredNow = diff <= 0;
-        const bg    = expiredNow ? 'rgba(220,38,38,0.10)'  : urgent ? 'rgba(234,88,12,0.10)'  : 'rgba(107,114,128,0.08)';
-        const color = expiredNow ? '#dc2626'                : urgent ? '#ea580c'                : 'var(--color-text-muted)';
-        const icon  = urgent || expiredNow
-          ? '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
-          : '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
-        return `· <span style="display:inline-flex;align-items:center;gap:3px;font-size:0.7rem;font-weight:600;padding:1px 7px;border-radius:999px;background:${bg};color:${color}">${icon}expires ${label}</span>`;
-      })() : ""}
+      <div style="height:1px;background:var(--color-border-soft);"></div>
+      <div style="font-size:0.855rem;color:var(--color-text-muted);line-height:1.7;word-break:break-word;">${_escHtml(preview)}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--color-text-muted);">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          ${_annTimeAgo(ann.createdAt)}${ann.postedBy ? ` · <strong style="color:var(--color-text-muted);font-weight:600;">${_escHtml(ann.postedBy)}</strong>` : ""}
+        </div>
+        ${isLong ? `<button onclick="event.stopPropagation();_openAnnModal(window.__annStore&&window.__annStore['${ann.id}']||{})" style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:600;color:${meta.color};background:${meta.bg};border:1px solid ${meta.color}33;padding:5px 13px;border-radius:999px;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Read full</button>` : ""}
+      </div>
     </div>
   </div>`;
 }
-
 function _escHtml(str) {
   if (!str) return "";
   return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -6407,12 +6991,19 @@ function initUserAnnouncements() {
   };
 
   window.switchSection = function(sectionId) {
-  // 1. Update the topbar title
+  // 1. Update the topbar title — explicit map so labels match sidebar exactly
+  const _TITLES = {
+    'dashboard':        'Dashboard',
+    'meeting-logs':     'Meeting Logs',
+    'user-management':  'Accounts',
+    'admin-management': 'System Settings',
+    'announcements':    'Announcements',
+    'calendar':         'Meeting Calendar',
+    'my-meetings':      'My Meetings',
+  };
   const topbarTitle = document.getElementById('topbar-section-title');
   if (topbarTitle) {
-    topbarTitle.textContent = sectionId.split('-').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
+    topbarTitle.textContent = _TITLES[sectionId] || sectionId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   }
 
   // 2. Toggle active class on sidebar links
@@ -6420,10 +7011,14 @@ function initUserAnnouncements() {
     link.classList.toggle('nav-link-active', link.getAttribute('data-section') === sectionId);
   });
 
-  // 3. Toggle visibility of sections
-  document.querySelectorAll('.admin-section').forEach(section => {
+  // 3. Toggle visibility of sections — handles both admin.html (.admin-section)
+  //    and user.html (.user-section) so nav works correctly on both pages.
+  document.querySelectorAll('.admin-section, .user-section').forEach(section => {
     section.classList.toggle('active', section.id === 'section-' + sectionId);
   });
+
+  // 4. Persist the active section so a page refresh restores the same view
+  try { sessionStorage.setItem('user_section', sectionId); } catch(_) {}
 };
 
 document.querySelectorAll('.nav-link').forEach(link => {

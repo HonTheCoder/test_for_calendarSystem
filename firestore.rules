@@ -2,41 +2,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // NOTE: This app uses its own username/password login stored in Firestore,
-    // NOT Firebase Authentication. So request.auth is always null.
-    // Security is enforced by these rules + Firebase App Check.
-
+    // ── Admin audit logs: completely locked down ──────────────────────────────
     match /admin_audit_logs/{doc} {
-      // Only accessible via server-side Cloud Functions
       allow read, write: if false;
     }
 
+    // ── Users collection ──────────────────────────────────────────────────────
+    // Read: only authenticated users can read (needed for login lookup by username)
+    // Create: only authenticated users (admins create accounts from the portal)
+    // Update: authenticated users; role field is immutable via client (role changes
+    //         must go through a Cloud Function or admin SDK)
+    // Delete: only authenticated users
     match /users/{docId} {
-      allow read: if true;
-      allow create: if true;
-      // Allow password/mustChangePassword updates, but block role changes from client
-      allow update: if !('role' in request.resource.data.diff(resource.data).affectedKeys());
-      allow delete: if false;
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null
+                    && !('role' in request.resource.data.diff(resource.data).affectedKeys());
+      allow delete: if request.auth != null;
     }
 
+    // ── Meetings collection ───────────────────────────────────────────────────
+    // All operations require authentication
     match /meetings/{docId} {
-      allow read: if true;
-      allow create: if true;
-      // Admins and users both need to update (approve/reject/cancel/cancellation request)
-      allow update: if true;
-      allow delete: if false;
+      allow read:           if request.auth != null;
+      allow create:         if request.auth != null;
+      allow update, delete: if request.auth != null;
     }
 
+    // ── Calendar history: append-only, no deletion/updates from client ────────
     match /calendar_history/{docId} {
-      allow read: if true;
-      allow create: if true;
+      allow read:           if request.auth != null;
+      allow create:         if request.auth != null;
       allow update, delete: if false;
     }
 
-    // Block everything else
+    // ── Announcements ─────────────────────────────────────────────────────────
+    // Read is public (users see announcements even before login screen loads)
+    // Write requires authentication
+    match /announcements/{docId} {
+      allow read:           if true;
+      allow create:         if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+
+    // ── Catch-all: deny everything else ──────────────────────────────────────
     match /{document=**} {
-      allow read: if false;
-      allow write: if false;
+      allow read, write: if false;
     }
   }
 }

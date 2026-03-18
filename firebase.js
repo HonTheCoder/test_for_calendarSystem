@@ -15,6 +15,19 @@
       var app = firebase.initializeApp(getConfig())
       db = firebase.firestore(app)
       mode = "firestore"
+      // ── Anonymous Auth ────────────────────────────────────────────────────
+      // Sign in anonymously so request.auth is always populated in Firestore
+      // rules. This is completely transparent to the user — no email/password
+      // required. It just gives each browser session a valid auth token so
+      // our security rules (require request.auth != null) work correctly.
+      if (typeof firebase.auth === "function") {
+        firebase.auth(app).signInAnonymously().catch(function(err) {
+          // Non-fatal: if anonymous auth fails (e.g. not enabled in Firebase
+          // console), log a warning but continue — Firestore reads/writes that
+          // don't require auth (like public announcements) will still work.
+          console.warn("Anonymous auth failed — Firestore rules may block reads/writes.", err.message);
+        });
+      }
     } catch (e) {
       mode = "local"
     }
@@ -48,10 +61,15 @@
     return "#3b82f6"
   }
   function ensureDefaultAdminIfNeeded() {
+    // CRITICAL FIX: The old code had a hardcoded SHA-256 hash of 'admin123'
+    // in the source file — visible to anyone who reads the JS. Replaced with
+    // a locked placeholder token that can never match any real password input.
+    // The mustChangePassword flag forces a new password to be set on first login
+    // before any access is granted, so the placeholder is never actually used
+    // to authenticate — it just ensures the account record exists in Firestore.
     var DEFAULT_ADMIN = {
       username: "sb_adminpolangui",
-      // Legacy SHA-256 for 'admin123'
-      password: "41e5653fc7aeb894026d6bb7b2db7f65902b454945fa8fd65a6327047b5277fb",
+      password: "LOCKED_MUST_CHANGE_ON_FIRST_LOGIN",
       role: "Admin",
       name: "System Administrator",
       mustChangePassword: true,

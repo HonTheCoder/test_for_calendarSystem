@@ -269,8 +269,55 @@
 .chart-card-title svg { color: var(--brand-blue); opacity: 0.7; flex-shrink: 0; }
 
 /* ── TABLE UPGRADES ── */
-.table-wrapper { padding: 0 0 4px; }
-table { font-size: 0.8rem; }
+.table-wrapper { padding: 0 0 4px; width: 100%; overflow: hidden; }
+table { font-size: 0.8rem; width: 100%; table-layout: fixed; border-collapse: collapse; }
+
+/* ── Admin meetings table — strict fixed columns, no overflow ── */
+table:has(#admin-meetings-body) th:nth-child(1),
+table:has(#admin-meetings-body) td:nth-child(1) { width: 13%; }   /* Event */
+table:has(#admin-meetings-body) th:nth-child(2),
+table:has(#admin-meetings-body) td:nth-child(2) { width: 9%; }    /* Date */
+table:has(#admin-meetings-body) th:nth-child(3),
+table:has(#admin-meetings-body) td:nth-child(3) { width: 12%; }   /* Time */
+table:has(#admin-meetings-body) th:nth-child(4),
+table:has(#admin-meetings-body) td:nth-child(4) { width: 10%; }   /* Type */
+table:has(#admin-meetings-body) th:nth-child(5),
+table:has(#admin-meetings-body) td:nth-child(5) { width: 17%; }   /* Status */
+table:has(#admin-meetings-body) th:nth-child(6),
+table:has(#admin-meetings-body) td:nth-child(6) { width: 10%; }   /* Requested By */
+table:has(#admin-meetings-body) th:nth-child(7),
+table:has(#admin-meetings-body) td:nth-child(7) { width: 5%; }    /* Notes */
+table:has(#admin-meetings-body) th:nth-child(8),
+table:has(#admin-meetings-body) td:nth-child(8) { width: 24%; }   /* Actions */
+
+/* Clip text that overflows its cell */
+table:has(#admin-meetings-body) td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* Status + Actions allow wrapping */
+table:has(#admin-meetings-body) td:nth-child(5),
+table:has(#admin-meetings-body) td:nth-child(8) {
+  white-space: normal;
+  overflow: visible;
+  vertical-align: top;
+  padding-top: 14px;
+}
+/* Action buttons: small, wrap tightly inside their cell */
+#admin-meetings-body td:last-child > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: flex-start;
+}
+#admin-meetings-body td:last-child .action-btn,
+#admin-meetings-body td:last-child .btn {
+  font-size: 0.67rem !important;
+  padding: 4px 7px !important;
+  white-space: nowrap;
+}
 
 thead th {
   padding: 10px 14px;
@@ -1018,15 +1065,19 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
 
   /* ── Dashboard charts ── */
   .dashboard-grid { grid-template-columns: 1fr; gap: 12px; }
-  .chart-card     { padding: 16px 14px 14px; }
-  .bar-chart      { height: 120px; gap: 4px; padding-bottom: 18px; }
-  .bar-label      { font-size: 0.54rem; }
-  .donut-wrap       { flex-direction: column; align-items: center; gap: 14px; min-height: auto; }
-  .donut-svg-wrap   { position: relative; }
-  .donut-svg        { width: 140px !important; height: 140px !important; }
-  #user-donut-center-text { font-size: 1.4rem !important; }
-  .donut-legend     { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 10px; width: 100%; }
-  .donut-legend-item { font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; }
+  .chart-card     { padding: 16px 14px 16px; }
+  .bar-chart      { height: 130px; gap: 3px; padding-bottom: 26px; overflow: visible; }
+  .bar-label      { font-size: 0.5rem; }
+  .chart-wrap     { overflow: visible; height: auto; min-height: 156px; padding-bottom: 4px; }
+
+  /* Donut — compact on mobile, matches user dashboard feel */
+  .donut-wrap       { flex-direction: row; align-items: center; gap: 16px; min-height: auto; flex-wrap: nowrap; }
+  .donut-svg-wrap   { position: relative; flex-shrink: 0; }
+  .donut-svg        { width: 120px !important; height: 120px !important; }
+  #donut-center-text        { font-size: 1.4rem !important; }
+  #user-donut-center-text   { font-size: 1.4rem !important; }
+  .donut-legend     { flex-direction: column; flex-wrap: nowrap; gap: 4px; width: auto; flex: 1; min-width: 0; }
+  .donut-legend-item { font-size: 0.72rem; padding: 4px 6px; border-radius: 6px; gap: 6px; }
 
   /* ── Calendar ── */
   .calendar-header-row   { padding: 0 0 10px; gap: 6px; }
@@ -1931,4 +1982,572 @@ tbody .skeleton {
 /* ── Announcement list skeleton padding ── */
 #admin-announce-list .skeleton-announce-item:last-child {
   margin-bottom: 0;
+}
+
+/* ── User calendar: others' meetings use status colors but dimmed ── */
+.calendar-badge-others    { opacity: 0.62 !important; }
+.calendar-dot-others-dim  { opacity: 0.55 !important; }
+.calendar-dot-others-approved { background: #16a34a; width: 5px; height: 5px; opacity: 0.6; }
+
+/* ══════════════════════════════════════════════════════════════
+   EXPIRED PENDING MEETING ROW
+   Applied when a Pending meeting's start time has already passed.
+   — Row is dimmed + left stripe turns amber-red
+   — Disabled action buttons are visually greyed out
+   — Expired badge is a distinct amber pill
+   ══════════════════════════════════════════════════════════════ */
+
+/* Dimmed row with amber-red left warning stripe */
+tbody tr.row-expired {
+  opacity: 0.62;
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 6px,
+    rgba(217,119,6,0.03) 6px,
+    rgba(217,119,6,0.03) 12px
+  ) !important;
+  border-left: 3px solid #D97706;
+  position: relative;
+}
+tbody tr.row-expired:hover {
+  opacity: 0.78;
+  background: rgba(217,119,6,0.05) !important;
+}
+tbody tr.row-expired td:first-child {
+  border-left: 3px solid #D97706;
+}
+
+/* Disabled action buttons inside an expired row */
+tbody tr.row-expired .action-btn[disabled] {
+  opacity: 0.38 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(60%) !important;
+  pointer-events: none;
+}
+
+/* Expired badge — amber pill, sits where Approve used to be */
+.badge-expired-meeting {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #92400E;
+  background: #FEF3C7;
+  border: 1px solid rgba(217,119,6,0.45);
+  border-radius: 6px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+.badge-expired-meeting svg { flex-shrink: 0; }
+
+/* Dark mode variants */
+[data-theme="dark"] tbody tr.row-expired {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 6px,
+    rgba(217,119,6,0.06) 6px,
+    rgba(217,119,6,0.06) 12px
+  ) !important;
+  border-left-color: #B45309;
+}
+[data-theme="dark"] tbody tr.row-expired td:first-child {
+  border-left-color: #B45309;
+}
+[data-theme="dark"] tbody tr.row-expired:hover {
+  background: rgba(217,119,6,0.08) !important;
+}
+[data-theme="dark"] .badge-expired-meeting {
+  background: rgba(217,119,6,0.15);
+  color: #FCD34D;
+  border-color: rgba(217,119,6,0.35);
+}
+
+/* Mobile card — expired state mirrors table */
+.admin-mtg-card.card-expired {
+  opacity: 0.65;
+  border-color: rgba(217,119,6,0.45) !important;
+}
+.admin-mtg-card.card-expired::before {
+  background: #D97706 !important;
+}
+.admin-mtg-card.card-expired .action-btn[disabled] {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(60%) !important;
+  pointer-events: none;
+}
+[data-theme="dark"] .admin-mtg-card.card-expired {
+  border-color: rgba(180,83,9,0.5) !important;
+}
+/* ==========================================================================
+   ADMIN MEETING REQUESTS — Mobile Card View
+   Shown on ≤768 px; table is hidden via the rule below.
+   ========================================================================== */
+
+/* Hide table, show cards on mobile */
+@media (max-width: 768px) {
+  .admin-meetings-table-wrap { display: none !important; }
+  .admin-meetings-cards-wrap { display: flex !important; }
+}
+
+/* Hide cards on desktop */
+@media (min-width: 769px) {
+  .admin-meetings-cards-wrap { display: none !important; }
+}
+
+.admin-meetings-cards-wrap {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 16px;
+}
+
+.admin-mtg-cards-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+/* ── Individual card ──────────────────────────────────────────────────────── */
+.admin-mtg-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  position: relative;
+  transition: box-shadow 0.18s;
+}
+.admin-mtg-card::before {
+  content: "";
+  display: block;
+  height: 3px;
+  background: var(--color-border);
+  width: 100%;
+}
+.admin-mtg-card:has(.badge-pending)::before    { background: #f59e0b; }
+.admin-mtg-card:has(.badge-approved)::before   { background: #16a34a; }
+.admin-mtg-card:has(.badge-rejected)::before   { background: #dc2626; }
+.admin-mtg-card:has(.badge-cancelled)::before  { background: #6b7280; }
+.admin-mtg-card:has(.badge-done)::before       { background: #3b82f6; }
+.admin-mtg-card.card-cancel-req::before        { background: #f97316; }
+
+/* ── Card head ── */
+.admin-mtg-card-head {
+  padding: 12px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.admin-mtg-card-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  line-height: 1.3;
+}
+.admin-mtg-card-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+/* ── Meta row ── */
+.admin-mtg-card-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  padding: 0 14px 10px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+.card-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+.card-meta-item svg { flex-shrink: 0; opacity: 0.55; }
+
+/* ── Note row ── */
+.admin-mtg-card-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-border-soft);
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+.card-note-label {
+  font-weight: 700;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.card-note-text { word-break: break-word; }
+
+/* ── Actions row ── */
+.admin-mtg-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px 12px;
+}
+.admin-mtg-card-actions .action-btn {
+  flex: 1 1 auto;
+  min-width: 80px;
+  justify-content: center;
+  font-size: 0.75rem;
+  padding: 7px 10px;
+}
+
+/* ── Tag pills ── */
+.card-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.67rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+.card-tag-expired {
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid rgba(217,119,6,0.35);
+}
+.card-tag-window {
+  color: #166534;
+  background: rgba(22,163,74,0.1);
+  border: 1px solid rgba(22,163,74,0.25);
+}
+.card-tag-referred {
+  color: #1e40af;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+}
+.card-cancel-reason {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-top: 2px;
+}
+.card-submitted {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* ── Dark mode ── */
+[data-theme="dark"] .admin-mtg-card { box-shadow: 0 1px 6px rgba(0,0,0,0.25); }
+[data-theme="dark"] .card-tag-expired {
+  background: rgba(217,119,6,0.15);
+  color: #fcd34d;
+  border-color: rgba(217,119,6,0.3);
+}
+[data-theme="dark"] .card-tag-window {
+  background: rgba(22,163,74,0.12);
+  color: #4ade80;
+}
+[data-theme="dark"] .card-tag-referred {
+  background: rgba(59,130,246,0.12);
+  color: #93c5fd;
+  border-color: rgba(99,102,241,0.3);
+}
+
+/* ==========================================================================
+   CREATE NEW ADMIN MODAL — Mobile-first layout fixes + Creator card
+   ========================================================================== */
+
+/* Modal sizing — full width on mobile with safe padding */
+/* ==========================================================================
+   CREATE ADMIN MODAL — mobile-first layout
+   ========================================================================== */
+
+/* Modal container: slides up from bottom on mobile, centered on desktop */
+#admin-mgmt-modal.modal-backdrop {
+  padding: 0;
+  align-items: flex-end;
+}
+@media (min-width: 540px) {
+  #admin-mgmt-modal.modal-backdrop {
+    padding: 20px;
+    align-items: center;
+  }
+}
+
+/* Modal card itself */
+.admin-mgmt-modal-inner {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 20px 20px 0 0;   /* bottom sheet on mobile */
+  margin: 0;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+@media (min-width: 540px) {
+  .admin-mgmt-modal-inner {
+    border-radius: 16px;           /* fully rounded on desktop */
+    max-height: 90dvh;
+    margin: auto;
+  }
+}
+
+/* Scrollable body — leaves room for sticky header + footer */
+#admin-mgmt-modal .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Sticky header & footer */
+#admin-mgmt-modal .modal-header {
+  flex-shrink: 0;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+#admin-mgmt-modal .modal-footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border-soft);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Full-width submit button on mobile */
+@media (max-width: 400px) {
+  #admin-mgmt-modal .modal-footer {
+    flex-direction: column-reverse;
+  }
+  #admin-mgmt-modal .modal-footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ── Section divider label ── */
+.admin-mgmt-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--color-border-soft);
+  margin-top: 4px;
+}
+.admin-mgmt-section-label:first-child { margin-top: 0; }
+
+/* ── Created By card ── */
+.admin-mgmt-creator-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 11px 13px;
+  position: relative;
+}
+
+.creator-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1b4b8a, #2563eb);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(37,99,235,0.22);
+}
+
+.creator-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.creator-name {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.creator-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  flex-wrap: wrap;
+}
+
+.creator-dot { opacity: 0.35; }
+
+.creator-role-badge {
+  background: rgba(37,99,235,0.1);
+  color: #1d4ed8;
+  border: 1px solid rgba(37,99,235,0.18);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.creator-timestamp {
+  font-size: 0.65rem;
+  color: var(--color-text-faint);
+  white-space: nowrap;
+  position: absolute;
+  top: 9px;
+  right: 11px;
+}
+
+/* ── Password fields — always stacked on mobile (< 480px), side-by-side on wider ── */
+.admin-mgmt-pw-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+@media (min-width: 480px) {
+  .admin-mgmt-pw-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── Error box ── */
+.admin-mgmt-error-box {
+  font-size: 0.81rem;
+  color: #dc2626;
+  background: rgba(220,38,38,0.07);
+  border: 1px solid rgba(220,38,38,0.2);
+  border-radius: 8px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  line-height: 1.45;
+}
+.admin-mgmt-error-box::before {
+  content: "⚠";
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Dark mode ── */
+[data-theme="dark"] .creator-role-badge {
+  background: rgba(59,130,246,0.15);
+  color: #93c5fd;
+  border-color: rgba(59,130,246,0.25);
+}
+[data-theme="dark"] .admin-mgmt-error-box {
+  background: rgba(220,38,38,0.12);
+  border-color: rgba(220,38,38,0.3);
+  color: #fca5a5;
+}
+[data-theme="dark"] .admin-mgmt-creator-card {
+  border-color: rgba(255,255,255,0.08);
+}
+
+/* ==========================================================================
+   MEETING LOGS — Sub-tab bar (Meeting Logs / Meeting Requests)
+   ========================================================================== */
+
+.meeting-subtab-bar {
+  display: flex;
+  gap: 6px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.meeting-subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 18px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: var(--font-body);
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  white-space: nowrap;
+  position: relative;
+}
+
+.meeting-subtab:hover:not(.meeting-subtab-active) {
+  background: var(--color-border-soft);
+  color: var(--color-text-sub);
+}
+
+.meeting-subtab-active {
+  background: var(--color-surface);
+  color: var(--brand-blue);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08), 0 0 0 1px var(--color-border);
+}
+
+/* Badge inside the tab */
+.meeting-subtab #subtab-pending-badge {
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+  line-height: 1.6;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Dark mode */
+[data-theme="dark"] .meeting-subtab-bar {
+  background: var(--color-surface-2);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .meeting-subtab-active {
+  background: var(--color-surface);
+  color: #93c5fd;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.3), 0 0 0 1px var(--color-border);
+}
+[data-theme="dark"] .meeting-subtab:hover:not(.meeting-subtab-active) {
+  background: var(--color-border-soft);
+  color: var(--color-text-sub);
 }
