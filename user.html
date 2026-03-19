@@ -55,6 +55,7 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </span>
             <span>Meeting Calendar</span>
+            <span class="nav-notif-badge" id="calendar-nav-badge" style="display:none">●</span>
           </a>
           <a href="#" class="nav-link" data-section="my-meetings">
             <span class="nav-link-icon">
@@ -1174,47 +1175,17 @@
       })();
     </script>
 
-    <!-- Back-button lock (bulletproof) -->
+    <!-- Back-button lock -->
     <script>
       (function () {
         var LOCK_URL = window.location.href;
-        var STACK    = 50;
-
-        // Replace current entry so login is gone from history
-        history.replaceState({ sbpLocked: true, idx: 0 }, '', LOCK_URL);
-        // Flood forward
-        for (var i = 1; i <= STACK; i++) {
-          history.pushState({ sbpLocked: true, idx: i }, '', LOCK_URL);
-        }
-
+        history.replaceState({ sbpLocked: true }, '', LOCK_URL);
+        history.pushState({ sbpLocked: true }, '', LOCK_URL);
         window.addEventListener('popstate', function () {
-          // Jump far forward to absorb any back press
-          history.go(STACK);
-          // Keep the stack deep
-          for (var j = 0; j < 5; j++) {
-            history.pushState({ sbpLocked: true, idx: j }, '', LOCK_URL);
-          }
+          history.pushState({ sbpLocked: true }, '', LOCK_URL);
         });
       })();
     </script>
 
-    <!-- Session timeout -->
-    <script>
-      (function() {
-        var TIMEOUT = 30 * 60 * 1000;
-        function refresh() { try { sessionStorage.setItem('sbp_session_expiry', Date.now() + TIMEOUT); } catch(e){} }
-        function check() {
-          var exp = parseInt(sessionStorage.getItem('sbp_session_expiry') || '0', 10);
-          if (exp && Date.now() > exp) {
-            sessionStorage.removeItem('sbp_current_user'); sessionStorage.removeItem('sbp_session_expiry');
-            localStorage.removeItem('sbp_current_user'); // prevent auto-login after timeout
-            window.location.href = './index.html?timeout=1';
-          }
-        }
-        refresh();
-        ['click','keypress','mousemove','touchstart'].forEach(function(e) { document.addEventListener(e, refresh, { passive: true }); });
-        setInterval(check, 60000);
-      })();
-    </script>
   </body>
 </html>

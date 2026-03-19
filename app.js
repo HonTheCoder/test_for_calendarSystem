@@ -46,6 +46,21 @@ function h(str) {
     .replace(/'/g, "&#x27;");
 }
 
+// Notification message sanitiser — strips all HTML except <strong> tags.
+// Notification messages intentionally use <strong> for bold text (meeting names,
+// status words). All other tags are escaped so a user-supplied meeting name like
+// <script>alert(1)</script> can never execute inside the notification panel.
+function sanitiseNotifMessage(msg) {
+  if (msg == null) return "";
+  const strongs = [];
+  const withPlaceholders = String(msg).replace(/<strong>([\s\S]*?)<\/strong>/gi, (_, inner) => {
+    strongs.push(h(inner));
+    return "\x00STRONG" + (strongs.length - 1) + "\x00";
+  });
+  const escaped = h(withPlaceholders);
+  return escaped.replace(/\x00STRONG(\d+)\x00/g, (_, i) => "<strong>" + strongs[i] + "<\/strong>");
+}
+
 // Session timeout: 30 minutes of inactivity
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -245,33 +260,47 @@ function initSessionTimeout() {
 // ---------------------------------------------------------------------------
 
 function getNotifications(userId) {
+  // Read from localStorage cache — this is always up-to-date because
+  // subscribeNotifications() keeps it in sync from Firestore in real time.
   const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
   return all.filter(n => n.userId === userId);
 }
 
 function addNotification(userId, message, type = "info", section = null) {
   if (!userId) return;
-  const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
-  all.unshift({
-    id: `notif_${Math.random().toString(36).slice(2, 9)}`,
+  const notif = {
+    id: crypto.randomUUID(),
     userId,
     message,
     type,
-    section,   // which page section to navigate to on click
+    section,
     read: false,
     createdAt: new Date().toISOString(),
-  });
-  // Keep last 50 per user — cap ALL users to prevent localStorage bloat
-  const grouped = {};
-  all.forEach(n => {
-    if (!grouped[n.userId]) grouped[n.userId] = [];
-    grouped[n.userId].push(n);
-  });
-  const capped = Object.values(grouped).flatMap(arr => arr.slice(0, 50));
-  save(STORAGE_KEYS.NOTIFICATIONS, capped);
+  };
+  // Primary: save to Firestore so it syncs across all devices and tabs.
+  // Falls back to localStorage automatically when Firestore is unavailable.
+  if (window.api && window.api.saveNotification) {
+    window.api.saveNotification(notif).catch(() => {});
+  } else {
+    // Firestore api not ready yet — write to localStorage directly as backup
+    const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
+    all.unshift(notif);
+    const grouped = {};
+    all.forEach(n => {
+      if (!grouped[n.userId]) grouped[n.userId] = [];
+      grouped[n.userId].push(n);
+    });
+    const capped = Object.values(grouped).flatMap(arr => arr.slice(0, 50));
+    save(STORAGE_KEYS.NOTIFICATIONS, capped);
+  }
 }
 
 function markAllNotificationsRead(userId) {
+  // Mark read in Firestore (syncs across devices)
+  if (window.api && window.api.markNotificationsRead) {
+    window.api.markNotificationsRead(userId).catch(() => {});
+  }
+  // Also update localStorage cache immediately so the badge clears instantly
   const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
   all.forEach(n => { if (n.userId === userId) n.read = true; });
   save(STORAGE_KEYS.NOTIFICATIONS, all);
@@ -319,6 +348,26 @@ function updateNotificationBadge(userId) {
     // Always keep the badge hidden when count is 0 — never show "0"
     pendingBadge.textContent = String(pendingCount);
     pendingBadge.style.display = pendingCount > 0 ? "flex" : "none";
+  }
+
+  // ── Calendar nav badge (user page only) ────────────────────────────────────
+  // Show a dot on Meeting Calendar when the user has upcoming approved meetings
+  // so they know there's something to see on the calendar.
+  const calNavBadge = document.getElementById("calendar-nav-badge");
+  if (calNavBadge && document.body.dataset.page === "user") {
+    const cu = getCurrentUser();
+    if (cu) {
+      const todayISO = getTodayISOManila();
+      const safeMeetings = (typeof meetings !== "undefined" && Array.isArray(meetings)) ? meetings : [];
+      const hasUpcoming = safeMeetings.some(m => {
+        if (m.status !== "Approved") return false;
+        if ((m.date || "") < todayISO) return false;
+        return m.createdBy === cu.username ||
+               m.councilor === cu.name ||
+               m.researcher === cu.name;
+      });
+      calNavBadge.style.display = hasUpcoming ? "inline-flex" : "none";
+    }
   }
 }
 
@@ -378,7 +427,7 @@ function renderNotificationPanel(userId) {
       <div ${hoverAttr} style="padding:11px 14px;border-bottom:1px solid ${divCol};display:flex;gap:10px;align-items:flex-start;background:${n.read ? readBg : unreadBg};transition:background 0.15s;${cursorStyle}${clickable ? "user-select:none;" : ""}">
         <span style="margin-top:3px;flex-shrink:0">${TYPE_ICONS[n.type] || TYPE_ICONS.info}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:0.8rem;color:${textCol};line-height:1.5">${n.message}</div>
+          <div style="font-size:0.8rem;color:${textCol};line-height:1.5">${sanitiseNotifMessage(n.message)}</div>
           <div style="font-size:0.7rem;color:${timeCol};margin-top:3px;display:flex;align-items:center;gap:6px">
             <span>${when}</span>
             ${clickable ? `<span style="color:${isDark ? "#60a5fa" : "#3b82f6"};font-weight:500">View &rsaquo;</span>` : ""}
@@ -394,6 +443,26 @@ function initNotificationBell(user) {
   const bellBtn = document.getElementById("notif-bell");
   const notifPanel = document.getElementById("notif-panel");
   if (!bellBtn || !notifPanel) return;
+
+  // Subscribe to live Firestore notifications so the badge and panel update
+  // in real time — even when a notification is written by a different device
+  // or browser tab (e.g. user books meeting on their device, admin gets notif).
+  // Falls back to localStorage silently when Firestore is unavailable.
+  if (window.api && window.api.subscribeNotifications) {
+    window.api.subscribeNotifications(userId, (liveNotifs) => {
+      // Merge live Firestore notifs into localStorage cache so getNotifications()
+      // always returns the freshest data without an extra async call.
+      const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
+      // Replace all entries for this user with the live list from Firestore
+      const othersNotifs = all.filter(n => n.userId !== userId);
+      const merged = [...liveNotifs, ...othersNotifs];
+      save(STORAGE_KEYS.NOTIFICATIONS, merged);
+      // Refresh badge count and panel if it's currently open
+      updateNotificationBadge(userId);
+      const isOpen = notifPanel.classList.contains("notif-panel-open");
+      if (isOpen) renderNotificationPanel(userId);
+    });
+  }
 
   bellBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -507,8 +576,30 @@ function setCurrentUser(user) {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_EXPIRY);   // ← correct store
     localStorage.removeItem(STORAGE_KEYS.SESSION_EXPIRY);     // ← legacy cleanup
-    localStorage.removeItem(STORAGE_KEYS.MEETINGS);
-    localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+    // BUGFIX: Only wipe the meetings cache on logout when running in Firestore
+    // mode — the server is the source of truth and the cache re-hydrates on the
+    // next login. In local-only mode, localStorage IS the database; clearing it
+    // here permanently destroys all meeting data for every future session.
+    if (window.api && window.api.mode === "firestore") {
+      localStorage.removeItem(STORAGE_KEYS.MEETINGS);
+    }
+    // BUGFIX: Do NOT wipe ALL notifications on logout.
+    // Notifications are cross-user — e.g. a user books a meeting which writes
+    // a notification for the admin. If we wipe the whole notifications array
+    // when the user logs out, the admin never sees it when they log in next.
+    // Instead, only remove notifications that belong to the user who is logging
+    // out. Notifications addressed to other users (e.g. admins) are preserved.
+    (function pruneOwnNotifications() {
+      try {
+        const loggingOutUser = load(STORAGE_KEYS.CURRENT_USER, null);
+        if (!loggingOutUser) return;
+        const uid = loggingOutUser.id || loggingOutUser.username;
+        if (!uid) return;
+        const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
+        const kept = all.filter(n => n.userId !== uid);
+        save(STORAGE_KEYS.NOTIFICATIONS, kept);
+      } catch (_) {}
+    })();
     sessionStorage.removeItem('user_section');                 // ← clear saved section
     sessionStorage.removeItem('sbp_just_logged_in');          // ← clear login flag
     // Do NOT clear STORAGE_KEYS.USERS — the user list is shared/synced from
@@ -521,7 +612,15 @@ function setCurrentUser(user) {
 }
 
 function formatDateDisplay(dateStr) {
-  const d = new Date(dateStr);
+  if (!dateStr) return dateStr;
+  // Parse date-only strings (YYYY-MM-DD) as local time, not UTC.
+  // new Date("2025-12-25") is treated as UTC midnight which can show
+  // the wrong day in UTC+ timezones like Manila (UTC+8). Splitting
+  // and passing as numbers uses the local timezone instead.
+  const parts = String(dateStr).split("-");
+  const d = parts.length === 3
+    ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    : new Date(dateStr);
   if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
@@ -800,11 +899,11 @@ function attachCommonHeader(user) {
   const userGreetEl = $("#user-dash-greeting");
   const userDateEl  = $("#user-dash-date-str");
   if (userGreetEl) {
-    const hr = new Date().getHours();
+    const hr = getManilaNow().getHours();
     userGreetEl.textContent = hr < 12 ? "Good morning," : hr < 17 ? "Good afternoon," : "Good evening,";
   }
   if (userDateEl) {
-    userDateEl.textContent = new Date().toLocaleDateString("en-PH", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+    userDateEl.textContent = getManilaNow().toLocaleDateString("en-PH", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
   }
   if (sidebarUser) sidebarUser.textContent = user.name;
   if (sidebarRole) sidebarRole.textContent = user.role;
@@ -1052,6 +1151,10 @@ async function initLoginPage() {
   // ── Brute-force lockout ───────────────────────────────────────────────────
   // 5 failures → 15-minute lockout, persisted in localStorage so closing
   // the tab or browser does NOT reset it (unlike the old sessionStorage version).
+  // NOTE: This is a client-side-only lockout. A technically savvy user could
+  // clear localStorage to bypass it. True protection requires a server-side
+  // rate limiter (e.g. a Firebase Cloud Function). This layer still deters
+  // casual brute-force attempts and is kept as a first line of defence.
   const LOCKOUT_MAX   = 5;
   const LOCKOUT_MS    = 15 * 60 * 1000; // 15 minutes
   const LS_ATTEMPTS   = "sbp_login_attempts";
@@ -1143,9 +1246,10 @@ async function initLoginPage() {
         // the second argument entirely, so it was a redundant wasted Firestore read.
         const record = await window.api.signIn(username);
         if (record) {
-          // Verify the supplied password against the stored hash (PBKDF2 or legacy SHA-256)
-          const passwordMatch = await verifyPassword(password, record.password)
-            || record.password === password; // plain-text legacy fallback
+          // Verify the supplied password against the stored hash (PBKDF2 or legacy SHA-256).
+          // Plain-text password comparison removed — it is a security hole. Legacy accounts
+          // are handled by verifyPassword() which supports both PBKDF2 and SHA-256 formats.
+          const passwordMatch = await verifyPassword(password, record.password);
           if (passwordMatch) account = record;
         }
       } else {
@@ -1497,7 +1601,7 @@ async function handleUserFormSubmit(e) {
 
   const hashedPwd = await hashPassword(password);
   const newUser = {
-    id: `user_${Math.random().toString(36).slice(2, 9)}`,
+    id: crypto.randomUUID(),
     username, name, password: hashedPwd, role,
   };
 
@@ -1549,7 +1653,7 @@ async function handleSpecialAccountFormSubmit(e) {
 
   const hashedPwd = await hashPassword(password);
   const newUser = {
-    id: `user_${Math.random().toString(36).slice(2, 9)}`,
+    id: crypto.randomUUID(),
     username, name, password: hashedPwd, role,
   };
 
@@ -1945,9 +2049,9 @@ function _startCancelCountdownTick(currentUser) {
         return;
       }
       anyLeft = true;
-      const h = Math.floor(msLeft / (60 * 60 * 1000));
+      const hrs = Math.floor(msLeft / (60 * 60 * 1000));
       const m = Math.floor((msLeft % (60 * 60 * 1000)) / 60000);
-      span.lastChild.textContent = ` ${h > 0 ? h + "h " : ""}${m}m left`;
+      span.lastChild.textContent = ` ${hrs > 0 ? hrs + "h " : ""}${m}m left`;
     });
     if (!anyLeft) clearInterval(_cancelCountdownInterval);
   }, 60000); // tick every 1 minute
@@ -2514,7 +2618,7 @@ function applyMeetingStatus(mtg, status, note, adminId) {
     const ownerId = owner.id || owner.username;
     const dateStr = formatDateDisplay(mtg.date);
     const timeStr = formatTimeRange(mtg.timeStart, mtg.durationHours || SLOT_DURATION_HOURS);
-    const noteText = note ? ` — Admin note: "${note}"` : "";
+    const noteText = note ? ` — Admin note: "${h(note)}"` : "";
 
     let message = "";
     let notifType = "info";
@@ -2522,13 +2626,13 @@ function applyMeetingStatus(mtg, status, note, adminId) {
     const targetSection = "my-meetings";
 
     if (status === "Approved") {
-      message = `Your meeting "<strong>${mtg.eventName}</strong>" on ${dateStr} at ${timeStr} has been <strong>approved</strong>.${noteText}`;
+      message = `Your meeting "<strong>${h(mtg.eventName)}</strong>" on ${dateStr} at ${timeStr} has been <strong>approved</strong>.${noteText}`;
       notifType = "success";
     } else if (status === "Rejected") {
-      message = `Your meeting "<strong>${mtg.eventName}</strong>" on ${dateStr} has been <strong>rejected</strong>.${noteText}`;
+      message = `Your meeting "<strong>${h(mtg.eventName)}</strong>" on ${dateStr} has been <strong>rejected</strong>.${noteText}`;
       notifType = "error";
     } else if (status === "Cancelled") {
-      message = `Your meeting "<strong>${mtg.eventName}</strong>" on ${dateStr} has been <strong>cancelled</strong>.${noteText}`;
+      message = `Your meeting "<strong>${h(mtg.eventName)}</strong>" on ${dateStr} has been <strong>cancelled</strong>.${noteText}`;
       notifType = "error";
     }
 
@@ -3104,12 +3208,23 @@ function _renderCalendarNow() {
         badge.appendChild(document.createTextNode(timeLabel + (m.eventName || "Meeting")));
 
       } else if (mine) {
-        // ── USER PAGE — MINE: gold (self) or purple (admin-scheduled) ─────────
-        const usePurple = isAdminCreated;
-        badge.className = "calendar-badge " + (usePurple ? "calendar-badge-is-admin-mine" : "calendar-badge-is-mine");
+        // ── USER PAGE — MINE: status color + highlight outline ────────────────
+        // Approved → green badge + gold outline (clearly approved, clearly mine)
+        // Pending  → gold badge (awaiting approval)
+        // Admin-scheduled → purple badge (admin booked on your behalf)
+        // Other statuses (Cancelled, Rejected, Done) → normal status color + outline
+        if (m.status === "Approved") {
+          badge.className = "calendar-badge calendar-badge-approved calendar-badge-mine-highlight";
+        } else if (isAdminCreated) {
+          badge.className = "calendar-badge calendar-badge-is-admin-mine";
+        } else if (m.status === "Pending" || m.status === "Cancellation Requested") {
+          badge.className = "calendar-badge calendar-badge-is-mine";
+        } else {
+          badge.className = statusColorForCalendar(m.status, isAdminCreated, true) + " calendar-badge-mine-highlight";
+        }
         badge.appendChild(document.createTextNode(timeLabel + (m.eventName || "Meeting")));
         const pip = document.createElement("span");
-        pip.className = "calendar-badge-dot " + (usePurple ? "calendar-badge-dot-admin" : "calendar-badge-dot-mine");
+        pip.className = "calendar-badge-dot " + (isAdminCreated ? "calendar-badge-dot-admin" : "calendar-badge-dot-mine");
         badge.appendChild(pip);
 
       } else {
@@ -3165,9 +3280,10 @@ function _renderCalendarNow() {
           else                     dot.className = "calendar-dot calendar-dot-other";
         } else {
           // User: mine = full color, others = status-colored but slightly dimmed
-          if (ongoing && mine)                              dot.className = "calendar-dot calendar-dot-ongoing";
-          else if (mine && m.createdByRole === ROLES.ADMIN) dot.className = "calendar-dot calendar-dot-admin-own";
-          else if (mine)                                    dot.className = "calendar-dot calendar-dot-mine";
+          if (ongoing && mine)                                          dot.className = "calendar-dot calendar-dot-ongoing";
+          else if (mine && m.status === "Approved")                     dot.className = "calendar-dot calendar-dot-approved";
+          else if (mine && m.createdByRole === ROLES.ADMIN)             dot.className = "calendar-dot calendar-dot-admin-own";
+          else if (mine)                                                 dot.className = "calendar-dot calendar-dot-mine";
           else if (m.status === "Approved")                 dot.className = "calendar-dot calendar-dot-others-approved";
           else if (m.status === "Pending" || m.status === "Cancellation Requested") dot.className = "calendar-dot calendar-dot-pending calendar-dot-others-dim";
           else if (m.status === "Done")                     dot.className = "calendar-dot calendar-dot-done calendar-dot-others-dim";
@@ -3658,7 +3774,7 @@ function submitMeetingFromPolicy() {
   if (!currentUser) return;
 
   const meeting = {
-    id: `mtg_${Math.random().toString(36).slice(2, 9)}`,
+    id: crypto.randomUUID(),
     eventName: d.eventName,
     committee: d.committee,
     venue: d.venue,
@@ -3872,11 +3988,11 @@ function updateDashboardGreeting() {
   const cu = getCurrentUser();
   if (nameEl && cu) nameEl.textContent = cu.name || "Administrator";
   if (greetEl) {
-    const h = new Date().getHours();
-    greetEl.textContent = h < 12 ? "Good morning," : h < 17 ? "Good afternoon," : "Good evening,";
+    const hr = getManilaNow().getHours();
+    greetEl.textContent = hr < 12 ? "Good morning," : hr < 17 ? "Good afternoon," : "Good evening,";
   }
   if (dateEl) {
-    dateEl.textContent = new Date().toLocaleDateString("en-PH", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+    dateEl.textContent = getManilaNow().toLocaleDateString("en-PH", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
   }
 }
 
@@ -4155,10 +4271,6 @@ async function initAdminPage() {
   $("#calendar-prev")?.addEventListener("click", () => changeCalendarMonth(-1));
   $("#calendar-next")?.addEventListener("click", () => changeCalendarMonth(1));
   $("#calendar-today")?.addEventListener("click", jumpToToday);
-  $("#add-admin-btn")?.addEventListener("click", openAdminMgmtModal);
-  $("#admin-mgmt-close")?.addEventListener("click", closeAdminMgmtModal);
-  $("#admin-mgmt-cancel")?.addEventListener("click", closeAdminMgmtModal);
-  $("#admin-mgmt-form")?.addEventListener("submit", handleAddAdminSubmit);
 
   initCalendarDate();
   renderUsersTable();
@@ -4888,137 +5000,7 @@ function closeUserDrawer() {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Admin Management
-// ---------------------------------------------------------------------------
 
-function openAdminMgmtModal() {
-  const modal = document.getElementById("admin-mgmt-modal");
-  if (!modal) return;
-
-  // Reset form and error on open
-  document.getElementById("admin-mgmt-form")?.reset();
-  const errEl = document.getElementById("admin-mgmt-error");
-  if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
-  const preview = document.getElementById("admin-mgmt-username-preview");
-  if (preview) preview.innerHTML = "";
-
-  // ── Populate "Created By" card with current admin's info ──
-  const me = getCurrentUser();
-  if (me) {
-    const nameEl   = document.getElementById("admin-mgmt-creator-name");
-    const unEl     = document.getElementById("admin-mgmt-creator-username");
-    const avatarEl = document.getElementById("admin-mgmt-creator-avatar");
-    const timeEl   = document.getElementById("admin-mgmt-creator-time");
-    if (nameEl)   nameEl.textContent   = me.name || me.username || "Administrator";
-    if (unEl)     unEl.textContent     = "@" + (me.username || "admin");
-    if (avatarEl) avatarEl.textContent = (me.name || me.username || "A").charAt(0).toUpperCase();
-    if (timeEl) {
-      const now = new Date();
-      timeEl.textContent = now.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })
-        + " · " + now.toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", hour12: true });
-    }
-  }
-
-  modal.classList.add("modal-open");
-
-  // Live username preview — strip spaces, lowercase
-  const unInput = document.getElementById("admin-mgmt-username");
-  if (unInput) {
-    unInput.oninput = function() {
-      if (!preview) return;
-      const val = this.value.trim().toLowerCase().replace(/\s+/g, "_");
-      preview.innerHTML = val
-        ? `Will be saved as: <strong style="color:var(--brand-blue)">${h(val)}</strong>`
-        : "";
-    };
-  }
-}
-function closeAdminMgmtModal() {
-  document.getElementById("admin-mgmt-modal")?.classList.remove("modal-open");
-}
-
-async function handleAddAdminSubmit(e) {
-  e.preventDefault();
-
-  const nameVal    = document.getElementById("admin-mgmt-name")?.value.trim()            || "";
-  const rawUN      = document.getElementById("admin-mgmt-username")?.value.trim()        || "";
-  const newPwd     = document.getElementById("admin-mgmt-new-password")?.value           || "";
-  const confirmPwd = document.getElementById("admin-mgmt-confirm-password")?.value       || "";
-  const reason     = document.getElementById("admin-mgmt-reason")?.value.trim()          || "";
-  const myPwd      = document.getElementById("admin-mgmt-password")?.value               || "";
-
-  const errEl  = document.getElementById("admin-mgmt-error");
-  const submitBtn = document.getElementById("admin-mgmt-submit");
-
-  function showErr(msg) {
-    if (errEl) { errEl.textContent = msg; errEl.style.display = "block"; }
-    showToast(msg, "error");
-  }
-  function clearErr() {
-    if (errEl) { errEl.style.display = "none"; errEl.textContent = ""; }
-  }
-  clearErr();
-
-  // ── Validation ──
-  if (!nameVal)                    { showErr("Full name is required."); return; }
-  if (!rawUN)                      { showErr("Username is required."); return; }
-  if (newPwd.length < 6)           { showErr("Password must be at least 6 characters."); return; }
-  if (newPwd !== confirmPwd)       { showErr("Passwords do not match."); return; }
-  if (!reason)                     { showErr("Justification is required."); return; }
-  if (!myPwd)                      { showErr("Your current password is required."); return; }
-
-  const username = rawUN.toLowerCase().replace(/\s+/g, "_");
-
-  if (users.some(u => u.username === username)) {
-    showErr(`Username "${username}" already exists.`); return;
-  }
-
-  // ── Verify current admin's password ──
-  const currentUser = getCurrentUser();
-  if (!currentUser) { showErr("No active session found."); return; }
-
-  const isValidPwd = await verifyPassword(myPwd, currentUser.password);
-  if (!isValidPwd) { showErr("Incorrect current password."); return; }
-
-  // ── Create the admin account ──
-  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Creating…"; }
-
-  try {
-    const hashedPwd = await hashPassword(newPwd);
-    const newAdmin = {
-      id:       `user_${Math.random().toString(36).slice(2, 9)}`,
-      username,
-      name:     nameVal,
-      password: hashedPwd,
-      role:     ROLES.ADMIN,
-      createdAt: new Date().toISOString(),
-      createdBy: currentUser.username || currentUser.name || "admin",
-      justification: reason,
-    };
-
-    if (window.api && window.api.createUser) {
-      await window.api.createUser(newAdmin);
-      users = await window.api.getUsers();
-    } else {
-      users.push(newAdmin);
-      persistUsers();
-    }
-
-    showToast(`Admin account "${username}" created successfully.`, "success");
-    closeAdminMgmtModal();
-    renderUsersTable();
-    renderSysDataStats();
-    updateStatistics();
-  } catch (err) {
-    showErr("Failed to create admin account. Please try again.");
-  } finally {
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Create Admin`;
-    }
-  }
-}
 
 // ---------------------------------------------------------------------------
 // SYSTEM SETTINGS — Data Overview, Edit User, Force Reset, Bulk Tools
@@ -5678,8 +5660,16 @@ function initSystemMaintenance() {
 document.addEventListener("DOMContentLoaded", () => {
   const page = document.body.dataset.page;
   if (page === "login") initLoginPage();
-  else if (page === "admin") { initAdminPage(); initSystemMaintenance(); }
+  else if (page === "admin") { initAdminPage().then(() => initSystemMaintenance()); }
   else if (page === "user") initUserPage();
+
+  // Activate theme transitions after first paint — prevents flash-of-wrong-theme on load.
+  // The CSS in styles.css gates all transitions behind body.theme-ready.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.body.classList.add("theme-ready");
+    });
+  });
 
   // Committee combobox — runs on both admin & user pages
   if (page === "admin" || page === "user") {
@@ -5946,14 +5936,21 @@ function renderUserAnnouncements(list) {
   }
   el.innerHTML = sorted.map(a => _renderAnnCard(a, false)).join("");
 
-  // Show "New" badge if any announcement arrived after last time user visited Announcements section
+  // Show "New" badge if any announcement arrived after last time user visited Announcements section.
+  // Uses sbp_ann_seen which is stamped to Date.now() when user navigates to the announcements section.
   try {
     const lastSeen = parseInt(localStorage.getItem("sbp_ann_seen") || "0", 10);
     const hasNew = sorted.some(a => a.createdAt && new Date(a.createdAt).getTime() > lastSeen);
     const badge = document.getElementById("new-ann-badge");
     if (badge) {
       badge.textContent = "New";
-      badge.style.display = hasNew ? "inline-flex" : "none";
+      // Only show if currently NOT in the announcements section
+      const inAnnSection = document.getElementById("section-announcements")?.classList.contains("active");
+      badge.style.display = (hasNew && !inAnnSection) ? "inline-flex" : "none";
+      // If user is already viewing announcements, stamp seen immediately
+      if (inAnnSection) {
+        try { localStorage.setItem("sbp_ann_seen", String(Date.now())); } catch(_) {}
+      }
     }
   } catch(e) {}
 }
@@ -6898,7 +6895,7 @@ function initUserAnnouncements() {
     if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
 
     window.api.addMeeting({
-      id: `mtg_${Math.random().toString(36).slice(2, 9)}`,
+      id: crypto.randomUUID(),
       eventName, committee, councilor, researcher, stakeholders,
       date, timeStart, durationHours,
       type, venue, notes,
@@ -6912,7 +6909,7 @@ function initUserAnnouncements() {
         users.filter(u => u.role === ROLES.ADMIN).forEach(admin => {
           addNotification(
             admin.id || admin.username,
-            `New meeting request from <strong>${currentUser.name}</strong>: <strong>"${eventName}"</strong> on ${formatDateDisplay(date)} at ${formatTimeRange(timeStart, durationHours)}. Review and take action.`,
+            `New meeting request from <strong>${h(currentUser.name)}</strong>: <strong>"${h(eventName)}"</strong> on ${formatDateDisplay(date)} at ${formatTimeRange(timeStart, durationHours)}. Review and take action.`,
           "info",
           "meeting-logs"
         );
@@ -6925,7 +6922,7 @@ function initUserAnnouncements() {
         if (councilor && councilor !== "N/A") {
           const cUser = users.find(u => u.name === councilor);
           if (cUser) addNotification(cUser.id || cUser.username,
-            `The Admin has scheduled a meeting on your behalf: <strong>"${eventName}"</strong> on ${dateStr} at ${timeStr}. Venue: ${venue}. Status: <strong>Approved</strong>.`,
+            `The Admin has scheduled a meeting on your behalf: <strong>"${h(eventName)}"</strong> on ${dateStr} at ${timeStr}. Venue: ${h(venue)}. Status: <strong>Approved</strong>.`,
             "success", "my-meetings");
         }
         if (researcher && researcher !== "N/A") {
@@ -7019,6 +7016,26 @@ function initUserAnnouncements() {
 
   // 4. Persist the active section so a page refresh restores the same view
   try { sessionStorage.setItem('user_section', sectionId); } catch(_) {}
+
+  // 5. Clear nav badges when the user visits the relevant section ─────────────
+  // Announcements: hide "New" badge and stamp seen timestamp so it won't
+  // reappear until the admin posts something newer.
+  if (sectionId === 'announcements') {
+    try { localStorage.setItem('sbp_ann_seen', String(Date.now())); } catch(_) {}
+    const annBadge = document.getElementById('new-ann-badge');
+    if (annBadge) annBadge.style.display = 'none';
+  }
+  // My Meetings: hide the pending badge once user has seen the section.
+  // The count is already visible in the table — the nav dot is just a nudge.
+  if (sectionId === 'my-meetings') {
+    const pendingBadge = document.getElementById('pending-badge');
+    if (pendingBadge) pendingBadge.style.display = 'none';
+  }
+  // Meeting Calendar: hide the calendar badge once visited
+  if (sectionId === 'calendar') {
+    const calBadge = document.getElementById('calendar-nav-badge');
+    if (calBadge) calBadge.style.display = 'none';
+  }
 };
 
 document.querySelectorAll('.nav-link').forEach(link => {

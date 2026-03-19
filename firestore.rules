@@ -9,13 +9,17 @@ service cloud.firestore {
 
     // ── Users collection ──────────────────────────────────────────────────────
     // Read: only authenticated users can read (needed for login lookup by username)
-    // Create: only authenticated users (admins create accounts from the portal)
+    // Create: only authenticated users; role field must NOT be "Admin" — admin
+    //         accounts can only be seeded server-side via the admin SDK or the
+    //         ensureDefaultAdmin() bootstrap. This blocks any anonymous-auth
+    //         session from writing role:"Admin" directly via the Firestore SDK.
     // Update: authenticated users; role field is immutable via client (role changes
     //         must go through a Cloud Function or admin SDK)
     // Delete: only authenticated users
     match /users/{docId} {
       allow read:   if request.auth != null;
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.role != "Admin";
       allow update: if request.auth != null
                     && !('role' in request.resource.data.diff(resource.data).affectedKeys());
       allow delete: if request.auth != null;

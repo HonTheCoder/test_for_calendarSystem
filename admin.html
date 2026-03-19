@@ -1818,66 +1818,20 @@
 </script>
 
 <script>
-  // ── Back-button lock (bulletproof) ────────────────────────────────────────
-  // Flood the history stack with 50 identical entries on load so there is
-  // no reachable "back" entry. On every popstate (back/forward press) we
-  // immediately jump forward 50 steps AND push another batch, making it
-  // impossible to navigate back to the login page via the browser button.
+  // ── Back-button lock ─────────────────────────────────────────────────────
+  // Replace the current history entry so the login page is gone, then push
+  // one extra entry. On any popstate (back press) we push one more entry —
+  // this is enough to prevent navigating back to login without flooding the
+  // browser history with 50 junk entries.
   (function () {
     var LOCK_URL = window.location.href;
-    var STACK    = 50;
-
-    // Replace current entry first so login is gone from history
-    history.replaceState({ sbpLocked: true, idx: 0 }, '', LOCK_URL);
-    // Flood forward
-    for (var i = 1; i <= STACK; i++) {
-      history.pushState({ sbpLocked: true, idx: i }, '', LOCK_URL);
-    }
-
+    history.replaceState({ sbpLocked: true }, '', LOCK_URL);
+    history.pushState({ sbpLocked: true }, '', LOCK_URL);
     window.addEventListener('popstate', function () {
-      // Jump far forward to absorb any back press
-      history.go(STACK);
-      // Also push more entries to keep the stack deep
-      for (var j = 0; j < 5; j++) {
-        history.pushState({ sbpLocked: true, idx: j }, '', LOCK_URL);
-      }
+      history.pushState({ sbpLocked: true }, '', LOCK_URL);
     });
   })();
 </script>
 
-<script>
-  (function() {
-    var TIMEOUT = 30 * 60 * 1000; // 30 Minutes
-
-    function refresh() { 
-      try { 
-        // Silently update expiry time in storage
-        sessionStorage.setItem('sbp_session_expiry', Date.now() + TIMEOUT); 
-      } catch(e){} 
-    }
-
-    function check() {
-      var exp = parseInt(sessionStorage.getItem('sbp_session_expiry') || '0', 10);
-      // ONLY redirect if we have a valid expiration time AND current time is past it
-      if (exp > 0 && Date.now() > exp) {
-        sessionStorage.removeItem('sbp_current_user');
-        sessionStorage.removeItem('sbp_session_expiry');
-        localStorage.removeItem('sbp_current_user'); // prevent auto-login after timeout
-        window.location.href = './index.html?timeout=1';
-      }
-    }
-
-    // Set initial expiry on load
-    refresh();
-
-    // Listen for activity to refresh the timer silently
-    ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(function(evt) {
-      window.addEventListener(evt, refresh, { passive: true });
-    });
-
-    // Run the check every minute
-    setInterval(check, 60000);
-  })();
-</script>
   </body>
 </html>

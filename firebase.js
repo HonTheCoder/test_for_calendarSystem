@@ -117,7 +117,11 @@
   }
 
   var api = {
-    mode: mode,
+    // BUGFIX: mode was stored as a plain value snapshot at construction time,
+    // so fallbackToLocal() mutating the `mode` variable was never visible to
+    // callers checking window.api.mode after a fallback. Using a getter ensures
+    // api.mode always returns the live current value of the closed-over variable.
+    get mode() { return mode; },
     init: function () {
       return ensureDefaultAdminIfNeeded().then(function () {})
     },
@@ -496,8 +500,10 @@
     },
     addAnnouncement: function (ann) {
       var ANN_TTL_MS = 7 * 24 * 60 * 60 * 1000
+      // Only apply the default 7-day TTL if the caller did not supply their own
+      // expiresAt. Previously this always overwrote any custom expiry date.
       var enriched = Object.assign({}, ann, {
-        expiresAt: new Date(Date.now() + ANN_TTL_MS).toISOString()
+        expiresAt: ann.expiresAt || new Date(Date.now() + ANN_TTL_MS).toISOString()
       })
       if (mode === "firestore") {
         var docId = "ann_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)
@@ -597,6 +603,93 @@
       }
     },
     _notifyMeetings: function () { _notifyMeetingSubscribers() },
+    // ── Notifications (Firestore-backed so they sync across devices/tabs) ────
+    // In local mode, falls back to localStorage exactly as before.
+    saveNotification: function (notif) {
+      if (mode === "firestore") {
+        var docId = notif.id || ("notif_" + Date.now() + "_" + Math.random().toString(36).slice(2,7))
+        var withId = Object.assign({}, notif, { id: docId })
+        return db.collection("notifications").doc(docId).set(withId).catch(function () {
+          var all = lsGet("sbp_notifications", [])
+          all.unshift(notif)
+          lsSet("sbp_notifications", all.slice(0, 200))
+        })
+      } else {
+        var all = lsGet("sbp_notifications", [])
+        all.unshift(notif)
+        lsSet("sbp_notifications", all.slice(0, 200))
+        return Promise.resolve()
+      }
+    },
+    getNotificationsForUser: function (userId) {
+      if (mode === "firestore") {
+        // No orderBy — avoids requiring a composite index. Sort in JS instead.
+        return db.collection("notifications")
+          .where("userId", "==", userId)
+          .limit(50)
+          .get()
+          .then(function (snap) {
+            var list = snap.docs.map(function (d) { var v = d.data(); v.id = d.id; return v })
+            list.sort(function (a, b) { return (b.createdAt || "").localeCompare(a.createdAt || "") })
+            return list
+          })
+          .catch(function () {
+            return lsGet("sbp_notifications", []).filter(function (n) { return n.userId === userId })
+          })
+      } else {
+        return Promise.resolve(lsGet("sbp_notifications", []).filter(function (n) { return n.userId === userId }))
+      }
+    },
+    markNotificationsRead: function (userId) {
+      if (mode === "firestore") {
+        // Single where() only — no composite index needed.
+        // Filter unread in JS after fetching.
+        return db.collection("notifications")
+          .where("userId", "==", userId)
+          .get()
+          .then(function (snap) {
+            var unread = snap.docs.filter(function (d) { return d.data().read === false })
+            if (!unread.length) return
+            var batch = db.batch()
+            unread.forEach(function (d) { batch.update(d.ref, { read: true }) })
+            return batch.commit()
+          })
+          .catch(function () {})
+      } else {
+        var all = lsGet("sbp_notifications", [])
+        all.forEach(function (n) { if (n.userId === userId) n.read = true })
+        lsSet("sbp_notifications", all)
+        return Promise.resolve()
+      }
+    },
+    subscribeNotifications: function (userId, cb) {
+      if (mode === "firestore") {
+        try {
+          // No orderBy — avoids requiring a composite index. Sort in JS instead.
+          // A single-field where() query on "userId" works with no index at all.
+          return db.collection("notifications")
+            .where("userId", "==", userId)
+            .limit(50)
+            .onSnapshot(
+              function (snap) {
+                var list = snap.docs.map(function (d) { var v = d.data(); v.id = d.id; return v })
+                list.sort(function (a, b) { return (b.createdAt || "").localeCompare(a.createdAt || "") })
+                cb(list)
+              },
+              function (err) {
+                console.warn("subscribeNotifications fallback to localStorage:", err.message)
+                cb(lsGet("sbp_notifications", []).filter(function (n) { return n.userId === userId }))
+              }
+            )
+        } catch (e) {
+          cb(lsGet("sbp_notifications", []).filter(function (n) { return n.userId === userId }))
+          return function () {}
+        }
+      } else {
+        cb(lsGet("sbp_notifications", []).filter(function (n) { return n.userId === userId }))
+        return function () {}
+      }
+    },
     subscribeUsers: function (cb) {
       if (mode === "firestore") {
         try {

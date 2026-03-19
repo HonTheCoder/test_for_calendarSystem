@@ -6,7 +6,8 @@
 /* ── SIDEBAR UPGRADES ── */
 .sidebar {
   width: 256px;
-  background: linear-gradient(180deg, #0A1A38 0%, #071228 55%, #06101E 100%);
+  background: linear-gradient(180deg, #091630 0%, #071228 45%, #050d1a 100%);
+  will-change: transform; /* GPU layer so sidebar shadow doesn't cause repaints */
 }
 
 .sidebar-header {
@@ -41,19 +42,21 @@
   font-size: 0.8rem;
   border-left: 3px solid transparent;
   gap: 9px;
-  color: rgba(180,200,230,0.7);
+  color: rgba(180,200,230,0.72);
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.12s;
 }
 .nav-link:hover {
-  background: rgba(255,255,255,0.05);
-  color: #E2EAF8;
-  border-left-color: rgba(245,163,26,0.3);
+  background: rgba(255,255,255,0.06);
+  color: #E8F0FB;
+  border-left-color: rgba(245,163,26,0.35);
   transform: translateX(2px);
 }
 .nav-link-active {
-  background: rgba(27,75,138,0.35) !important;
+  background: rgba(27,75,138,0.38) !important;
   color: #fff !important;
   border-left-color: var(--brand-gold) !important;
   font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(245,163,26,0.08);
 }
 .nav-link-icon { width: 17px; opacity: 0.85; }
 
@@ -147,11 +150,17 @@
 #logout-btn {
   height: 34px; padding: 0 13px;
   font-size: 0.76rem; border-radius: 9px;
-  background: rgba(220,38,38,0.08);
-  color: #DC2626; border: 1px solid rgba(220,38,38,0.2);
+  background: rgba(220,38,38,0.07);
+  color: #DC2626; border: 1px solid rgba(220,38,38,0.18);
   font-weight: 700;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-#logout-btn:hover { background: #DC2626; color: #fff; border-color: #DC2626; }
+#logout-btn:hover {
+  background: #DC2626;
+  color: #fff;
+  border-color: #DC2626;
+  box-shadow: 0 2px 10px rgba(220,38,38,0.28);
+}
 
 /* ── MAIN SCROLL ── */
 .main-scroll { padding: 22px 24px 80px; background: var(--color-bg); }
@@ -206,12 +215,13 @@
   box-shadow: 0 1px 3px rgba(14,41,84,0.05), 0 4px 16px rgba(14,41,84,0.04);
   overflow: hidden;
   position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   border-top: none;
 }
 .dash-stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(14,41,84,0.12);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(14,41,84,0.13);
+  border-color: var(--color-border);
 }
 .stat-accent-bar {
   height: 3px; width: 100%;
@@ -256,8 +266,13 @@
 .chart-card {
   border-radius: 16px;
   border: 1px solid var(--color-border-soft);
-  box-shadow: 0 1px 3px rgba(14,41,84,0.04);
-  padding: 18px 20px 16px;
+  box-shadow: 0 1px 3px rgba(14,41,84,0.04), 0 4px 14px rgba(14,41,84,0.03);
+  padding: 20px 20px 18px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.chart-card:hover {
+  border-color: var(--color-border);
+  box-shadow: 0 2px 8px rgba(14,41,84,0.07), 0 6px 20px rgba(14,41,84,0.05);
 }
 .chart-card-title {
   display: flex; align-items: center; gap: 7px;
@@ -394,13 +409,15 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
 }
 .btn-sm { padding: 6px 12px; font-size: 0.74rem; border-radius: 7px; }
 .btn-primary {
-  background: linear-gradient(135deg, #1E3A8A 0%, #1B4B8A 100%);
-  box-shadow: 0 2px 8px rgba(27,75,138,0.28);
+  background: linear-gradient(135deg, #1a3a8f 0%, #1B4B8A 60%, #1e5aa8 100%);
+  box-shadow: 0 2px 8px rgba(27,75,138,0.28), inset 0 1px 0 rgba(255,255,255,0.1);
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, #1B4B8A 0%, #0E2954 100%);
-  box-shadow: 0 4px 16px rgba(27,75,138,0.38);
+  background: linear-gradient(135deg, #122d70 0%, #0E2954 100%);
+  box-shadow: 0 4px 16px rgba(27,75,138,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  transform: translateY(-1px);
 }
+.btn-primary:active { transform: translateY(0); }
 
 /* Action buttons in tables */
 .action-btn {
@@ -498,13 +515,14 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
 
 /* ── WELCOME BANNER (User) ── */
 .welcome-banner {
-  background: linear-gradient(135deg, #0A1A38 0%, #0E2954 45%, #1B4B8A 100%);
+  background: linear-gradient(135deg, #091630 0%, #0E2954 40%, #1B4B8A 85%, #1e5aa8 100%);
   border-radius: 16px;
   padding: 20px 24px;
   display: flex; align-items: center;
   justify-content: space-between; gap: 16px; flex-wrap: wrap;
   position: relative; overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 4px 24px rgba(9,22,48,0.35), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .welcome-banner::before {
   content: '';
@@ -562,11 +580,12 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
 /* ── EMPTY STATES ── */
 .empty-state {
   display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 36px 20px; gap: 10px;
+  justify-content: center; padding: 40px 20px; gap: 12px;
   color: var(--color-text-muted);
 }
-.empty-state svg { opacity: 0.25; }
-.empty-state p { font-size: 0.82rem; margin: 0; color: var(--color-text-faint); }
+.empty-state svg { opacity: 0.2; }
+.empty-state-title { font-size: 0.88rem; font-weight: 700; color: var(--color-text-sub); margin: 0; font-family: var(--font-display); }
+.empty-state p { font-size: 0.78rem; margin: 0; color: var(--color-text-faint); text-align: center; max-width: 260px; line-height: 1.5; }
 
 /* ── MODAL UPGRADES ── */
 .modal {
@@ -1216,21 +1235,22 @@ body > ul.committee-dropdown .committee-dropdown-empty {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: linear-gradient(135deg, var(--brand-blue) 0%, #1e40af 60%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #091630 0%, #0E2954 40%, #1B4B8A 80%, #1e5aa8 100%);
   border-radius: 16px;
   padding: 22px 28px;
   color: #fff;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(27,75,138,0.28);
+  box-shadow: 0 4px 28px rgba(9,22,48,0.38), inset 0 1px 0 rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.05);
 }
+/* Gold shimmer line across the top */
 .dash-welcome-banner::before {
   content: '';
   position: absolute;
-  top: -40px; right: -40px;
-  width: 180px; height: 180px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.06);
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(245,163,26,0.6) 40%, rgba(245,163,26,0.2) 70%, transparent);
   pointer-events: none;
 }
 .dash-welcome-banner::after {
@@ -2550,4 +2570,229 @@ tbody tr.row-expired .action-btn[disabled] {
 [data-theme="dark"] .meeting-subtab:hover:not(.meeting-subtab-active) {
   background: var(--color-border-soft);
   color: var(--color-text-sub);
+}
+/* ==========================================================================
+   ENHANCEMENTS v2 — Visual polish, mobile fixes, performance
+   ========================================================================== */
+
+/* ── SKIP-TO-CONTENT (accessibility) ──────────────────────────────────────── */
+.skip-to-content {
+  position: fixed;
+  top: -100%;
+  left: 16px;
+  z-index: 99999;
+  background: var(--brand-gold);
+  color: #000;
+  padding: 8px 16px;
+  border-radius: 0 0 10px 10px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  transition: top 0.2s;
+}
+.skip-to-content:focus { top: 0; }
+
+/* ── TOPBAR SEARCH — dark mode ─────────────────────────────────────────────── */
+[data-theme="dark"] .global-search-trigger {
+  background: rgba(22, 35, 64, 0.9);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .global-search-dropdown {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+}
+[data-theme="dark"] .global-search-input {
+  background: transparent;
+  color: var(--color-text);
+}
+[data-theme="dark"] .global-search-input::placeholder { color: var(--color-text-faint); }
+[data-theme="dark"] .global-search-empty { color: var(--color-text-faint); }
+[data-theme="dark"] .gs-group-label { color: var(--color-text-muted); }
+[data-theme="dark"] .gs-item:hover  { background: var(--color-surface-2); }
+
+/* ── SIDEBAR NAV LABEL — dark mode already good, just ensure gap ──────────── */
+.sidebar-nav-label:first-child { margin-top: 0; }
+
+/* ── TOPBAR — dark mode border ────────────────────────────────────────────── */
+[data-theme="dark"] .topbar {
+  border-bottom-color: var(--color-border);
+  box-shadow: 0 1px 12px rgba(0,0,0,0.25);
+}
+
+/* ── CARD — hover lift on interactive cards ───────────────────────────────── */
+.card-interactive {
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(14,41,84,0.11);
+  border-color: var(--color-border);
+}
+
+/* ── UPCOMING PREVIEW ITEMS — improved ─────────────────────────────────────── */
+.upcoming-preview-item {
+  border-radius: 10px;
+  transition: background 0.15s, border-left-color 0.15s, transform 0.15s;
+  cursor: default;
+}
+.upcoming-preview-item:hover {
+  background: var(--color-primary-soft);
+  border-left-color: var(--brand-blue);
+  transform: translateX(2px);
+}
+[data-theme="dark"] .upcoming-preview-item:hover {
+  background: rgba(27,75,138,0.18);
+  border-left-color: var(--brand-sky);
+}
+
+/* ── ACTIVITY ITEMS — improved hover ──────────────────────────────────────── */
+.activity-item {
+  border-radius: 10px;
+  transition: background 0.15s, border-left-color 0.15s;
+}
+.activity-item:hover {
+  background: var(--color-primary-soft);
+  border-left-color: var(--brand-blue);
+}
+[data-theme="dark"] .activity-item:hover {
+  background: rgba(27,75,138,0.15);
+}
+
+/* ── TABLE ROWS — better row hover ───────────────────────────────────────── */
+tbody tr {
+  transition: background 0.12s;
+}
+
+/* ── ACTION BUTTONS — micro feedback ─────────────────────────────────────── */
+.action-btn {
+  transition: background 0.13s, box-shadow 0.13s, transform 0.1s;
+}
+.action-btn:active { transform: scale(0.94); }
+
+/* ── BADGE improvements — better contrast in dark ─────────────────────────── */
+[data-theme="dark"] .badge-approved  { background: rgba(22,163,74,0.18);  color: #4ade80; border: 1px solid rgba(22,163,74,0.3); }
+[data-theme="dark"] .badge-pending   { background: rgba(245,163,26,0.18); color: #fcd34d; border: 1px solid rgba(245,163,26,0.3); }
+[data-theme="dark"] .badge-cancelled { background: rgba(107,114,128,0.15);color: #9ca3af; border: 1px solid rgba(107,114,128,0.25); }
+[data-theme="dark"] .badge-rejected  { background: rgba(220,38,38,0.18);  color: #f87171; border: 1px solid rgba(220,38,38,0.28); }
+[data-theme="dark"] .badge-done      { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.28); }
+[data-theme="dark"] .badge-info      { background: rgba(59,130,246,0.18); color: #93c5fd; border: 1px solid rgba(59,130,246,0.28); }
+
+/* ── MEETING SUBTAB BAR — active tab gold accent line ────────────────────── */
+.meeting-subtab-active::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 50%;
+  transform: translateX(-50%);
+  width: 24px; height: 2px;
+  background: var(--brand-gold);
+  border-radius: 999px;
+  opacity: 0.7;
+}
+
+/* ── BOTTOM NAV — improved active state ──────────────────────────────────── */
+.bottom-nav-item-active {
+  color: var(--brand-blue);
+  font-weight: 700;
+  position: relative;
+}
+.bottom-nav-item-active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 24px; height: 2px;
+  background: var(--brand-blue);
+  border-radius: 0 0 3px 3px;
+}
+[data-theme="dark"] .bottom-nav-item-active { color: var(--brand-sky); }
+[data-theme="dark"] .bottom-nav-item-active::before { background: var(--brand-sky); }
+
+/* ── FILTER ROW — better field focus on mobile ────────────────────────────── */
+.filter-row .field:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(27,75,138,0.1);
+}
+
+/* ── POLICY MODAL — improved rule numbering ──────────────────────────────── */
+.policy-rule-featured {
+  border-left: 3px solid var(--brand-gold);
+  padding-left: 14px;
+  border-radius: 0 8px 8px 0;
+  background: rgba(245,163,26,0.04);
+}
+[data-theme="dark"] .policy-rule-featured {
+  background: rgba(245,163,26,0.06);
+}
+
+/* ── MOBILE: bottom nav safe area ────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Main scroll bottom padding matches nav height */
+  .main-scroll {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 16px);
+  }
+
+  /* Search trigger — icon only on small topbar */
+  .global-search-trigger-label { display: none; }
+  .global-search-kbd           { display: none; }
+  .global-search-trigger {
+    padding: 6px 8px;
+    gap: 0;
+    min-width: 34px;
+    height: 34px;
+    justify-content: center;
+  }
+
+  /* Dashboard welcome banner mobile refinement */
+  .dash-welcome-banner { padding: 18px 20px; border-radius: 14px; }
+  .dash-welcome-banner::before { height: 2px; }
+
+  /* Page section gap tighter on mobile */
+  .section-stack { gap: 14px; }
+
+  /* Stat accent bar thinner on mobile */
+  .stat-accent-bar { height: 2px; }
+
+  /* Upcoming preview spacing */
+  .upcoming-preview-list { gap: 6px; }
+  .upcoming-preview-item { padding: 9px 12px; border-radius: 9px; }
+
+  /* Activity list tighter */
+  .activity-list { max-height: 200px; }
+}
+
+/* ── VERY SMALL: ≤ 360px ─────────────────────────────────────────────────── */
+@media (max-width: 360px) {
+  .topbar-section-title { font-size: 0.82rem; }
+  .dash-quick-btn       { padding: 7px 10px; font-size: 0.72rem; }
+  .stat-value           { font-size: 1.5rem; }
+}
+
+/* ── PRINT STYLES ─────────────────────────────────────────────────────────── */
+@media print {
+  .sidebar, .topbar, .bottom-nav,
+  .global-search-wrap, .dark-toggle,
+  .notif-bell-btn, #logout-btn,
+  .dash-quick-actions, .filter-row,
+  .modal-backdrop { display: none !important; }
+
+  .content-area  { margin: 0; padding: 0; }
+  .main-scroll   { padding: 0; overflow: visible; }
+  .app-shell     { display: block; height: auto; overflow: visible; }
+  html, body     { height: auto; overflow: visible; }
+
+  .chart-card, .dash-stat-card, .card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    break-inside: avoid;
+  }
+  .dash-stat-row, .dashboard-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
