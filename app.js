@@ -101,8 +101,8 @@ async function loadPHHolidays(year) {
     if (!res.ok) throw new Error("API error");
     const data = await res.json();
     _phHolidayCache[y] = data;
-    data.forEach(h => {
-      _phHolidayMap[h.date] = { localName: h.localName, name: h.name, type: h.types?.[0] || "Public" };
+    data.forEach(hol => {
+      _phHolidayMap[hol.date] = { localName: hol.localName, name: hol.name, type: hol.types?.[0] || "Public" };
     });
   } catch {
     // Fallback to known list
@@ -566,13 +566,16 @@ function getCurrentUser() {
 
 function setCurrentUser(user) {
   if (!user) {
-    // On logout, remove the current user identity and session stamp.
-    // SESSION_EXPIRY lives in sessionStorage (set by refreshSession) — clear
-    // it there. The old localStorage copy is also removed for legacy cleanup.
-    // Also clear per-session cached data (meetings, notifications) so the
-    // NEXT user who logs in on this device never sees stale data from the
-    // previous session — which was causing the phantom pending-badge bug
-    // on new accounts that have no meetings yet.
+    // BUG FIX: Read the current user BEFORE removing from localStorage.
+    // The original code called localStorage.removeItem(CURRENT_USER) first,
+    // then tried to load it inside pruneOwnNotifications() — always getting null,
+    // so user notifications were never cleaned up on logout.
+    let loggingOutUserId = null;
+    try {
+      const loggingOutUser = load(STORAGE_KEYS.CURRENT_USER, null);
+      loggingOutUserId = loggingOutUser ? (loggingOutUser.id || loggingOutUser.username) : null;
+    } catch (_) {}
+
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     sessionStorage.removeItem(STORAGE_KEYS.SESSION_EXPIRY);   // ← correct store
     localStorage.removeItem(STORAGE_KEYS.SESSION_EXPIRY);     // ← legacy cleanup
@@ -583,23 +586,15 @@ function setCurrentUser(user) {
     if (window.api && window.api.mode === "firestore") {
       localStorage.removeItem(STORAGE_KEYS.MEETINGS);
     }
-    // BUGFIX: Do NOT wipe ALL notifications on logout.
-    // Notifications are cross-user — e.g. a user books a meeting which writes
-    // a notification for the admin. If we wipe the whole notifications array
-    // when the user logs out, the admin never sees it when they log in next.
-    // Instead, only remove notifications that belong to the user who is logging
-    // out. Notifications addressed to other users (e.g. admins) are preserved.
-    (function pruneOwnNotifications() {
+    // Prune only the logging-out user's notifications from localStorage cache.
+    // Notifications addressed to other users (e.g. admins) are preserved.
+    if (loggingOutUserId) {
       try {
-        const loggingOutUser = load(STORAGE_KEYS.CURRENT_USER, null);
-        if (!loggingOutUser) return;
-        const uid = loggingOutUser.id || loggingOutUser.username;
-        if (!uid) return;
         const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
-        const kept = all.filter(n => n.userId !== uid);
+        const kept = all.filter(n => n.userId !== loggingOutUserId);
         save(STORAGE_KEYS.NOTIFICATIONS, kept);
       } catch (_) {}
-    })();
+    }
     sessionStorage.removeItem('user_section');                 // ← clear saved section
     sessionStorage.removeItem('sbp_just_logged_in');          // ← clear login flag
     // Do NOT clear STORAGE_KEYS.USERS — the user list is shared/synced from
@@ -990,8 +985,10 @@ async function initDataLayer() {
     meetings = arr || [];
     const currentUser = getCurrentUser();
     renderCalendar();
-    renderAdminMeetingsTable();
-    renderMyMeetingsTable(currentUser);
+    // Guard: these functions only exist on admin.html — don't call them on user.html
+    if (typeof renderAdminMeetingsTable === "function") renderAdminMeetingsTable();
+    if (typeof renderMyMeetingsTable === "function") renderMyMeetingsTable(currentUser);
+    if (typeof renderUsersTable === "function") renderUsersTable();
     updateStatistics();
     // HIGH PRIORITY FIX #3: keep user dashboard charts in sync with live data
     if (typeof window.renderUserDashboardCharts === "function") {
@@ -1771,8 +1768,8 @@ function handleUserTableClick(e) {
 
         users = users.filter(u => u.id !== deleteId && u.username !== user.username);
         persistUsers();
-        renderUsersTable();
-        renderAdminMeetingsTable();
+        if (typeof renderUsersTable === "function") renderUsersTable();
+        if (typeof renderAdminMeetingsTable === "function") renderAdminMeetingsTable();
         renderCalendar();
         updateStatistics();
         showToast(toastMsg, "success");

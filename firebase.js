@@ -1,11 +1,30 @@
 ;(function () {
+  // ─────────────────────────────────────────────────────────────────────────
+  // Firebase configuration — inlined here so no separate config file is
+  // needed (and exposed) in the project. The values below are client-side
+  // identifiers, NOT secret keys. Security is enforced by Firestore rules.
+  // Restrict usage further in the Firebase console:
+  //   Authentication → Settings → Authorized domains (add your domain only)
+  //   API key restrictions in Google Cloud Console → Credentials
+  // ─────────────────────────────────────────────────────────────────────────
+  var FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyC5FSWs8Ww_iGpDzePpiZDHOHxxSvKXTA0",
+    authDomain:        "calendarsystem-11866.firebaseapp.com",
+    projectId:         "calendarsystem-11866",
+    storageBucket:     "calendarsystem-11866.firebasestorage.app",
+    messagingSenderId: "1070679441061",
+    appId:             "1:1070679441061:web:70daa5c6ce721a06ee174c",
+    measurementId:     "G-6CP89X1VE7",
+  };
+
   function hasFirebase() {
     return typeof firebase !== "undefined" && !!firebase.initializeApp
   }
   function getConfig() {
-    return typeof window.__FIREBASE_CONFIG__ === "object"
+    // Prefer any externally injected config, fall back to the inlined one above.
+    return (typeof window.__FIREBASE_CONFIG__ === "object" && window.__FIREBASE_CONFIG__)
       ? window.__FIREBASE_CONFIG__
-      : null
+      : FIREBASE_CONFIG;
   }
   var mode = "local"
   var db = null

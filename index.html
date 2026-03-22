@@ -28,10 +28,176 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./styles.css" />
+    <style>
+      /* ═══════════════════════════════════════════════════
+         LOGIN PAGE ENHANCEMENTS — layered on styles.css
+         ═══════════════════════════════════════════════════ */
+
+      /* Page entrance */
+      .auth-shell-wrap {
+        animation: authEntrance 0.55s cubic-bezier(0.22,1,0.36,1) both;
+      }
+      @keyframes authEntrance {
+        from { opacity:0; transform:translateY(20px); }
+        to   { opacity:1; transform:translateY(0); }
+      }
+
+      /* Dark mode toggle button */
+      .auth-theme-toggle {
+        position:fixed; top:16px; right:16px; z-index:200;
+        width:38px; height:38px; border-radius:10px;
+        border:1.5px solid rgba(255,255,255,0.18);
+        background:rgba(255,255,255,0.1);
+        backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+        color:rgba(255,255,255,0.85);
+        display:flex; align-items:center; justify-content:center;
+        cursor:pointer;
+        transition:background 0.2s,border-color 0.2s,color 0.2s,transform 0.15s,box-shadow 0.2s;
+        box-shadow:0 2px 12px rgba(0,0,0,0.15);
+      }
+      .auth-theme-toggle:hover {
+        background:rgba(245,163,26,0.22); border-color:rgba(245,163,26,0.55);
+        color:#F5A31A; transform:scale(1.07); box-shadow:0 4px 16px rgba(245,163,26,0.2);
+      }
+      .auth-theme-toggle .icon-moon { display:block; }
+      .auth-theme-toggle .icon-sun  { display:none; }
+      [data-theme="dark"] .auth-theme-toggle .icon-moon { display:none; }
+      [data-theme="dark"] .auth-theme-toggle .icon-sun  { display:block; }
+      [data-theme="dark"] .auth-theme-toggle {
+        border-color:rgba(245,163,26,0.3); background:rgba(245,163,26,0.1); color:#F5A31A;
+      }
+
+      /* Left panel floating particles */
+      .auth-particles { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+      .auth-particle {
+        position:absolute; border-radius:50%;
+        background:rgba(245,163,26,0.07);
+        animation:particleRise linear infinite;
+      }
+      @keyframes particleRise {
+        0%   { transform:translateY(110%) scale(0.5); opacity:0; }
+        15%  { opacity:1; }
+        85%  { opacity:0.5; }
+        100% { transform:translateY(-20%) scale(1.2); opacity:0; }
+      }
+
+      /* Left panel stats strip */
+      .auth-left-stats {
+        display:flex; width:100%; border-radius:12px;
+        border:1px solid rgba(255,255,255,0.07);
+        background:rgba(255,255,255,0.03); overflow:hidden;
+      }
+      .auth-left-stat {
+        flex:1; padding:11px 8px; text-align:center;
+        border-right:1px solid rgba(255,255,255,0.06);
+      }
+      .auth-left-stat:last-child { border-right:none; }
+      .auth-left-stat-num {
+        font-family:var(--font-display); font-size:1.25rem; font-weight:800;
+        color:var(--brand-gold); line-height:1; letter-spacing:-0.03em;
+      }
+      .auth-left-stat-lbl {
+        font-size:0.55rem; font-weight:700; text-transform:uppercase;
+        letter-spacing:0.1em; color:rgba(200,220,255,0.38);
+        margin-top:4px; font-family:var(--font-display);
+      }
+
+      /* Right panel system badge */
+      .auth-sys-badge {
+        display:inline-flex; align-items:center; gap:6px;
+        background:var(--color-primary-soft); color:var(--brand-blue);
+        border:1px solid rgba(27,75,138,0.14); border-radius:999px;
+        padding:4px 13px; font-size:0.63rem; font-weight:700;
+        letter-spacing:0.08em; text-transform:uppercase;
+        font-family:var(--font-display); margin-bottom:14px;
+      }
+      .auth-sys-badge-dot {
+        width:6px; height:6px; border-radius:50%;
+        background:var(--brand-blue);
+        animation:dotPulse 2s ease-in-out infinite;
+      }
+      @keyframes dotPulse {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%     { opacity:0.35; transform:scale(0.65); }
+      }
+      [data-theme="dark"] .auth-sys-badge {
+        background:rgba(27,75,138,0.28); color:var(--brand-sky);
+        border-color:rgba(91,163,201,0.22);
+      }
+      [data-theme="dark"] .auth-sys-badge-dot { background:var(--brand-sky); }
+
+      /* Input refinements */
+      .auth-input-wrap .field {
+        height:48px; padding-left:44px; border-radius:11px;
+        border-width:1.5px; font-size:0.875rem; letter-spacing:0.01em;
+        transition:border-color 0.2s,box-shadow 0.2s,background 0.2s;
+      }
+      .auth-input-wrap.pw-wrap .field { padding-right:42px; }
+      .auth-input-wrap .field:focus {
+        border-color:var(--brand-blue);
+        box-shadow:0 0 0 3.5px rgba(27,75,138,0.12);
+      }
+      [data-theme="dark"] .auth-input-wrap .field:focus {
+        border-color:var(--brand-sky);
+        box-shadow:0 0 0 3.5px rgba(91,163,201,0.15);
+      }
+      .auth-input-wrap:focus-within .auth-input-icon {
+        color:var(--brand-blue); transition:color 0.2s;
+      }
+      [data-theme="dark"] .auth-input-wrap:focus-within .auth-input-icon { color:var(--brand-sky); }
+
+      /* Login button */
+      .btn-login { height:50px; font-size:0.92rem; letter-spacing:0.025em; border-radius:11px; }
+      .btn-login::before {
+        content:''; position:absolute; inset:0;
+        background:linear-gradient(135deg,rgba(255,255,255,0.09) 0%,transparent 55%);
+        border-radius:inherit; pointer-events:none;
+      }
+      .btn-login:not(:disabled):hover {
+        box-shadow:0 8px 28px rgba(27,75,138,0.52); transform:translateY(-1.5px);
+      }
+
+      /* Error shake */
+      .auth-error-visible { animation:errShake 0.4s ease !important; }
+      @keyframes errShake {
+        0%,100%{transform:translateX(0)}18%{transform:translateX(-5px)}
+        36%{transform:translateX(5px)}54%{transform:translateX(-3px)}72%{transform:translateX(3px)}
+      }
+
+      /* Welcome text */
+      .auth-welcome-greeting { color:var(--brand-gold-dark)!important; font-weight:800!important; font-size:0.65rem!important; letter-spacing:0.18em!important; }
+      [data-theme="dark"] .auth-welcome-greeting { color:var(--brand-gold)!important; }
+      .auth-welcome-title { font-size:1.55rem!important; }
+
+      /* Footer separator */
+      .auth-footer { padding-top:10px; border-top:1px solid var(--color-border-soft); margin-top:2px!important; }
+      [data-theme="dark"] .auth-footer { border-top-color:var(--color-border); }
+
+      /* Padding overrides */
+      .auth-right-inner { padding:38px 38px 26px!important; }
+      .auth-right-strip  { padding:9px 38px!important; }
+
+      @media (max-width:860px) {
+        .auth-right-inner { padding:30px 26px 22px!important; }
+        .auth-right-strip  { padding:9px 26px!important; }
+      }
+      @media (max-width:480px) {
+        .auth-right-inner { padding:24px 20px 20px!important; }
+        .auth-right-strip  { padding:8px 20px!important; }
+        .auth-welcome-title { font-size:1.3rem!important; }
+        .auth-theme-toggle { top:10px; right:10px; }
+      }
+    </style>
   </head>
 
   <body data-page="login">
     <main class="auth-page">
+
+      <!-- Dark mode toggle -->
+      <button class="auth-theme-toggle" id="auth-theme-btn" title="Toggle dark mode" aria-label="Toggle dark mode">
+        <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
 
       <!-- ════════════════════════════════════════
            Spinning PH-flag border wrapper
@@ -46,6 +212,16 @@
             <div class="auth-left-glow"></div>
             <div class="auth-left-ring"></div>
             <div class="auth-left-dots"></div>
+
+            <!-- Floating particles -->
+            <div class="auth-particles" aria-hidden="true">
+              <div class="auth-particle" style="width:80px;height:80px;left:10%;animation-duration:18s;animation-delay:0s"></div>
+              <div class="auth-particle" style="width:50px;height:50px;left:25%;animation-duration:22s;animation-delay:4s"></div>
+              <div class="auth-particle" style="width:35px;height:35px;left:60%;animation-duration:16s;animation-delay:2s"></div>
+              <div class="auth-particle" style="width:65px;height:65px;left:75%;animation-duration:25s;animation-delay:7s"></div>
+              <div class="auth-particle" style="width:40px;height:40px;left:45%;animation-duration:20s;animation-delay:11s"></div>
+              <div class="auth-particle" style="width:25px;height:25px;left:85%;animation-duration:14s;animation-delay:5s"></div>
+            </div>
 
             <!-- Municipal building silhouette -->
             <svg class="auth-left-illustration" viewBox="0 0 900 280" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax slice">
@@ -129,6 +305,22 @@
                       <strong>Real-time Monitoring</strong>
                       <span>Live status and activity tracking</span>
                     </div>
+                  </div>
+                </div>
+
+                <!-- Stats strip -->
+                <div class="auth-left-stats">
+                  <div class="auth-left-stat">
+                    <div class="auth-left-stat-num">12+</div>
+                    <div class="auth-left-stat-lbl">Committees</div>
+                  </div>
+                  <div class="auth-left-stat">
+                    <div class="auth-left-stat-num">24/7</div>
+                    <div class="auth-left-stat-lbl">Access</div>
+                  </div>
+                  <div class="auth-left-stat">
+                    <div class="auth-left-stat-num">100%</div>
+                    <div class="auth-left-stat-lbl">Secure</div>
                   </div>
                 </div>
               </div>
@@ -227,25 +419,38 @@
 
     <script>
       (function () {
+        // ── Password visibility toggle ──
         var btn = document.getElementById('pw-toggle-btn');
         var inp = document.getElementById('login-password');
         var eyeShow = document.getElementById('pw-eye-show');
         var eyeHide = document.getElementById('pw-eye-hide');
-        if (!btn || !inp) return;
-        btn.addEventListener('click', function () {
-          var hidden = inp.type === 'password';
-          inp.type = hidden ? 'text' : 'password';
-          eyeShow.style.display = hidden ? 'none' : '';
-          eyeHide.style.display = hidden ? '' : 'none';
-        });
+        if (btn && inp) {
+          btn.addEventListener('click', function () {
+            var hidden = inp.type === 'password';
+            inp.type = hidden ? 'text' : 'password';
+            eyeShow.style.display = hidden ? 'none' : '';
+            eyeHide.style.display = hidden ? '' : 'none';
+          });
+        }
+
+        // ── Dark mode toggle ──
+        var themeBtn = document.getElementById('auth-theme-btn');
+        function applyTheme(dark) {
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
+          try { localStorage.setItem('sbp_dark', dark ? '1' : '0'); } catch(e) {}
+        }
+        applyTheme(localStorage.getItem('sbp_dark') === '1');
+        if (themeBtn) {
+          themeBtn.addEventListener('click', function() {
+            applyTheme(document.documentElement.getAttribute('data-theme') !== 'dark');
+          });
+        }
       })();
     </script>
 
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <script src="./react-init.js"></script>
-    <script src="./config-PRIVATE-6e93a2d7.js"></script>
     <script src="./firebase.js"></script>
     <script src="./app.js"></script>
   </body>
