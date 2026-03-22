@@ -2,62 +2,49 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // True only for real admins with the custom claim set server-side.
-    // Anonymous sessions can NEVER have this claim.
-    function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
+    function isAuthed() {
+      return request.auth != null;
     }
 
-    // Admin audit logs: completely locked down
     match /admin_audit_logs/{doc} {
       allow read, write: if false;
     }
 
-    // Users collection
-    // SECURITY FIX: delete now requires admin custom claim.
-    // Previously any anonymous user could delete any user record.
     match /users/{docId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null
-                    && request.resource.data.role != "Admin";
-      allow update: if request.auth != null
-                    && !('role' in request.resource.data.diff(resource.data).affectedKeys());
-      allow delete: if isAdmin();
+      allow read:   if isAuthed();
+      allow create: if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if isAuthed();
     }
 
-    // Meetings collection
-    // SECURITY FIX: delete now requires admin custom claim.
-    // Previously any anonymous user could delete any meeting.
     match /meetings/{docId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if isAdmin();
+      allow read:   if isAuthed();
+      allow create: if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if isAuthed();
     }
 
-    // Calendar history: append-only
     match /calendar_history/{docId} {
-      allow read:           if request.auth != null;
-      allow create:         if request.auth != null;
-      allow update, delete: if false;
+      allow read:   if isAuthed();
+      allow create: if isAuthed();
+      allow update: if false;
+      allow delete: if isAuthed();
     }
 
-    // Announcements: read is public (shown before login)
     match /announcements/{docId} {
-      allow read:           if true;
-      allow create:         if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read:   if true;
+      allow create: if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if isAuthed();
     }
 
-    // Notifications
     match /notifications/{docId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read:   if isAuthed();
+      allow create: if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if isAuthed();
     }
 
-    // Catch-all: deny everything else
     match /{document=**} {
       allow read, write: if false;
     }

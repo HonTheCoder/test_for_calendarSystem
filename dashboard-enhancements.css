@@ -787,7 +787,7 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
 
 /* Hamburger button — hidden on desktop, shown on mobile */
 .hamburger-btn {
-  display: none;
+  display: none !important;
   align-items: center;
   justify-content: center;
   width: 34px; height: 34px;
@@ -825,7 +825,7 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
 @media (max-width: 768px) {
 
   /* Show hamburger button */
-  .hamburger-btn { display: flex; }
+  .hamburger-btn { display: none !important; }
 
   /* Gap between hamburger and section title */
   .topbar-left { gap: 8px; }
@@ -851,3 +851,5 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   /* When sidebar is open, nav links auto-close the drawer */
   /* (handled in JS below) */
 }
+
+.copied { opacity: 0.7; pointer-events: none; }

@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdnjs.cloudflare.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://www.gstatic.com https://cdnjs.cloudflare.com https://apis.google.com https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app https://*.firebaseapp.com https://securetoken.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://date.nager.at; worker-src blob:; frame-src 'self' https://apis.google.com https://*.firebaseapp.com; object-src 'none';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Dark mode anti-flicker: must run before any CSS renders -->
     <script>if(localStorage.getItem('sbp_dark')==='1')document.documentElement.setAttribute('data-theme','dark');</script>
@@ -228,13 +229,46 @@
           box-sizing: border-box !important;
         }
 
-        /* Mobile header: logo + title on the branded bg */
+        /* Mobile header: centered logo + stacked title */
         .auth-mobile-header {
+          flex-direction: column !important;
+          align-items: center !important;
+          text-align: center !important;
+          gap: 12px !important;
           border-bottom-color: rgba(255,255,255,0.08) !important;
           margin-bottom: 28px !important;
+          padding-bottom: 22px !important;
         }
-        .auth-mobile-republic { color: rgba(200,220,255,0.5) !important; }
-        .auth-mobile-title    { color: #F0F5FF !important; }
+        .auth-mobile-logo-wrap {
+          width: 76px; height: 76px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.07);
+          border: 2px solid rgba(245,163,26,0.35);
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 0 0 6px rgba(245,163,26,0.07);
+          flex-shrink: 0;
+        }
+        .auth-mobile-logo {
+          width: 58px !important; height: 58px !important;
+          object-fit: contain;
+          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+        }
+        .auth-mobile-text { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .auth-mobile-republic {
+          color: rgba(200,220,255,0.5) !important;
+          font-size: 0.62rem !important;
+          letter-spacing: 0.1em !important;
+          text-transform: uppercase !important;
+          font-weight: 600 !important;
+        }
+        .auth-mobile-title {
+          color: #F0F5FF !important;
+          font-size: 1.05rem !important;
+          font-weight: 800 !important;
+          line-height: 1.25 !important;
+          font-family: var(--font-display) !important;
+        }
+        .auth-mobile-title span { color: var(--brand-gold) !important; }
 
         /* Welcome text on dark bg */
         .auth-welcome-greeting { color: var(--brand-gold) !important; }
@@ -291,7 +325,9 @@
         .auth-right-inner      { padding: 40px 20px 24px !important; }
         .auth-welcome-title    { font-size: 1.3rem !important; }
         .auth-theme-toggle     { top: 14px; right: 14px; }
-        .auth-mobile-header    { margin-bottom: 24px !important; padding-bottom: 16px !important; }
+        .auth-mobile-header    { margin-bottom: 20px !important; padding-bottom: 18px !important; }
+        .auth-mobile-logo-wrap { width: 68px !important; height: 68px !important; }
+        .auth-mobile-logo      { width: 52px !important; height: 52px !important; }
       }
     </style>
   </head>
@@ -429,10 +465,12 @@
 
               <!-- Mobile branding header (hidden on desktop, replaces left panel on mobile) -->
               <div class="auth-mobile-header">
-                <img src="images/SB_logo.png" alt="SB Polangui" class="auth-mobile-logo" onerror="this.style.display='none'" />
-                <div>
+                <div class="auth-mobile-logo-wrap">
+                  <img src="images/SB_logo.png" alt="SB Polangui Official Seal" class="auth-mobile-logo" onerror="this.style.opacity='0'" />
+                </div>
+                <div class="auth-mobile-text">
                   <div class="auth-mobile-republic">Republic of the Philippines &middot; Albay</div>
-                  <div class="auth-mobile-title">Sangguniang Bayan ng Polangui</div>
+                  <div class="auth-mobile-title">Sangguniang Bayan<br>ng <span>Polangui</span></div>
                 </div>
               </div>
 

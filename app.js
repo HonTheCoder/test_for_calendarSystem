@@ -247,9 +247,16 @@ function checkSessionExpiry() {
 
 function initSessionTimeout() {
   refreshSession();
-  ["click", "keypress", "mousemove", "touchstart"].forEach(evt => {
+  // Throttle mousemove so it doesn't fire hundreds of times/sec
+  let _mouseThrottle = 0;
+  function _throttledRefresh() {
+    const now = Date.now();
+    if (now - _mouseThrottle > 30000) { _mouseThrottle = now; refreshSession(); }
+  }
+  ["click", "keypress", "touchstart"].forEach(evt => {
     document.addEventListener(evt, refreshSession, { passive: true });
   });
+  document.addEventListener("mousemove", _throttledRefresh, { passive: true });
   setInterval(() => {
     if (!checkSessionExpiry()) return;
   }, 60 * 1000);
@@ -1100,7 +1107,7 @@ function openForcePasswordChangeModal(account) {
     const confirmPwd = document.getElementById("force-pw-confirm").value;
     const errEl = document.getElementById("force-pw-error");
 
-    if (newPwd.length < 6) { errEl.textContent = "Password must be at least 6 characters."; return; }
+    if (newPwd.length < 8) { errEl.textContent = "Password must be at least 8 characters."; return; }
     if (newPwd !== confirmPwd) { errEl.textContent = "Passwords do not match."; return; }
     errEl.textContent = "";
 
@@ -1585,7 +1592,7 @@ async function handleUserFormSubmit(e) {
   const username = buildPrefixedUsername(rawUsername, role);
 
   if (!rawUsername || !name) { msg.textContent = "Username and full name are required."; showToast("Username and full name are required.", "error"); return; }
-  if (password.length < 6)   { msg.textContent = "Password must be at least 6 characters."; showToast("Password too short.", "error"); return; }
+  if (password.length < 8)   { msg.textContent = "Password must be at least 8 characters."; showToast("Password too short.", "error"); return; }
   if (password !== confirm)  { msg.textContent = "Passwords do not match."; showToast("Passwords do not match.", "error"); return; }
   if (users.some(u => u.username === username)) { msg.textContent = `Username "${username}" already exists.`; showToast("Username already exists.", "error"); return; }
 
@@ -1648,7 +1655,7 @@ async function handleSpecialAccountFormSubmit(e) {
   const username = buildPrefixedUsername(rawUsername, role);
 
   if (!rawUsername || !name) { msg.textContent = "Username and full name are required."; showToast("Username and full name are required.", "error"); return; }
-  if (password.length < 6)   { msg.textContent = "Password must be at least 6 characters."; showToast("Password too short.", "error"); return; }
+  if (password.length < 8)   { msg.textContent = "Password must be at least 8 characters."; showToast("Password too short.", "error"); return; }
   if (password !== confirm)  { msg.textContent = "Passwords do not match."; showToast("Passwords do not match.", "error"); return; }
   if (users.some(u => u.username === username)) { msg.textContent = `Username "${username}" already exists.`; showToast("Username already exists.", "error"); return; }
 
@@ -1907,7 +1914,7 @@ async function handlePasswordSubmit(e) {
   const confirmPwd = $("#password-confirm").value;
   const msg = $("#password-form-message");
 
-  if (pwd.length < 6) { if(msg) msg.textContent = "Password must be at least 6 characters."; return; }
+  if (pwd.length < 8) { if(msg) msg.textContent = "Password must be at least 8 characters."; return; }
   if (pwd !== confirmPwd) { if(msg) msg.textContent = "Passwords do not match."; showToast("Passwords do not match.", "error"); return; }
 
   const user = users.find(u => u.id === userId);
@@ -2710,7 +2717,7 @@ function applyMeetingStatus(mtg, status, note, adminId) {
       if (conflictOwner) {
         addNotification(
           conflictOwner.id || conflictOwner.username,
-          `Your meeting "<strong>${m.eventName}</strong>" on ${formatDateDisplay(m.date)} was automatically <strong>cancelled</strong> due to a scheduling conflict with another approved meeting.`,
+          `Your meeting "<strong>${h(m.eventName)}</strong>" on ${formatDateDisplay(m.date)} was automatically <strong>cancelled</strong> due to a scheduling conflict with another approved meeting.`,
           "warning",
           "my-meetings"
         );
@@ -3433,7 +3440,7 @@ function openDayScheduleModal(isoDate, readOnly) {
   const holidayInfo = getHolidayInfo(isoDate);
   const subtitle = document.getElementById("day-modal-subtitle");
   if (holidayInfo) {
-    subtitle.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;border-radius:6px;padding:3px 10px;font-size:0.78rem;font-weight:600;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg> PH Holiday: ${holidayInfo.localName}${holidayInfo.name !== holidayInfo.localName ? ` — ${holidayInfo.name}` : ""}</span>`;
+    subtitle.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;color:#92400e;border-radius:6px;padding:3px 10px;font-size:0.78rem;font-weight:600;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><line x1="2" y1="12" x2="22" y2="12"/></svg> PH Holiday: ${h(holidayInfo.localName)}${holidayInfo.name !== holidayInfo.localName ? ` — ${h(holidayInfo.name)}` : ""}</span>`;
   } else {
     subtitle.innerHTML = "";
   }
@@ -3846,7 +3853,7 @@ function submitMeetingFromPolicy() {
     users.filter(u => u.role === ROLES.ADMIN).forEach(admin => {
       addNotification(
         admin.id || admin.username,
-        `New meeting request from <strong>${currentUser.name}</strong>: <strong>"${d.eventName}"</strong> on ${formatDateDisplay(d.date)} at ${formatTimeRange(d.timeStart, d.durationHours)}. Review and take action.`,
+        `New meeting request from <strong>${h(currentUser.name)}</strong>: <strong>"${h(d.eventName)}"</strong> on ${formatDateDisplay(d.date)} at ${formatTimeRange(d.timeStart, d.durationHours)}. Review and take action.`,
         "info",
         "meeting-logs"
       );
@@ -3862,7 +3869,7 @@ function submitMeetingFromPolicy() {
       if (cUser) {
         addNotification(
           cUser.id || cUser.username,
-          `The Admin has scheduled a meeting on your behalf: <strong>"${d.eventName}"</strong> on ${dateStr} at ${timeStr}. Venue: ${d.venue}. Status: <strong>Approved</strong>.`,
+          `The Admin has scheduled a meeting on your behalf: <strong>"${h(d.eventName)}"</strong> on ${dateStr} at ${timeStr}. Venue: ${h(d.venue)}. Status: <strong>Approved</strong>.`,
           "success",
           "my-meetings"
         );
@@ -3873,7 +3880,7 @@ function submitMeetingFromPolicy() {
       if (rUser) {
         addNotification(
           rUser.id || rUser.username,
-          `The Admin has scheduled a meeting on your behalf: <strong>"${d.eventName}"</strong> on ${dateStr} at ${timeStr}. Venue: ${d.venue}. Status: <strong>Approved</strong>.`,
+          `The Admin has scheduled a meeting on your behalf: <strong>"${h(d.eventName)}"</strong> on ${dateStr} at ${timeStr}. Venue: ${h(d.venue)}. Status: <strong>Approved</strong>.`,
           "success",
           "my-meetings"
         );
@@ -6182,7 +6189,7 @@ function initAdminAnnouncements() {
       if (window.users) {
         window.users.filter(u => u.role !== ROLES.ADMIN).forEach(u => {
           addNotification(u.id || u.username,
-            `New announcement: <strong>${title}</strong>`,
+            `New announcement: <strong>${h(title)}</strong>`,
             "info", "announcements");
         });
       }
@@ -6414,7 +6421,7 @@ function initUserAnnouncements() {
              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
              <line x1="2" y1="12" x2="22" y2="12"/>
            </svg>
-           PH Holiday: ${holidayInfo.localName}
+           PH Holiday: ${h(holidayInfo.localName)}
          </span>`
       : "";
 
@@ -6966,7 +6973,7 @@ function initUserAnnouncements() {
         if (researcher && researcher !== "N/A") {
           const rUser = users.find(u => u.name === researcher);
           if (rUser) addNotification(rUser.id || rUser.username,
-            `The Admin has scheduled a meeting on your behalf: <strong>"${eventName}"</strong> on ${dateStr} at ${timeStr}. Venue: ${venue}. Status: <strong>Approved</strong>.`,
+            `The Admin has scheduled a meeting on your behalf: <strong>"${h(eventName)}"</strong> on ${dateStr} at ${timeStr}. Venue: ${h(venue)}. Status: <strong>Approved</strong>.`,
             "success", "my-meetings");
         }
       }
