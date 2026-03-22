@@ -445,23 +445,21 @@ function initNotificationBell(user) {
   if (!bellBtn || !notifPanel) return;
 
   // Subscribe to live Firestore notifications so the badge and panel update
-  // in real time — even when a notification is written by a different device
-  // or browser tab (e.g. user books meeting on their device, admin gets notif).
-  // Falls back to localStorage silently when Firestore is unavailable.
+  // in real time. Store the unsubscribe function so we can clean up the
+  // listener on logout — previously it was never stored, leaking a listener
+  // on every page load.
   if (window.api && window.api.subscribeNotifications) {
-    window.api.subscribeNotifications(userId, (liveNotifs) => {
-      // Merge live Firestore notifs into localStorage cache so getNotifications()
-      // always returns the freshest data without an extra async call.
+    const unsubNotif = window.api.subscribeNotifications(userId, (liveNotifs) => {
       const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
-      // Replace all entries for this user with the live list from Firestore
       const othersNotifs = all.filter(n => n.userId !== userId);
       const merged = [...liveNotifs, ...othersNotifs];
       save(STORAGE_KEYS.NOTIFICATIONS, merged);
-      // Refresh badge count and panel if it's currently open
       updateNotificationBadge(userId);
       const isOpen = notifPanel.classList.contains("notif-panel-open");
       if (isOpen) renderNotificationPanel(userId);
     });
+    // Store on window so logout can call it to clean up the Firestore listener
+    window._unsubNotifications = unsubNotif;
   }
 
   bellBtn.addEventListener("click", (e) => {
@@ -597,6 +595,21 @@ function setCurrentUser(user) {
     }
     sessionStorage.removeItem('user_section');                 // ← clear saved section
     sessionStorage.removeItem('sbp_just_logged_in');          // ← clear login flag
+    // Clean up the Firestore notification listener so it doesn't keep firing
+    // after logout (was previously leaking a listener on every session).
+    if (typeof window._unsubNotifications === "function") {
+      try { window._unsubNotifications(); } catch (_) {}
+      window._unsubNotifications = null;
+    }
+    // Clean up announcement Firestore listeners to prevent leaks across sessions.
+    if (typeof window._unsubAdminAnn === "function") {
+      try { window._unsubAdminAnn(); } catch (_) {}
+      window._unsubAdminAnn = null;
+    }
+    if (typeof window._unsubUserAnn === "function") {
+      try { window._unsubUserAnn(); } catch (_) {}
+      window._unsubUserAnn = null;
+    }
     // Do NOT clear STORAGE_KEYS.USERS — the user list is shared/synced from
     // Firestore and is needed for login on next load.
     // Do NOT clear announcements — they are global, not per-user.
@@ -1251,12 +1264,10 @@ async function initLoginPage() {
         }
       } else {
         const allUsers = load(STORAGE_KEYS.USERS, []);
-        // Try hashed match first
+        // Hashed verification only — plain-text fallback removed (security fix)
         for (const u of allUsers) {
           if (u.username !== username) continue;
           if (await verifyPassword(password, u.password)) { account = u; break; }
-          // Legacy plain text fallback (migrates on next password change)
-          if (u.password === password) { account = u; break; }
         }
       }
     } catch (err) {
@@ -2194,9 +2205,8 @@ function renderAdminMeetingsTable() {
            Cancel window: ${hoursLeftAdmin > 0 ? hoursLeftAdmin + "h " : ""}${minsLeftAdmin}m left
          </div>` : "";
     const notesCell = m.adminNote
-      ? `<button class="admin-note-tap" data-note="${h(m.adminNote)}" title="${h(m.adminNote)}"
+      ? `<button class="admin-note-tap" data-action="show-note" data-note="${h(m.adminNote)}" title="${h(m.adminNote)}"
            style="font-size:0.71rem;color:var(--color-text-muted);background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:6px;padding:3px 8px;cursor:pointer;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;text-align:left"
-           onclick="(function(btn){var p=document.getElementById('admin-note-popover');if(!p){p=document.createElement('div');p.id='admin-note-popover';p.style.cssText='position:fixed;z-index:9999;max-width:300px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-size:0.82rem;color:var(--color-text);line-height:1.5;white-space:pre-wrap;word-break:break-word';var close=document.createElement('button');close.textContent='✕';close.style.cssText='float:right;background:none;border:none;cursor:pointer;font-size:0.9rem;color:var(--color-text-muted);margin:-4px -4px 6px 8px';close.onclick=function(){p.remove()};p.appendChild(close);document.body.appendChild(p);document.addEventListener('click',function h(e){if(!p.contains(e.target)&&e.target!==btn){p.remove();document.removeEventListener('click',h)}},{once:true})}var r=btn.getBoundingClientRect();p.querySelector('button').nextSibling?p.childNodes[1].textContent=btn.dataset.note:p.appendChild(document.createTextNode(btn.dataset.note));p.style.top=(r.bottom+6)+'px';p.style.left=Math.min(r.left,window.innerWidth-316)+'px';p.style.display='block'})(this)"
          >${h(m.adminNote)}</button>`
       : `<span style="color:var(--color-text-faint);font-size:0.78rem">—</span>`;
     return `<tr${isCancelRequest ? ' style="background:rgba(249,115,22,0.04)"' : ''}${isPendingExpired ? ' class="row-expired"' : ''}>
@@ -2439,6 +2449,37 @@ function handleAdminMeetingsClick(e) {
               : mtg.status === "Cancellation Requested" ? "cancellation"
               : "approval";
     generateMeetingPdf(mtg, _dt);
+    return;
+  }
+
+  // ── Admin note popover — safe event delegation (replaces inline onclick) ──
+  if (action === "show-note") {
+    const noteText = btn.dataset.note || "";
+    let popover = document.getElementById("admin-note-popover");
+    if (popover) popover.remove();
+    popover = document.createElement("div");
+    popover.id = "admin-note-popover";
+    popover.style.cssText = "position:fixed;z-index:9999;max-width:300px;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;padding:14px 16px;box-shadow:0 8px 32px rgba(0,0,0,0.18);font-size:0.82rem;color:var(--color-text);line-height:1.5;white-space:pre-wrap;word-break:break-word";
+    const closeBtn = document.createElement("button");
+    closeBtn.style.cssText = "float:right;background:none;border:none;cursor:pointer;font-size:0.9rem;color:var(--color-text-muted);margin:-4px -4px 6px 8px";
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", () => popover.remove());
+    const noteContent = document.createElement("span");
+    noteContent.textContent = noteText; // safe — textContent never executes HTML
+    popover.appendChild(closeBtn);
+    popover.appendChild(noteContent);
+    document.body.appendChild(popover);
+    const rect = btn.getBoundingClientRect();
+    popover.style.top  = (rect.bottom + 6) + "px";
+    popover.style.left = Math.min(rect.left, window.innerWidth - 316) + "px";
+    setTimeout(() => {
+      document.addEventListener("click", function dismissNote(ev) {
+        if (!popover.contains(ev.target) && ev.target !== btn) {
+          popover.remove();
+          document.removeEventListener("click", dismissNote);
+        }
+      });
+    }, 0);
     return;
   }
   if (action === "delete") {
@@ -4167,7 +4208,7 @@ function recalcDurationOptionsBasedOnStart(isoDate) {
   if (hint) {
     if (nextConflict && conflictMax < workMax) {
       const blockerName = approvedOnDate.find(m => minutesFromTimeStr(m.timeStart) === nextConflict)?.eventName || "another meeting";
-      hint.innerHTML = `<span style="color:#f59e0b">Max ${maxHours}h — limited by approved meeting: "${blockerName}"</span>`;
+      hint.innerHTML = `<span style="color:#f59e0b">Max ${maxHours}h — limited by approved meeting: "${h(blockerName)}"</span>`;
     } else {
       hint.textContent = `Max duration from ${val}: ${maxHours} hour(s)`;
     }
@@ -5657,7 +5698,7 @@ function initSystemMaintenance() {
 document.addEventListener("DOMContentLoaded", () => {
   const page = document.body.dataset.page;
   if (page === "login") initLoginPage();
-  else if (page === "admin") { initAdminPage().then(() => initSystemMaintenance()); }
+  else if (page === "admin") { initAdminPage().then(() => initSystemMaintenance()).catch(err => { console.error("Admin page init failed:", err); }); }
   else if (page === "user") initUserPage();
 
   // Activate theme transitions after first paint — prevents flash-of-wrong-theme on load.
@@ -5766,14 +5807,14 @@ function _openAnnModal(ann) {
             <span style="font-size:0.68rem;font-weight:700;letter-spacing:0.07em;color:${meta.color};text-transform:uppercase;background:${meta.bg};padding:2px 9px;border-radius:999px;border:1px solid ${meta.color}22;">${meta.label}</span>
             ${pinHtml}${expHtml}
           </div>
-          <div style="font-weight:700;font-size:1.05rem;color:var(--color-text);line-height:1.4;word-break:break-word;">${_escHtml(ann.title)}</div>
+          <div style="font-weight:700;font-size:1.05rem;color:var(--color-text);line-height:1.4;word-break:break-word;">${h(ann.title)}</div>
         </div>
         <button onclick="_closeAnnModal()" style="flex-shrink:0;width:34px;height:34px;border-radius:8px;background:var(--color-bg-subtle,rgba(0,0,0,0.05));border:1px solid var(--color-border-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--color-text-muted);">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div style="flex:1;overflow-y:auto;padding:22px;-webkit-overflow-scrolling:touch;">
-        <div style="font-size:0.9rem;color:var(--color-text);line-height:1.9;white-space:pre-wrap;word-break:break-word;">${_escHtml(ann.body || "")}</div>
+        <div style="font-size:0.9rem;color:var(--color-text);line-height:1.9;white-space:pre-wrap;word-break:break-word;">${h(ann.body || "")}</div>
       </div>
       <div style="padding:12px 20px;border-top:1px solid var(--color-border-soft);display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;background:var(--color-surface);">
         <div style="display:flex;align-items:center;gap:5px;font-size:0.73rem;color:var(--color-text-muted);">
@@ -5783,7 +5824,7 @@ function _openAnnModal(ann) {
         ${ann.postedBy ? `<span style="color:var(--color-border);font-size:0.7rem;">·</span>
         <div style="display:flex;align-items:center;gap:5px;font-size:0.73rem;color:var(--color-text-muted);">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <span>Posted by <strong style="color:var(--color-text);font-weight:600;">${_escHtml(ann.postedBy)}</strong></span>
+          <span>Posted by <strong style="color:var(--color-text);font-weight:600;">${h(ann.postedBy)}</strong></span>
         </div>` : ""}
         <div style="margin-left:auto;">
           <button onclick="_closeAnnModal()" style="display:inline-flex;align-items:center;gap:6px;font-size:0.8rem;font-weight:600;padding:7px 20px;border-radius:8px;cursor:pointer;background:var(--color-bg-subtle,rgba(0,0,0,0.05));color:var(--color-text-muted);border:1px solid var(--color-border-soft);">Close</button>
@@ -5870,16 +5911,16 @@ function _renderAnnCard(ann, isAdmin) {
             <span style="font-size:0.66rem;font-weight:700;letter-spacing:0.07em;color:${meta.color};text-transform:uppercase;background:${meta.bg};padding:2px 8px;border-radius:999px;border:1px solid ${meta.color}22;">${meta.label}</span>
             ${pinHtml}${expBadge}
           </div>
-          <div style="font-weight:700;font-size:0.96rem;color:var(--color-text);line-height:1.35;word-break:break-word;">${_escHtml(ann.title)}</div>
+          <div style="font-weight:700;font-size:0.96rem;color:var(--color-text);line-height:1.35;word-break:break-word;">${h(ann.title)}</div>
         </div>
         ${isAdmin ? `<div style="display:flex;gap:2px;flex-shrink:0;">${editHtml}${deleteHtml}</div>` : ""}
       </div>
       <div style="height:1px;background:var(--color-border-soft);"></div>
-      <div style="font-size:0.855rem;color:var(--color-text-muted);line-height:1.7;word-break:break-word;">${_escHtml(preview)}</div>
+      <div style="font-size:0.855rem;color:var(--color-text-muted);line-height:1.7;word-break:break-word;">${h(preview)}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--color-text-muted);">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          ${_annTimeAgo(ann.createdAt)}${ann.postedBy ? ` · <strong style="color:var(--color-text-muted);font-weight:600;">${_escHtml(ann.postedBy)}</strong>` : ""}
+          ${_annTimeAgo(ann.createdAt)}${ann.postedBy ? ` · <strong style="color:var(--color-text-muted);font-weight:600;">${h(ann.postedBy)}</strong>` : ""}
         </div>
         ${isLong ? `<button onclick="event.stopPropagation();_openAnnModal(window.__annStore&&window.__annStore['${ann.id}']||{})" style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:600;color:${meta.color};background:${meta.bg};border:1px solid ${meta.color}33;padding:5px 13px;border-radius:999px;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Read full</button>` : ""}
@@ -5887,7 +5928,7 @@ function _renderAnnCard(ann, isAdmin) {
     </div>
   </div>`;
 }
-function _escHtml(str) {
+function h(str) {
   if (!str) return "";
   return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
@@ -5972,8 +6013,8 @@ function renderUserDashAnnouncements(list) {
     return `<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--color-border-soft)">
       <div style="width:30px;height:30px;border-radius:8px;background:${meta.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${meta.color}">${meta.icon}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:0.86rem;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pin}${_escHtml(a.title)}</div>
-        <div style="font-size:0.77rem;color:var(--color-text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_escHtml(a.body)}</div>
+        <div style="font-weight:600;font-size:0.86rem;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${pin}${h(a.title)}</div>
+        <div style="font-size:0.77rem;color:var(--color-text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h(a.body)}</div>
         <div style="font-size:0.72rem;color:var(--color-text-muted);margin-top:3px">${_annTimeAgo(a.createdAt)}</div>
       </div>
     </div>`;
@@ -5996,7 +6037,7 @@ function renderAdminDashAnnouncements(list) {
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--color-border-soft)">
       <div style="width:26px;height:26px;border-radius:7px;background:${meta.bg};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${meta.color}">${meta.icon}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:0.85rem;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escHtml(a.title)}</div>
+        <div style="font-weight:600;font-size:0.85rem;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h(a.title)}</div>
         <div style="font-size:0.73rem;color:var(--color-text-muted)">${_annTimeAgo(a.createdAt)}</div>
       </div>
     </div>`;
@@ -6098,7 +6139,7 @@ function initAdminAnnouncements() {
 
   // Subscribe to live updates
   if (window.api && window.api.subscribeAnnouncements) {
-    window.api.subscribeAnnouncements(list => {
+    window._unsubAdminAnn = window.api.subscribeAnnouncements(list => {
       window.announcements = list;
       renderAdminAnnouncements(list);
       renderAdminDashAnnouncements(list);
@@ -6223,7 +6264,7 @@ function initUserAnnouncements() {
     if (el) el.addEventListener("input", () => renderUserAnnouncements(getFilteredAnnouncements()));
   });
 
-  window.api.subscribeAnnouncements(list => {
+  window._unsubUserAnn = window.api.subscribeAnnouncements(list => {
     window.announcements = list;
     renderUserAnnouncements(getFilteredAnnouncements());
     renderUserDashAnnouncements(list);

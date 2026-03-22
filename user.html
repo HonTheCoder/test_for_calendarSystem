@@ -12,7 +12,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./page-enhancements.css" />
-    <link rel="stylesheet" href="./dashboard-enhancements.css" />
   </head>
 
   <body data-page="user">
@@ -85,6 +84,10 @@
         <!-- TOPBAR -->
         <header class="topbar">
           <div class="topbar-left">
+            <!-- Hamburger — mobile only, opens slide-in sidebar -->
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="Open navigation menu" aria-expanded="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
             <div id="topbar-section-title" class="topbar-section-title">Dashboard</div>
           </div>
           <div class="topbar-right">
@@ -1185,6 +1188,53 @@
         });
       })();
     </script>
+
+    <script>
+    // ── Mobile hamburger sidebar ──────────────────────────────────────────────
+    (function() {
+      var hamburger = document.getElementById('hamburger-btn');
+      var sidebar   = document.querySelector('.sidebar');
+      if (!hamburger || !sidebar) return;
+
+      var overlay = document.createElement('div');
+      overlay.className = 'sidebar-overlay';
+      document.body.appendChild(overlay);
+
+      function openSidebar() {
+        sidebar.classList.add('sidebar-open');
+        overlay.classList.add('sidebar-overlay-open');
+        hamburger.setAttribute('aria-expanded', 'true');
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeSidebar() {
+        sidebar.classList.remove('sidebar-open');
+        overlay.classList.remove('sidebar-overlay-open');
+        hamburger.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+      }
+
+      hamburger.addEventListener('click', function() {
+        sidebar.classList.contains('sidebar-open') ? closeSidebar() : openSidebar();
+      });
+
+      overlay.addEventListener('click', closeSidebar);
+
+      sidebar.querySelectorAll('.nav-link[data-section]').forEach(function(a) {
+        a.addEventListener('click', function() {
+          if (window.innerWidth <= 768) closeSidebar();
+        });
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeSidebar();
+      });
+
+      window.addEventListener('resize', function() {
+        if (window.innerWidth > 768) closeSidebar();
+      });
+    })();
+  </script>
 
   </body>
 </html>
