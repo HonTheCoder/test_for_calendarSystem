@@ -1,4 +1,4 @@
-// LGU Legislative Management System — Enhanced
+// Legislative Management System — Enhanced
 
 const STORAGE_KEYS = {
   USERS: "sbp_users",
