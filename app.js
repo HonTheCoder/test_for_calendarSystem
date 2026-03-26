@@ -5599,12 +5599,14 @@ function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerE
 
   // Arrow button — mouse + touch
   function _toggleViaArrow(e) {
-    e.preventDefault();
+    // Prevent default only when available (older mobile browsers can emit
+    // synthetic events that should not be blocked aggressively).
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     if (isOpen()) closeDropdown();
     else { inputEl.focus(); openDropdown(); }
   }
   arrowEl.addEventListener("mousedown", _toggleViaArrow);
-  arrowEl.addEventListener("touchend", e => { e.preventDefault(); _toggleViaArrow(e); }, { passive: false });
+  arrowEl.addEventListener("touchend", _toggleViaArrow, { passive: true });
 
   // Desktop inline list click
   inlineList.addEventListener("mousedown", e => {

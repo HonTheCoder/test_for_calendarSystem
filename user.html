@@ -678,6 +678,11 @@
     <script>
       // Clear my-meetings and announcements skeletons when real data populates them
       (function() {
+        // Mobile guard: skip continuous DOM observers on real phones.
+        var isMobileDevice = window.matchMedia('(pointer: coarse)').matches ||
+          /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        if (isMobileDevice) return;
+
         function clearTableSkeleton(id) {
           var el = document.getElementById(id);
           if (el && el.querySelector('.skeleton')) el.innerHTML = '';
@@ -1202,6 +1207,11 @@
     <!-- Back-button lock -->
     <script>
       (function () {
+        // Disable lock on mobile so gesture navigation/pull-to-refresh stays reliable.
+        var isMobileDevice = window.matchMedia('(pointer: coarse)').matches ||
+          /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        if (isMobileDevice) return;
+
         var LOCK_URL = window.location.href;
         history.replaceState({ sbpLocked: true }, '', LOCK_URL);
         history.pushState({ sbpLocked: true }, '', LOCK_URL);

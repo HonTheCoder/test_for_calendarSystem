@@ -1335,6 +1335,11 @@
     <script>
       // MutationObserver — clears skeleton rows the instant app.js writes real content
       (function() {
+        // Mobile guard: avoid observer overhead on real phones.
+        var isMobileDevice = window.matchMedia('(pointer: coarse)').matches ||
+          /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        if (isMobileDevice) return;
+
         var WATCHED = [
           'admin-meetings-body',
           'user-table-body',
@@ -1836,6 +1841,11 @@
 <script>
   // ── Back-button lock ─────────────────────────────────────────────────────
   (function () {
+    // Disable lock on mobile so gesture navigation/pull-to-refresh stays reliable.
+    var isMobileDevice = window.matchMedia('(pointer: coarse)').matches ||
+      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    if (isMobileDevice) return;
+
     var LOCK_URL = window.location.href;
     history.replaceState({ sbpLocked: true }, '', LOCK_URL);
     history.pushState({ sbpLocked: true }, '', LOCK_URL);
