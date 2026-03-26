@@ -796,9 +796,9 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
     align-items: center !important;
     justify-content: center !important;
     padding: 20px !important;
-    background: rgba(7, 15, 34, 0.72) !important;
-    backdrop-filter: blur(4px) !important;
-    -webkit-backdrop-filter: blur(4px) !important;
+    /* backdrop-filter removed on mobile — blur compositing is expensive on low-end phones.
+       Darker background compensates for the visual depth. */
+    background: rgba(7, 15, 34, 0.82) !important;
   }
   #confirm-modal .modal,
   #note-modal .modal,

@@ -2234,6 +2234,61 @@ mark.committee-match {
 }
 
 /* --------------------------------------------------------------------------
+   MOBILE PERFORMANCE — GPU & paint optimisations for low-end devices
+   These are additive and do not change any layout, logic, or design.
+   -------------------------------------------------------------------------- */
+
+/* Stop infinite particle animations on login page on small screens.
+   6 animating blobs constantly repainting is a top cause of login-page lag. */
+@media (max-width: 768px) {
+  .auth-particle {
+    animation: none !important;
+    display: none !important;
+  }
+
+  /* Promote sidebar and topbar to their own compositor layers so scrolling
+     the main content area doesn't repaint them on every frame. */
+  .sidebar,
+  .topbar,
+  .bottom-nav {
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  /* Prevent the login-page entrance animation from blocking first paint.
+     The page is already visible immediately; the fade-in just adds jank. */
+  .auth-shell-wrap {
+    animation: none !important;
+  }
+
+  /* Disable the floating logo animation on the loading screen —
+     it runs on the main thread and competes with Firebase initialisation. */
+  .loading-logo {
+    animation: none !important;
+  }
+
+  /* Reduce pending-card pulse to a single cycle on mobile so it
+     doesn't keep hammering the compositor every 2.4s. */
+  .dash-stat-card-has-alert {
+    animation-iteration-count: 3 !important;
+  }
+
+  /* Remove the today-ring pulse on mobile calendars — it fires every 3s
+     on every calendar repaint and is invisible at small cell sizes. */
+  .calendar-cell-today {
+    animation: none !important;
+    box-shadow: 0 0 0 2px var(--brand-gold) !important;
+  }
+
+  /* Use touch-action for smoother main-scroll on iOS */
+  .main-scroll {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* --------------------------------------------------------------------------
    GLOBAL SCROLLBAR — cross-browser consistent thin scrollbar
    -------------------------------------------------------------------------- */
 * {

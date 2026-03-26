@@ -7,13 +7,17 @@
 
 /* --------------------------------------------------------------------------
    1. APP SHELL — smooth page entrance
+   Mobile: animation disabled — avoids blank-screen flicker while Firebase
+   is still initialising on slow mobile connections.
    -------------------------------------------------------------------------- */
-.app-shell {
-  animation: shellEntrance 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@keyframes shellEntrance {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+@media (min-width: 769px) {
+  .app-shell {
+    animation: shellEntrance 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes shellEntrance {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -811,9 +815,8 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   position: fixed;
   inset: 0;
   z-index: 299;
-  background: rgba(7,15,34,0.55);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: rgba(7,15,34,0.65);
+  /* backdrop-filter removed on mobile — blur compositing is expensive on low-end phones */
   opacity: 0;
   transition: opacity 0.28s ease;
 }
