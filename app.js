@@ -5314,19 +5314,93 @@ const SBP_COMMITTEES = [
 ];
 
 // ---------------------------------------------------------------------------
-// Committee combobox — reusable, works on both desktop modal and mobile drawer
+// Committee combobox — desktop: custom combobox | mobile: native <select>
 // ---------------------------------------------------------------------------
 
 /**
- * _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerEl)
- *
- * inputEl           — the <input> to attach the combo to
- * staticDropdownEl  — the <ul> already in the DOM (desktop modal); null for
- *                     the drawer input which has no static list
- * arrowEl           — the toggle button; null = we create one automatically
- * cleanupTriggerEl  — optional element to watch for class changes so we can
- *                     destroy the portal when the container closes
+ * _buildCommitteeSelectOptions()
+ * Returns <option> HTML for all SBP_COMMITTEES entries.
  */
+function _isMobile() { return window.innerWidth <= 768; }
+
+/**
+ * _swapCommitteeInputToSelect(inputEl, arrowEl, inlineListEl)
+ *
+ * Replaces the committee <input> (and its .committee-combo-wrap, arrow, and
+ * inline <ul>) with a native <select> styled identically to other dropdowns.
+ * The id is preserved so all existing value-reading code stays untouched.
+ */
+function _swapCommitteeInputToSelect(inputEl, arrowEl, inlineListEl) {
+  const wrap = inputEl.closest(".committee-combo-wrap") || inputEl.parentElement;
+
+  const sel = document.createElement("select");
+  sel.id        = inputEl.id;
+  sel.name      = inputEl.name || inputEl.id;
+  sel.className = "field";
+  sel.required  = inputEl.required;
+
+  const placeholder = document.createElement("option");
+  placeholder.value    = "";
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  placeholder.textContent = "Select a committee…";
+  sel.appendChild(placeholder);
+
+  SBP_COMMITTEES.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value       = c;
+    opt.textContent = c;
+    sel.appendChild(opt);
+  });
+
+  if (inputEl.value) sel.value = inputEl.value;
+
+  if (wrap && wrap.classList.contains("committee-combo-wrap")) {
+    wrap.parentNode.replaceChild(sel, wrap);
+  } else {
+    inputEl.parentNode.replaceChild(sel, inputEl);
+    if (arrowEl && arrowEl.parentNode) arrowEl.remove();
+    if (inlineListEl && inlineListEl.parentNode) inlineListEl.remove();
+  }
+}
+
+/**
+ * initCommitteeCombobox()
+ * Desktop → custom combobox with filtering. Mobile → native <select>.
+ */
+function initCommitteeCombobox() {
+  const input    = document.getElementById("meeting-committee");
+  const dropdown = document.getElementById("committee-dropdown");
+  const arrow    = document.querySelector("#meeting-modal .committee-combo-arrow");
+  if (!input) return;
+
+  if (_isMobile()) {
+    _swapCommitteeInputToSelect(input, arrow || null, dropdown || null);
+  } else {
+    _makeCommitteeCombo(input, dropdown || null, arrow || null,
+                        document.getElementById("meeting-modal"));
+  }
+}
+
+/**
+ * initDrawerCommitteeCombo(drawerEl)
+ * Desktop → custom combobox. Mobile → native <select>.
+ * Called by openBookingDrawer after the drawer is in the DOM.
+ */
+function initDrawerCommitteeCombo(drawerEl) {
+  const input = drawerEl && drawerEl.querySelector("#db-committee");
+  if (!input) return;
+
+  if (_isMobile()) {
+    _swapCommitteeInputToSelect(input, null, null);
+  } else {
+    _makeCommitteeCombo(input, null, null, drawerEl);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _makeCommitteeCombo — desktop only (unchanged)
+// ---------------------------------------------------------------------------
 function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerEl) {
   if (!inputEl) return;
   // Guard: only initialize once per input element to prevent stacking listeners
@@ -5443,32 +5517,9 @@ function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerE
     ].join(";");
     document.body.appendChild(_portal);
 
-    // touchstart: mark the touched item and set _skipClose so the document
-    // touchend handler does not close the dropdown before we can select.
-    let _touchedItem = null;
     _portal.addEventListener("touchstart", e => {
       const item = e.target.closest(".committee-dropdown-item");
-      if (item) {
-        _touchedItem = item;
-        _skipClose = true;
-      }
-    }, { passive: true });
-
-    // touchend: only select if the finger lifted on the same item it started on
-    // (avoids accidental selection when user is scrolling the list).
-    _portal.addEventListener("touchend", e => {
-      const item = e.target.closest(".committee-dropdown-item");
-      if (item && item === _touchedItem) {
-        e.preventDefault();
-        _skipClose = true;   // keep set so document touchend is a no-op
-        selectValue(item.dataset.value);
-      }
-      _touchedItem = null;
-    }, { passive: false });
-
-    _portal.addEventListener("touchmove", () => {
-      // Finger moved — cancel the pending selection (user is scrolling)
-      _touchedItem = null;
+      if (item) { _skipClose = true; selectValue(item.dataset.value); }
     }, { passive: true });
 
     _portal.addEventListener("mousedown", e => {
@@ -5564,12 +5615,7 @@ function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerE
 
   document.addEventListener("touchend", e => {
     if (_skipClose) { _skipClose = false; return; }
-    // Small delay so portal's own touchend handler fires first
-    const t = e.target;
-    setTimeout(() => {
-      if (_skipClose) { _skipClose = false; return; }
-      if (!wrap.contains(t) && (!_portal || !_portal.contains(t))) closeDropdown();
-    }, 10);
+    if (!wrap.contains(e.target) && (!_portal || !_portal.contains(e.target))) closeDropdown();
   }, { passive: true, ..._sig });
 
   document.addEventListener("click", e => {
@@ -5590,22 +5636,6 @@ function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerE
   }
 }
 
-// Wire up the desktop modal committee combobox (static HTML elements)
-function initCommitteeCombobox() {
-  const input    = document.getElementById("meeting-committee");
-  const dropdown = document.getElementById("committee-dropdown");
-  const arrow    = document.querySelector("#meeting-modal .committee-combo-arrow");
-  if (!input) return;
-  _makeCommitteeCombo(input, dropdown || null, arrow || null, document.getElementById("meeting-modal"));
-}
-
-// Wire up the booking drawer committee input (plain input — no wrap/arrow/list yet)
-// Called by openBookingDrawer after the drawer is inserted into the DOM
-function initDrawerCommitteeCombo(drawerEl) {
-  const input = drawerEl && drawerEl.querySelector("#db-committee");
-  if (!input) return;
-  _makeCommitteeCombo(input, null, null, drawerEl);
-}
 
 // ---------------------------------------------------------------------------
 // System Maintenance (admin-only)
