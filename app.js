@@ -5443,9 +5443,32 @@ function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerE
     ].join(";");
     document.body.appendChild(_portal);
 
+    // touchstart: mark the touched item and set _skipClose so the document
+    // touchend handler does not close the dropdown before we can select.
+    let _touchedItem = null;
     _portal.addEventListener("touchstart", e => {
       const item = e.target.closest(".committee-dropdown-item");
-      if (item) { _skipClose = true; selectValue(item.dataset.value); }
+      if (item) {
+        _touchedItem = item;
+        _skipClose = true;
+      }
+    }, { passive: true });
+
+    // touchend: only select if the finger lifted on the same item it started on
+    // (avoids accidental selection when user is scrolling the list).
+    _portal.addEventListener("touchend", e => {
+      const item = e.target.closest(".committee-dropdown-item");
+      if (item && item === _touchedItem) {
+        e.preventDefault();
+        _skipClose = true;   // keep set so document touchend is a no-op
+        selectValue(item.dataset.value);
+      }
+      _touchedItem = null;
+    }, { passive: false });
+
+    _portal.addEventListener("touchmove", () => {
+      // Finger moved — cancel the pending selection (user is scrolling)
+      _touchedItem = null;
     }, { passive: true });
 
     _portal.addEventListener("mousedown", e => {
@@ -5541,7 +5564,12 @@ function _makeCommitteeCombo(inputEl, staticDropdownEl, arrowEl, cleanupTriggerE
 
   document.addEventListener("touchend", e => {
     if (_skipClose) { _skipClose = false; return; }
-    if (!wrap.contains(e.target) && (!_portal || !_portal.contains(e.target))) closeDropdown();
+    // Small delay so portal's own touchend handler fires first
+    const t = e.target;
+    setTimeout(() => {
+      if (_skipClose) { _skipClose = false; return; }
+      if (!wrap.contains(t) && (!_portal || !_portal.contains(t))) closeDropdown();
+    }, 10);
   }, { passive: true, ..._sig });
 
   document.addEventListener("click", e => {
