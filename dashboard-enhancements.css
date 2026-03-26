@@ -789,70 +789,19 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
    slide-in drawer overlay. Zero changes to sidebar HTML or existing JS.
    -------------------------------------------------------------------------- */
 
-/* Hamburger button — hidden on desktop, shown on mobile */
-.hamburger-btn {
-  display: none !important;
-  align-items: center;
-  justify-content: center;
-  width: 34px; height: 34px;
-  border-radius: 9px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.hamburger-btn:hover {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-  border-color: var(--color-border);
-}
-
-/* Overlay backdrop — hidden by default */
-.sidebar-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 299;
-  background: rgba(7,15,34,0.65);
-  /* backdrop-filter removed on mobile — blur compositing is expensive on low-end phones */
-  opacity: 0;
-  transition: opacity 0.28s ease;
-}
-.sidebar-overlay.sidebar-overlay-open {
-  display: block;
-  opacity: 1;
-}
-
+/* --------------------------------------------------------------------------
+   25. MOBILE SIDEBAR — on ≤768px the sidebar is hidden via styles.css
+   (display:none). We keep it in the DOM as display:flex but pushed off-screen
+   so it does NOT interfere with the bottom-nav layout.
+   The bottom nav already handles all mobile navigation — no hamburger needed.
+   -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
-
-  /* Show hamburger button */
-  .hamburger-btn { display: none !important; }
-
-  /* Gap between hamburger and section title */
-  .topbar-left { gap: 8px; }
-
-  /* Sidebar becomes a slide-in drawer on mobile */
+  /* Keep sidebar rendered but off-screen so layout isn't affected */
   .sidebar {
-    display: flex !important; /* override display:none from page-enhancements */
-    position: fixed !important;
-    top: 0; left: 0; bottom: 0;
-    z-index: 300;
-    width: 272px !important;
-    transform: translateX(-100%);
-    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-    will-change: transform;
-    box-shadow: 4px 0 32px rgba(0,0,0,0.5);
+    display: none !important;
   }
-
-  /* Open state — slides in */
-  .sidebar.sidebar-open {
-    transform: translateX(0);
-  }
-
-  /* When sidebar is open, nav links auto-close the drawer */
-  /* (handled in JS below) */
 }
+
+.copied { opacity: 0.7; pointer-events: none; }
 
 .copied { opacity: 0.7; pointer-events: none; }

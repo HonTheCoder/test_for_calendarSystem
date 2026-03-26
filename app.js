@@ -1003,6 +1003,9 @@ async function initDataLayer() {
   if (unsubscribeMeetings) { try { unsubscribeMeetings(); } catch {} }
   unsubscribeMeetings = window.api.subscribeMeetings((arr) => {
     meetings = arr || [];
+    // Dispatch once so dashboard chart scripts render immediately on data arrival
+    // instead of burning CPU on setTimeout polling loops.
+    try { document.dispatchEvent(new CustomEvent('sbp:dataready')); } catch(e) {}
     const currentUser = getCurrentUser();
     renderCalendar();
     // Guard: these functions only exist on admin.html — don't call them on user.html

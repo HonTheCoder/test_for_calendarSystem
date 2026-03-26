@@ -30,7 +30,7 @@
       <!-- ════════════════════════════════
            SIDEBAR
       ════════════════════════════════ -->
-      <aside class="sidebar">
+      <aside class="sidebar" id="main-sidebar">
         <div class="sidebar-header">
           <img src="images/SB_logo.png" alt="SB Polangui" class="sidebar-logo-img"
             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
@@ -94,7 +94,6 @@
         <!-- TOPBAR -->
         <header class="topbar">
           <div class="topbar-left">
-
             <div id="topbar-section-title" class="topbar-section-title">Dashboard</div>
           </div>
           <div class="topbar-right">
@@ -957,15 +956,31 @@
         }
       }
       window.renderUserDashboardCharts = renderUserDashboardCharts;
-      var _userPollCount = 0;
-      function pollUserCharts() {
-        _userPollCount++;
-        // Bug fix: window.meetings is always defined as [], check actual data length
-        var hasData = Array.isArray(window.meetings) && window.meetings.length > 0;
-        if (hasData || _userPollCount > 30) { renderUserDashboardCharts(); }
-        else { setTimeout(pollUserCharts, 200); }
+
+      // ── Event-driven chart render (replaces setTimeout polling loop) ──
+      // app.js / firebase.js dispatches 'sbp:dataready' when meetings are loaded.
+      // We also keep a single short-timeout fallback for slow connections so the
+      // dashboard never stays blank — but only fires ONCE, not 30 times.
+      var _userChartsRendered = false;
+      function renderOnce() {
+        if (_userChartsRendered) return;
+        _userChartsRendered = true;
+        renderUserDashboardCharts();
       }
-      document.addEventListener('DOMContentLoaded', function() { setTimeout(pollUserCharts, 400); });
+
+      // Primary: respond instantly when data is ready
+      document.addEventListener('sbp:dataready', renderOnce);
+
+      // Secondary: also re-render when app.js explicitly calls the global
+      // (kept for backwards compatibility — app.js already calls this directly)
+
+      // Fallback: single timeout — renders with whatever data arrived by then.
+      // 1200ms covers the average Firebase cold-start on a slow 3G connection.
+      document.addEventListener('DOMContentLoaded', function () {
+        setTimeout(function () {
+          if (!_userChartsRendered) renderOnce();
+        }, 1200);
+      });
     </script>
 
     <!-- Dark mode toggle -->
