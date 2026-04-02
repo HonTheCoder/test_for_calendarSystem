@@ -1336,8 +1336,11 @@
       // MutationObserver — clears skeleton rows the instant app.js writes real content
       (function() {
         // Mobile guard: avoid observer overhead on real phones.
-        var isMobileDevice = window.matchMedia('(pointer: coarse)').matches ||
-          /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        var isMobileDevice = false;
+        try { isMobileDevice = window.matchMedia('(pointer: coarse)').matches; } catch(e) {}
+        try { if (!isMobileDevice && navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0) isMobileDevice = true; } catch(e) {}
+        try { if (!isMobileDevice && window.matchMedia('(hover: none)').matches) isMobileDevice = true; } catch(e) {}
+        if (!isMobileDevice) isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
         if (isMobileDevice) return;
 
         var WATCHED = [
@@ -1842,8 +1845,11 @@
   // ── Back-button lock ─────────────────────────────────────────────────────
   (function () {
     // Disable lock on mobile so gesture navigation/pull-to-refresh stays reliable.
-    var isMobileDevice = window.matchMedia('(pointer: coarse)').matches ||
-      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    var isMobileDevice = false;
+    try { isMobileDevice = window.matchMedia('(pointer: coarse)').matches; } catch(e) {}
+    try { if (!isMobileDevice && navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0) isMobileDevice = true; } catch(e) {}
+    try { if (!isMobileDevice && window.matchMedia('(hover: none)').matches) isMobileDevice = true; } catch(e) {}
+    if (!isMobileDevice) isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     if (isMobileDevice) return;
 
     var LOCK_URL = window.location.href;

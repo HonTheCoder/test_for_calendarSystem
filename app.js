@@ -5324,7 +5324,22 @@ const SBP_COMMITTEES = [
  * _buildCommitteeSelectOptions()
  * Returns <option> HTML for all SBP_COMMITTEES entries.
  */
-function _isMobile() { return window.innerWidth <= 768; }
+function _isMobile() {
+  // Prefer coarse pointer detection (real phones) because `innerWidth` can be
+  // affected by zoom/viewport quirks on real devices.
+  try {
+    if (window.matchMedia && window.matchMedia("(pointer:coarse)").matches) return true;
+  } catch (e) {}
+  // Also treat touch-capable devices as mobile (some browsers report `fine`
+  // pointer even when it's still touch).
+  try {
+    if (navigator && navigator.maxTouchPoints && navigator.maxTouchPoints > 0) return true;
+  } catch (e) {}
+  try {
+    if (window.matchMedia && window.matchMedia("(hover: none)").matches) return true;
+  } catch (e) {}
+  return window.innerWidth <= 768;
+}
 
 /**
  * _swapCommitteeInputToSelect(inputEl, arrowEl, inlineListEl)
@@ -5378,6 +5393,8 @@ function initCommitteeCombobox() {
   if (!input) return;
 
   if (_isMobile()) {
+    // Already swapped to a native select (avoid repeated DOM replacements).
+    if (String(input.tagName || "").toLowerCase() === "select") return;
     _swapCommitteeInputToSelect(input, arrow || null, dropdown || null);
   } else {
     _makeCommitteeCombo(input, dropdown || null, arrow || null,
@@ -5394,7 +5411,13 @@ function initDrawerCommitteeCombo(drawerEl) {
   const input = drawerEl && drawerEl.querySelector("#db-committee");
   if (!input) return;
 
-  if (_isMobile()) {
+  // Booking drawer: always prefer native <select> to avoid the heavier custom
+  // combobox (portal + frequent innerHTML updates), which is what can freeze
+  // real low-end phones.
+  const forceNative = !!(drawerEl && drawerEl.id === "drawer-booking");
+  if (forceNative || _isMobile()) {
+    // Already swapped to a native select (avoid repeated DOM replacements).
+    if (String(input.tagName || "").toLowerCase() === "select") return;
     _swapCommitteeInputToSelect(input, null, null);
   } else {
     _makeCommitteeCombo(input, null, null, drawerEl);
@@ -5789,7 +5812,16 @@ document.addEventListener("DOMContentLoaded", () => {
       // Guard: only observe once — the combo itself guards against double-init
     if (!mo.dataset.comboObserved) {
       mo.dataset.comboObserved = "1";
-      new MutationObserver(() => initCommitteeCombobox()).observe(mo, { childList: true, subtree: true });
+        const isMob = _isMobile();
+        // On real phones this observer can trigger very frequently while the UI
+        // updates. Keep it lightweight: no deep subtree watching + throttle.
+        let lastInit = 0;
+        new MutationObserver(() => {
+          const now = Date.now();
+          if (now - lastInit < 450) return;
+          lastInit = now;
+          initCommitteeCombobox();
+        }).observe(mo, { childList: true, subtree: !isMob });
     }
     }
   }
