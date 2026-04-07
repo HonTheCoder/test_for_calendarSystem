@@ -878,8 +878,9 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   #policy-modal .policy-modal-inner {
     width: 100% !important;
     max-width: 100% !important;
-    height: 94vh !important;
-    max-height: 94vh !important;
+    height: auto !important;
+    max-height: 94dvh !important; /* dvh = dynamic viewport height, accounts for mobile browser chrome */
+    min-height: 60dvh !important;
     border-radius: 22px 22px 0 0 !important;
     border-bottom: none !important;
     display: flex !important;
@@ -922,17 +923,28 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   }
   #policy-modal .policy-rule { padding: 11px 18px !important; }
   #policy-modal .policy-rule-body { font-size: 0.8rem !important; }
-  /* Agree row + footer — always visible at bottom */
+  /* Agree row + footer — always pinned to bottom, NEVER clipped */
   #policy-modal .policy-agree-row {
     flex-shrink: 0 !important;
     padding: 12px 18px 6px !important;
+    /* Make it visually distinct so users notice it */
+    border-top: 1px solid var(--color-border-soft) !important;
+    background: var(--color-surface) !important;
+    position: relative !important;
+    z-index: 2 !important;
   }
   #policy-modal .policy-agree-text { font-size: 0.82rem !important; }
+  #policy-modal #policy-agree-error {
+    flex-shrink: 0 !important;
+    background: var(--color-surface) !important;
+    padding: 0 18px 4px !important;
+  }
   #policy-modal .policy-modal-footer {
     flex-shrink: 0 !important;
     padding: 10px 18px !important;
     padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
     gap: 10px !important;
+    background: var(--color-surface) !important;
   }
   #policy-modal .policy-modal-footer .btn {
     flex: 1 !important;

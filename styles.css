@@ -795,8 +795,8 @@ mark.gs-hl {
   font-family: var(--font-body);
   /* ── Mobile touch fixes (iOS & Android) ── */
   touch-action: manipulation;               /* eliminates 300ms tap delay on iOS */
-  -webkit-tap-highlight-color: transparent; /* removes grey flash on tap */
-  user-select: none;                        /* prevents accidental text selection on tap */
+  -webkit-tap-highlight-color: transparent; /* removes grey tap flash on Android */
+  user-select: none;                        /* prevents accidental text selection */
 }
 .btn:active { transform: scale(0.97); }
 
