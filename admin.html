@@ -392,9 +392,15 @@
                     <div class="card-subtitle">Vice Mayor and Secretary — behave as users but have dedicated accounts. Max <strong>5</strong> Vice Mayors, <strong>5</strong> Secretaries.</div>
                   </div>
                 </div>
-                <div class="search-bar-wrap">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input id="search-users" class="field" placeholder="Search all users…" />
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                  <div class="search-bar-wrap">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="search-special-users" class="field" placeholder="Search special accounts…" />
+                  </div>
+                  <select id="sort-special-users" class="field" style="width:auto;min-width:115px;" title="Sort by name">
+                    <option value="asc">A → Z</option>
+                    <option value="desc">Z → A</option>
+                  </select>
                 </div>
               </div>
 
@@ -467,6 +473,18 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- ── Regular Users filter row ── -->
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 20px 0">
+                <div class="search-bar-wrap" style="flex:1;min-width:160px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input id="search-regular-users" class="field" placeholder="Search regular users…" />
+                </div>
+                <select id="sort-regular-users" class="field" style="width:auto;min-width:115px;" title="Sort by name">
+                  <option value="asc">A → Z</option>
+                  <option value="desc">Z → A</option>
+                </select>
               </div>
 
               <form id="user-form" class="user-form-grid" autocomplete="off">
@@ -632,6 +650,10 @@
                       <option value="Rejected">Rejected</option>
                       <option value="Cancelled">Cancelled</option>
                       <option value="Done">Done</option>
+                    </select>
+                    <select id="sort-admin-meetings" class="field" style="width:auto;min-width:115px;" title="Sort by event name">
+                      <option value="asc">A → Z</option>
+                      <option value="desc">Z → A</option>
                     </select>
                     <button id="btn-export-csv" class="btn btn-sm btn-ghost" title="Export visible rows to CSV">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

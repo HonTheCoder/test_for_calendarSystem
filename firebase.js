@@ -332,6 +332,48 @@
         return Promise.resolve(meeting)
       }
     },
+    updateMeeting: function (id, fields) {
+      // Replaces all editable fields on an existing meeting document.
+      // Called by the edit-meeting path in app.js after the user confirms changes.
+      if (mode === "firestore") {
+        // Build a clean payload — strip the Firestore doc id before writing
+        var payload = Object.assign({}, fields)
+        delete payload.id
+        return db.collection("meetings").doc(id).update(payload)
+          .then(function () {
+            // Keep localStorage cache in sync so UI is consistent before the
+            // onSnapshot fires with the updated document from Firestore.
+            var list = lsGet(LS.MEETINGS, [])
+            var idx = list.findIndex(function (m) { return m.id === id })
+            if (idx >= 0) {
+              list[idx] = Object.assign({}, list[idx], payload, { id: id })
+              lsSet(LS.MEETINGS, list)
+            }
+          })
+          .catch(function (err) {
+            console.error("updateMeeting Firestore error:", err)
+            // Fallback: write to localStorage so the change at least persists
+            // on this device even if Firestore is unreachable.
+            fallbackToLocal()
+            var list = lsGet(LS.MEETINGS, [])
+            var idx = list.findIndex(function (m) { return m.id === id })
+            if (idx >= 0) {
+              list[idx] = Object.assign({}, list[idx], fields, { id: id })
+              lsSet(LS.MEETINGS, list)
+            }
+            _notifyMeetingSubscribers()
+          })
+      } else {
+        var list = lsGet(LS.MEETINGS, [])
+        var idx = list.findIndex(function (m) { return m.id === id })
+        if (idx >= 0) {
+          list[idx] = Object.assign({}, list[idx], fields, { id: id })
+          lsSet(LS.MEETINGS, list)
+        }
+        _notifyMeetingSubscribers()
+        return Promise.resolve()
+      }
+    },
     updateMeetingStatus: function (id, status, adminNote, extraFields) {
       if (mode === "firestore") {
         var payload = { status: status }

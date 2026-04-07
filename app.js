@@ -851,6 +851,14 @@ let unsubscribeUsers = null;
 let adminMeetingsSearch = "";
 let myMeetingsSearch = "";
 let usersSearch = "";
+let specialUsersSearch = "";
+let regularUsersSearch = "";
+
+// Sort direction state — "asc" (A→Z) or "desc" (Z→A); default alphabetical A→Z
+let specialUsersSortDir = "asc";
+let regularUsersSortDir = "asc";
+let adminMeetingsSortDir = "asc";
+let myMeetingsSortDir = "asc";
 
 // ---------------------------------------------------------------------------
 // Auth & Guards
@@ -1341,24 +1349,28 @@ function renderUsersTable() {
   const tbody = $("#user-table-body");
   const specialTbody = $("#special-accounts-table-body");
 
-  let list = [...users].filter(u => u.role !== ROLES.ADMIN);
-  if (usersSearch) {
-    const q = usersSearch.toLowerCase();
-    list = list.filter(u =>
+  const specialRoles = [ROLES.VICE_MAYOR, ROLES.SECRETARY];
+  const allNonAdmin = [...users].filter(u => u.role !== ROLES.ADMIN);
+
+  // ── Special Accounts: own search + sort ───────────────────────────────────
+  let specialList = allNonAdmin.filter(u => specialRoles.includes(u.role));
+  if (specialUsersSearch) {
+    const q = specialUsersSearch.toLowerCase();
+    specialList = specialList.filter(u =>
       (u.username || "").toLowerCase().includes(q) ||
       (u.name || "").toLowerCase().includes(q) ||
       (u.role || "").toLowerCase().includes(q)
     );
   }
+  specialList.sort((a, b) => {
+    const nameA = (a.name || a.username || "").toLowerCase();
+    const nameB = (b.name || b.username || "").toLowerCase();
+    return specialUsersSortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+  });
 
-  const specialRoles = [ROLES.VICE_MAYOR, ROLES.SECRETARY];
-  const regularList = list.filter(u => !specialRoles.includes(u.role));
-  const specialList = list.filter(u => specialRoles.includes(u.role));
-
-  // Render special accounts table (Vice Mayor, Secretary)
   if (specialTbody) {
     if (!specialList.length) {
-      specialTbody.innerHTML = '<tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px">No special accounts created yet.</td></tr>';
+      specialTbody.innerHTML = '<tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px">No special accounts found.</td></tr>';
     } else {
       specialTbody.innerHTML = specialList.map(u => `<tr>
         <td>${h(u.username)}</td>
@@ -1366,6 +1378,8 @@ function renderUsersTable() {
         <td><span class="${roleChipClass(u.role)}">${u.role}</span></td>
         <td>
           <button class="btn btn-sm btn-ghost" data-action="view-user" data-user-id="${u.id}">View</button>
+          <button class="btn btn-sm btn-ghost" data-action="edit-user" data-user-id="${u.id}" style="color:var(--brand-blue,#2563eb)">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:3px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>
           <button class="btn btn-sm btn-ghost" data-action="change-password" data-user-id="${u.id}">Change Password</button>
           <button class="btn btn-sm btn-ghost" data-action="remove-user" data-user-id="${u.id}">Remove</button>
         </td>
@@ -1373,10 +1387,25 @@ function renderUsersTable() {
     }
   }
 
-  // Render regular users with pagination
+  // ── Regular Users: own search + sort + pagination ─────────────────────────
   if (!tbody) return;
 
-  // Update the user count badge so admin can see slots used vs cap
+  let regularList = allNonAdmin.filter(u => !specialRoles.includes(u.role));
+  if (regularUsersSearch) {
+    const q = regularUsersSearch.toLowerCase();
+    regularList = regularList.filter(u =>
+      (u.username || "").toLowerCase().includes(q) ||
+      (u.name || "").toLowerCase().includes(q) ||
+      (u.role || "").toLowerCase().includes(q)
+    );
+  }
+  regularList.sort((a, b) => {
+    const nameA = (a.name || a.username || "").toLowerCase();
+    const nameB = (b.name || b.username || "").toLowerCase();
+    return regularUsersSortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+  });
+
+  // Update the user count badge
   const regularRoles = [ROLES.COUNCILOR, ROLES.RESEARCHER];
   const totalRegular = users.filter(u => regularRoles.includes(u.role)).length;
   const userCountEl = document.getElementById("user-count-badge");
@@ -1399,6 +1428,8 @@ function renderUsersTable() {
       <td><span class="${roleChipClass(u.role)}">${u.role}</span></td>
       <td>
         <button class="btn btn-sm btn-ghost" data-action="view-user" data-user-id="${u.id}">View</button>
+        <button class="btn btn-sm btn-ghost" data-action="edit-user" data-user-id="${u.id}" style="color:var(--brand-blue,#2563eb)">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:3px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>
         <button class="btn btn-sm btn-ghost" data-action="change-password" data-user-id="${u.id}">Change Password</button>
         <button class="btn btn-sm btn-ghost" data-action="remove-user" data-user-id="${u.id}">Remove</button>
       </td>
@@ -1710,6 +1741,11 @@ function handleUserTableClick(e) {
     return;
   }
 
+  if (action === "edit-user") {
+    openEditUserModal(userId);
+    return;
+  }
+
   if (action === "remove-user") {
     const allUserMeetings = meetings.filter(m =>
       m.createdBy === user.id || m.createdBy === user.username ||
@@ -1826,6 +1862,147 @@ function handleUserTableClick(e) {
   } else if (action === "change-password") {
     openPasswordModal(userId);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Edit User Modal — opens from the Accounts table Edit button
+// ---------------------------------------------------------------------------
+function openEditUserModal(userId) {
+  const safeUsers = (typeof users !== "undefined" && Array.isArray(users)) ? users : [];
+  const user = safeUsers.find(u => u.id === userId);
+  if (!user) return;
+
+  // Remove any old modal
+  const old = document.getElementById("edit-user-modal");
+  if (old) old.remove();
+
+  const isSpecial = [ROLES.VICE_MAYOR, ROLES.SECRETARY].includes(user.role);
+  const roleOptions = isSpecial
+    ? [ROLES.VICE_MAYOR, ROLES.SECRETARY]
+    : [ROLES.COUNCILOR, ROLES.RESEARCHER];
+
+  const roleOptionsHtml = roleOptions.map(r =>
+    `<option value="${r}"${user.role === r ? " selected" : ""}>${r}</option>`
+  ).join("");
+
+  const modal = document.createElement("div");
+  modal.id = "edit-user-modal";
+  modal.className = "modal-backdrop";
+  modal.style.cssText = "z-index:8000;";
+  modal.innerHTML = `
+    <div class="modal" style="max-width:480px;width:100%">
+      <div class="modal-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:34px;height:34px;border-radius:10px;background:rgba(37,99,235,0.1);color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <div>
+            <div class="modal-title">Edit Account</div>
+            <div style="font-size:0.75rem;color:var(--color-text-muted);margin-top:1px">Update profile information for this user</div>
+          </div>
+        </div>
+        <button id="edit-user-modal-close" class="btn btn-ghost btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <label class="field-label">Full Name <span style="color:var(--color-danger)">*</span></label>
+          <input id="eum-name" class="field" value="${h(user.name || "")}" placeholder="e.g. Juan dela Cruz" autocomplete="off" />
+        </div>
+        <div>
+          <label class="field-label">Username <span style="color:var(--color-danger)">*</span></label>
+          <input id="eum-username" class="field" value="${h(user.username || "")}" placeholder="Login username" autocomplete="off" />
+          <div id="eum-username-hint" class="helper-text" style="margin-top:4px;min-height:16px"></div>
+        </div>
+        <div>
+          <label class="field-label">Role</label>
+          <select id="eum-role" class="field">${roleOptionsHtml}</select>
+          <div class="helper-text" style="margin-top:4px">Role type is locked to the account category (${isSpecial ? "Special" : "Regular"}).</div>
+        </div>
+        <div id="eum-msg" class="helper-text" style="min-height:16px"></div>
+      </div>
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;padding:14px 24px;border-top:1px solid var(--color-border-soft)">
+        <button id="eum-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="eum-save-btn" class="btn btn-primary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Changes
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Focus full name field
+  setTimeout(() => document.getElementById("eum-name")?.focus(), 60);
+
+  // Close handlers
+  const closeModal = () => modal.remove();
+  document.getElementById("edit-user-modal-close").addEventListener("click", closeModal);
+  document.getElementById("eum-cancel-btn").addEventListener("click", closeModal);
+  modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+
+  // Username uniqueness hint
+  document.getElementById("eum-username").addEventListener("input", function () {
+    const val = this.value.trim();
+    const hint = document.getElementById("eum-username-hint");
+    if (!hint) return;
+    if (!val) { hint.textContent = ""; return; }
+    const taken = safeUsers.some(u => u.username === val && u.id !== userId);
+    hint.textContent = taken ? `⚠ Username "${h(val)}" is already taken.` : "";
+    hint.style.color = taken ? "var(--color-danger)" : "#16a34a";
+  });
+
+  // Save
+  document.getElementById("eum-save-btn").addEventListener("click", async () => {
+    const newName  = (document.getElementById("eum-name")?.value || "").trim();
+    const newUname = (document.getElementById("eum-username")?.value || "").trim();
+    const newRole  = document.getElementById("eum-role")?.value;
+    const msgEl    = document.getElementById("eum-msg");
+    const saveBtn  = document.getElementById("eum-save-btn");
+
+    if (!newName)  { if (msgEl) { msgEl.textContent = "Full name cannot be empty."; msgEl.style.color = "var(--color-danger)"; } return; }
+    if (!newUname) { if (msgEl) { msgEl.textContent = "Username cannot be empty."; msgEl.style.color = "var(--color-danger)"; } return; }
+
+    const currentUsers = (typeof users !== "undefined" && Array.isArray(users)) ? users : [];
+    if (currentUsers.some(u => u.username === newUname && u.id !== userId)) {
+      if (msgEl) { msgEl.textContent = `Username "${newUname}" is already taken.`; msgEl.style.color = "var(--color-danger)"; }
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 0.8s linear infinite"><path d="M21 12a9 9 0 11-6.22-8.56"/></svg> Saving…`;
+
+    try {
+      const fields = { name: newName, username: newUname, role: newRole };
+      if (window.api && window.api.updateUser) {
+        await window.api.updateUser(userId, fields);
+        users = await window.api.getUsers();
+      } else {
+        const u = currentUsers.find(x => x.id === userId);
+        if (u) { Object.assign(u, fields); persistUsers(); }
+      }
+      renderUsersTable();
+      populateEditUserSelect();
+      updateStatistics();
+      showToast(`Profile updated for ${newName}.`, "success");
+      closeModal();
+    } catch {
+      if (msgEl) { msgEl.textContent = "Failed to save changes. Please try again."; msgEl.style.color = "var(--color-danger)"; }
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Changes`;
+    }
+  });
+
+  // Keyboard shortcut — Enter to save, Escape to close
+  modal.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeModal();
+    if (e.key === "Enter" && e.target.tagName !== "SELECT") {
+      e.preventDefault();
+      document.getElementById("eum-save-btn")?.click();
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1967,7 +2144,11 @@ function renderMyMeetingsTable(currentUser) {
       (m.venue || "").toLowerCase().includes(q)
     );
   }
-  mine.sort((a, b) => (a.date + a.timeStart).localeCompare(b.date + b.timeStart));
+  mine.sort((a, b) => {
+    const nameA = (a.eventName || "").toLowerCase();
+    const nameB = (b.eventName || "").toLowerCase();
+    return myMeetingsSortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+  });
 
   const totalPages = Math.max(1, Math.ceil(mine.length / MEETINGS_PAGE_SIZE));
   if (myMeetingsPage > totalPages) myMeetingsPage = totalPages;
@@ -1994,6 +2175,16 @@ function renderMyMeetingsTable(currentUser) {
     const hoursLeft = Math.floor(msLeft / (60 * 60 * 1000));
     const minsLeft  = Math.floor((msLeft % (60 * 60 * 1000)) / 60000);
     const countdownStr = hoursLeft > 0 ? `${hoursLeft}h ${minsLeft}m` : `${minsLeft}m`;
+
+    // ── Edit button: only within 24h and only for Pending meetings ──
+    const canEdit = within24h && m.status === "Pending" && currentUser.role !== ROLES.ADMIN;
+    const editBtn = canEdit
+      ? `<button class="btn btn-sm btn-ghost" data-action="edit-meeting" data-meeting-id="${m.id}"
+           style="display:flex;align-items:center;gap:5px;color:var(--brand-blue,#2563eb)">
+           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+           Edit
+         </button>`
+      : "";
 
     let cancelBtn = "";
     if (canRequestCancel) {
@@ -2028,6 +2219,7 @@ function renderMyMeetingsTable(currentUser) {
       <td>${m.type || m.meetingType || "—"}</td>
       <td${noteTitle}>${meetingStatusBadge(m.status)}${noteHint}${cancelReasonHint}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        ${editBtn}
         ${cancelBtn}
         <button class="btn btn-sm btn-ghost" data-action="export-pdf" data-meeting-id="${m.id}">Export PDF</button>
       </td>
@@ -2093,7 +2285,11 @@ function renderAdminMeetingsTable() {
       (m.venue || "").toLowerCase().includes(q)
     );
   }
-  list.sort((a, b) => (a.date + a.timeStart).localeCompare(b.date + b.timeStart));
+  list.sort((a, b) => {
+    const nameA = (a.eventName || "").toLowerCase();
+    const nameB = (b.eventName || "").toLowerCase();
+    return adminMeetingsSortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+  });
 
   const totalPages = Math.max(1, Math.ceil(list.length / MEETINGS_PAGE_SIZE));
   if (adminMeetingsPage > totalPages) adminMeetingsPage = totalPages;
@@ -2956,6 +3152,17 @@ function handleMyMeetingsClick(e) {
   const mtg = meetings.find(m => m.id === id);
   if (!mtg) return;
 
+  if (action === "edit-meeting") {
+    const createdAt = mtg.createdAt ? new Date(mtg.createdAt) : null;
+    const within24h = createdAt && (getManilaNow() - createdAt) < 24 * 60 * 60 * 1000;
+    if (!within24h || mtg.status !== "Pending") {
+      showToast("Editing is only allowed within 24 hours of submission for Pending meetings.", "warning");
+      return;
+    }
+    openEditMeetingModal(mtg);
+    return;
+  }
+
   if (action === "export-pdf") {
     const _dt = mtg.status === "Cancelled" || mtg.status === "Cancellation Requested"
                   ? "cancellation"
@@ -3755,6 +3962,98 @@ function openMeetingModal(isoDate) {
 function closeMeetingModal() {
   const backdrop = $("#meeting-modal");
   if (backdrop) backdrop.classList.remove("modal-open");
+  _editingMeetingId = null;
+  // Reset modal title back to default
+  const titleEl = $("#meeting-modal-title");
+  if (titleEl) titleEl.textContent = "Schedule Meeting";
+}
+
+// ---------------------------------------------------------------------------
+// Edit Meeting Modal — pre-fills the booking form with existing meeting data
+// Only available within 24h of submission for Pending meetings
+// ---------------------------------------------------------------------------
+let _editingMeetingId = null;
+
+function openEditMeetingModal(mtg) {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return;
+
+  _editingMeetingId = mtg.id;
+
+  const form = $("#meeting-form");
+  if (!form) return;
+  form.reset();
+  $("#meeting-form-message").textContent = "";
+
+  // Change modal title to indicate editing
+  const titleEl = $("#meeting-modal-title");
+  if (titleEl) titleEl.textContent = "Edit Meeting Request";
+
+  // Pre-fill all fields
+  const setVal = (id, val) => { const el = $(id); if (el) el.value = val || ""; };
+
+  setVal("#meeting-event", mtg.eventName);
+  setVal("#meeting-committee", mtg.committee);
+  setVal("#meeting-date", mtg.date);
+  setVal("#meeting-time", mtg.timeStart);
+  setVal("#meeting-notes", mtg.notes);
+  setVal("#meeting-stakeholders", mtg.stakeholders);
+
+  // Meeting type — handle "Others"
+  const typeEl = $("#meeting-type");
+  const typeOtherEl = $("#meeting-type-other");
+  const knownTypes = ["Regular Session", "Special Session", "Committee Meeting", "Others"];
+  if (typeEl) {
+    if (knownTypes.includes(mtg.type)) {
+      typeEl.value = mtg.type;
+      if (typeOtherEl) typeOtherEl.style.display = "none";
+    } else {
+      typeEl.value = "Others";
+      if (typeOtherEl) { typeOtherEl.style.display = "block"; typeOtherEl.value = mtg.type || ""; }
+    }
+  }
+
+  // Venue — handle "Others"
+  const venueEl = $("#meeting-venue");
+  const venueOtherEl = $("#meeting-venue-other");
+  const knownVenues = ["SB Hall", "Old SB Hall", "ABC Hall", "Others"];
+  if (venueEl) {
+    if (knownVenues.includes(mtg.venue)) {
+      venueEl.value = mtg.venue;
+      if (venueOtherEl) venueOtherEl.style.display = "none";
+    } else {
+      venueEl.value = "Others";
+      if (venueOtherEl) { venueOtherEl.style.display = "block"; venueOtherEl.value = mtg.venue || ""; }
+    }
+  }
+
+  // Set up councilor/researcher fields then fill them
+  _setupCouncilorResearcherFields(currentUser);
+  setVal("#meeting-councilor", mtg.councilor);
+  setVal("#meeting-researcher", mtg.researcher);
+
+  // Populate time/duration options for the meeting's date then restore values
+  populateDurationOptions();
+  populateTimeOptions(mtg.date);
+  recalcDurationOptionsBasedOnStart(mtg.date);
+  setVal("#meeting-time", mtg.timeStart);
+  setVal("#meeting-duration", String(mtg.durationHours || SLOT_DURATION_HOURS));
+  updateEndTimePreview();
+
+  // Date min
+  const dateInput = $("#meeting-date");
+  if (dateInput) {
+    dateInput.min = getTodayISOManila();
+    dateInput.onchange = () => {
+      const d = dateInput.value;
+      populateTimeOptions(d);
+      recalcDurationOptionsBasedOnStart(d);
+      updateEndTimePreview();
+    };
+  }
+
+  const backdrop = $("#meeting-modal");
+  if (backdrop) backdrop.classList.add("modal-open");
 }
 
 // ---------------------------------------------------------------------------
@@ -3821,6 +4120,68 @@ function submitMeetingFromPolicy() {
   const currentUser = getCurrentUser();
   if (!currentUser) return;
 
+  // ── EDIT PATH: update existing meeting instead of creating a new one ──────
+  if (_editingMeetingId) {
+    const editId = _editingMeetingId;
+    _editingMeetingId = null;
+    const existing = meetings.find(m => m.id === editId);
+    if (!existing) { showToast("Meeting not found. Please refresh.", "error"); return; }
+
+    // Guard: still within 24h and still Pending
+    const createdAt = existing.createdAt ? new Date(existing.createdAt) : null;
+    const within24h = createdAt && (getManilaNow() - createdAt) < 24 * 60 * 60 * 1000;
+    if (!within24h || existing.status !== "Pending") {
+      showToast("This meeting can no longer be edited.", "warning");
+      return;
+    }
+
+    // Apply changes in-place
+    existing.eventName    = d.eventName;
+    existing.committee    = d.committee;
+    existing.venue        = d.venue;
+    existing.councilor    = d.councilor;
+    existing.researcher   = d.researcher;
+    existing.stakeholders = d.stakeholders;
+    existing.notes        = d.notes;
+    existing.date         = d.date;
+    existing.timeStart    = d.timeStart;
+    existing.durationHours = d.durationHours;
+    existing.type         = d.type;
+    existing.editedAt     = new Date().toISOString();
+    // Reset createdAt to the edit time so the 24-hour cancel/edit countdown
+    // restarts from when the user last edited (not original submission time).
+    existing.createdAt    = existing.editedAt;
+
+    if (window.api && window.api.updateMeeting) {
+      window.api.updateMeeting(editId, existing).then(() => {}).catch(err => {
+        console.error("updateMeeting failed:", err);
+        showToast("Failed to save changes. Please try again.", "error");
+      });
+    } else {
+      persistMeetings();
+    }
+
+    // Notify admins of the edit
+    users.filter(u => u.role === ROLES.ADMIN).forEach(admin => {
+      addNotification(
+        admin.id || admin.username,
+        `<strong>${h(currentUser.name)}</strong> edited their meeting request <strong>"${h(d.eventName)}"</strong> (within 24h window). Please review the updated details.`,
+        "info",
+        "meeting-logs"
+      );
+      updateNotificationBadge(admin.id || admin.username);
+    });
+
+    showToast("Meeting updated successfully.", "success");
+    closeMeetingModal();
+    renderMyMeetingsTable(currentUser);
+    renderAdminMeetingsTable();
+    renderCalendar();
+    updateStatistics();
+    return;
+  }
+
+  // ── CREATE PATH (original logic) ──────────────────────────────────────────
   const meeting = {
     id: crypto.randomUUID(),
     eventName: d.eventName,
@@ -4002,9 +4363,12 @@ function handleMeetingSubmit(e) {
     showToast(`Note: "${conflictingPending.eventName}" is also pending for this time. If both approved, yours may be auto-cancelled.`, "warning");
   }
 
-  // All validation passed — close meeting form, open Policy modal
+  // All validation passed — preserve editing ID before closeMeetingModal() clears it,
+  // then pass it into the policy modal payload so the edit path works correctly.
   msg.textContent = "";
+  const _editIdSnapshot = _editingMeetingId;
   closeMeetingModal();
+  _editingMeetingId = _editIdSnapshot; // restore after closeMeetingModal() nulled it
   openPolicyModal({ eventName, committee, venue, councilor, researcher, stakeholders, notes, date: isoDate, timeStart, durationHours, type });
 }
 
@@ -4296,12 +4660,26 @@ async function initAdminPage() {
   $("#password-cancel-btn")?.addEventListener("click", closePasswordModal);
   $("#password-modal-close")?.addEventListener("click", closePasswordModal);
 
-  // Search inputs
-  document.getElementById("search-users")?.addEventListener("input", e => {
-    usersSearch = e.target.value; usersPage = 1; renderUsersTable();
+  // Search inputs — separate for Special Accounts and Regular Users
+  document.getElementById("search-special-users")?.addEventListener("input", e => {
+    specialUsersSearch = e.target.value; renderUsersTable();
+  });
+  document.getElementById("search-regular-users")?.addEventListener("input", e => {
+    regularUsersSearch = e.target.value; usersPage = 1; renderUsersTable();
   });
   document.getElementById("search-admin-meetings")?.addEventListener("input", e => {
     adminMeetingsSearch = e.target.value; adminMeetingsPage = 1; renderAdminMeetingsTable();
+  });
+
+  // Sort dropdowns
+  document.getElementById("sort-special-users")?.addEventListener("change", e => {
+    specialUsersSortDir = e.target.value; renderUsersTable();
+  });
+  document.getElementById("sort-regular-users")?.addEventListener("change", e => {
+    regularUsersSortDir = e.target.value; usersPage = 1; renderUsersTable();
+  });
+  document.getElementById("sort-admin-meetings")?.addEventListener("change", e => {
+    adminMeetingsSortDir = e.target.value; adminMeetingsPage = 1; renderAdminMeetingsTable();
   });
 
   $("#filter-type-admin")?.addEventListener("change", () => { adminMeetingsPage = 1; renderAdminMeetingsTable(); });
@@ -4432,6 +4810,9 @@ async function initUserPage() {
 
   document.getElementById("search-my-meetings")?.addEventListener("input", e => {
     myMeetingsSearch = e.target.value; myMeetingsPage = 1; renderMyMeetingsTable(user);
+  });
+  document.getElementById("sort-my-meetings")?.addEventListener("change", e => {
+    myMeetingsSortDir = e.target.value; myMeetingsPage = 1; renderMyMeetingsTable(user);
   });
 
   initCalendarDate();
@@ -6366,6 +6747,11 @@ function initUserAnnouncements() {
     if (el) el.addEventListener("input", () => renderUserAnnouncements(getFilteredAnnouncements()));
   });
 
+  // In-memory set of announcement IDs we've already pushed a notification for
+  // in this session. Prevents duplicate bell notifications when the Firestore
+  // subscriber fires multiple times rapidly on initial page load.
+  const _notifiedAnnIds = new Set();
+
   window._unsubUserAnn = window.api.subscribeAnnouncements(list => {
     window.announcements = list;
     renderUserAnnouncements(getFilteredAnnouncements());
@@ -6378,12 +6764,19 @@ function initUserAnnouncements() {
     const lastTs = getLastNotifiedTs();
     // Sort ascending so we fire oldest-new first and update the watermark correctly
     const newAnns = list
-      .filter(a => a.createdAt && new Date(a.createdAt).getTime() > lastTs)
+      .filter(a => {
+        if (!a.createdAt) return false;
+        if (new Date(a.createdAt).getTime() <= lastTs) return false;
+        // Skip if we already notified for this announcement in this session
+        if (_notifiedAnnIds.has(a.id)) return false;
+        return true;
+      })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
     if (newAnns.length > 0) {
       const uid = currentUser.id || currentUser.username;
       newAnns.forEach(a => {
+        _notifiedAnnIds.add(a.id); // mark as notified in-memory before async addNotification
         addNotification(
           uid,
           `New announcement: <strong>${h(a.title || "Untitled")}</strong>`,
