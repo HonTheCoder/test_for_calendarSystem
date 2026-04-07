@@ -793,6 +793,10 @@ mark.gs-hl {
   transition: background 0.15s, opacity 0.15s, transform 0.1s, box-shadow 0.15s;
   white-space: nowrap;
   font-family: var(--font-body);
+  /* ── Mobile touch fixes (iOS & Android) ── */
+  touch-action: manipulation;               /* eliminates 300ms tap delay on iOS */
+  -webkit-tap-highlight-color: transparent; /* removes grey flash on tap */
+  user-select: none;                        /* prevents accidental text selection on tap */
 }
 .btn:active { transform: scale(0.97); }
 

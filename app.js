@@ -2180,7 +2180,7 @@ function renderMyMeetingsTable(currentUser) {
     const canEdit = within24h && m.status === "Pending" && currentUser.role !== ROLES.ADMIN;
     const editBtn = canEdit
       ? `<button class="btn btn-sm btn-ghost" data-action="edit-meeting" data-meeting-id="${m.id}"
-           style="display:flex;align-items:center;gap:5px;color:var(--brand-blue,#2563eb)">
+           style="display:flex;align-items:center;gap:5px;color:var(--brand-blue,#2563eb);touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:36px;padding-left:10px;padding-right:10px;">
            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
            Edit
          </button>`
@@ -3143,6 +3143,11 @@ function _generateMeetingPdfInner(mtg, docType, autoPrint) {
 }
 
 function handleMyMeetingsClick(e) {
+  // On mobile (iOS/Android) touchend can fire instead of click inside
+  // overflow-x scrollable table wrappers. We handle both but prevent double-fire.
+  if (e.type === "touchend") {
+    e.preventDefault(); // prevent the ghost click that follows touchend
+  }
   const btn = e.target.closest("button[data-action]");
   if (!btn) return;
   if (btn.disabled || btn.dataset.processing === "1") return;
@@ -4801,6 +4806,7 @@ async function initUserPage() {
   $("#policy-modal-back")?.addEventListener("click", () => { closePolicyModal(); const b = $("#meeting-modal"); if (b) b.classList.add("modal-open"); });
   $("#policy-modal-confirm")?.addEventListener("click", submitMeetingFromPolicy);
   $("#my-meetings-body")?.addEventListener("click", handleMyMeetingsClick);
+  $("#my-meetings-body")?.addEventListener("touchend", handleMyMeetingsClick);
   $("#calendar-prev")?.addEventListener("click", () => changeCalendarMonth(-1));
   $("#calendar-next")?.addEventListener("click", () => changeCalendarMonth(1));
   // "Today" button
@@ -7069,10 +7075,13 @@ function initUserAnnouncements() {
         });
 
       // Delegate cancel + export-pdf button clicks inside the day drawer meeting cards
-      drawer.addEventListener("click", function (e) {
-        const btn = e.target.closest("button[data-action]");
-        if (!btn) return;
-        handleMyMeetingsClick(e);
+      // touchend is added alongside click so buttons work on iOS/Android too
+      ["click", "touchend"].forEach(function (evtType) {
+        drawer.addEventListener(evtType, function (e) {
+          const btn = e.target.closest("button[data-action]");
+          if (!btn) return;
+          handleMyMeetingsClick(e);
+        });
       });
     });
   };

@@ -733,6 +733,30 @@
               </div>
             </div>
 
+            <!-- ── CHANGE MY PASSWORD ────────────────────────── -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon" style="background:rgba(37,99,235,0.1);color:#2563eb">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  </div>
+                  <div>
+                    <div class="card-title">Change My Password</div>
+                    <div class="card-subtitle">Update your own admin account password securely.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="padding:16px 20px">
+                <p class="helper-text" style="margin-bottom:14px;line-height:1.6">
+                  You will need to enter your <strong>current password</strong> to verify your identity before setting a new one.
+                </p>
+                <button class="btn btn-primary btn-sm" id="open-my-password-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  Change My Password
+                </button>
+              </div>
+            </div>
+
             <!-- ── EDIT USER PROFILES ─────────────────────────── -->
             <div class="card">
               <div class="card-header">
@@ -958,6 +982,70 @@
           </div>
 
         </main>
+      </div>
+    </div>
+
+    <!-- ── Admin: Change My Password Modal ── -->
+    <div id="my-password-modal" class="modal-backdrop">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Change My Password
+          </div>
+          <button type="button" id="my-pw-modal-close" class="btn btn-ghost btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <form id="my-pw-form" autocomplete="off">
+          <div class="modal-body section-stack">
+            <!-- Current Password -->
+            <div>
+              <label for="my-pw-current" class="field-label">Current Password <span style="color:var(--color-danger)">*</span></label>
+              <div class="pw-wrap">
+                <input id="my-pw-current" type="password" class="field" required placeholder="Enter your current password" style="padding-right:40px" autocomplete="current-password" />
+                <button type="button" class="pw-toggle" id="my-pw-t1" aria-label="Show/hide">
+                  <svg id="my-pw-t1-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg id="my-pw-t1-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+            <!-- New Password -->
+            <div>
+              <label for="my-pw-new" class="field-label">New Password <span style="color:var(--color-danger)">*</span></label>
+              <div class="pw-wrap">
+                <input id="my-pw-new" type="password" class="field" required placeholder="Min. 8 characters" style="padding-right:40px" autocomplete="new-password" />
+                <button type="button" class="pw-toggle" id="my-pw-t2" aria-label="Show/hide">
+                  <svg id="my-pw-t2-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg id="my-pw-t2-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+              <div class="pwd-strength-wrap" id="my-pw-strength" style="display:none">
+                <div class="pwd-strength-bar"><div class="pwd-strength-fill" id="my-pw-fill"></div></div>
+                <span class="pwd-strength-label" id="my-pw-lbl"></span>
+              </div>
+            </div>
+            <!-- Confirm New Password -->
+            <div>
+              <label for="my-pw-confirm" class="field-label">Confirm New Password <span style="color:var(--color-danger)">*</span></label>
+              <div class="pw-wrap">
+                <input id="my-pw-confirm" type="password" class="field" required placeholder="Re-enter new password" style="padding-right:40px" autocomplete="new-password" />
+                <button type="button" class="pw-toggle" id="my-pw-t3" aria-label="Show/hide">
+                  <svg id="my-pw-t3-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg id="my-pw-t3-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+            </div>
+            <div id="my-pw-msg" class="helper-text" style="color:var(--color-danger);min-height:18px"></div>
+          </div>
+          <div class="modal-footer" style="margin-top:auto">
+            <button type="button" id="my-pw-cancel" class="btn btn-ghost btn-sm" style="flex:1;justify-content:center">Cancel</button>
+            <button type="submit" id="my-pw-submit" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Update Password
+            </button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -1886,5 +1974,196 @@
 
 
 
-  </body>
+  <script>
+  // ── Admin: Change My Password ─────────────────────────────────────────────
+  // All deferred scripts finish before 'load', so app.js globals are available.
+  window.addEventListener('load', function () {
+
+    var backdrop  = document.getElementById('my-password-modal');
+    var form      = document.getElementById('my-pw-form');
+    var msgEl     = document.getElementById('my-pw-msg');
+    var submitBtn = document.getElementById('my-pw-submit');
+    var openBtn   = document.getElementById('open-my-password-btn');
+
+    if (!backdrop || !form || !openBtn) {
+      console.error('[MyPW] Required elements not found — aborting init.');
+      return;
+    }
+
+    // ── open / close ─────────────────────────────────────────────────────────
+    function openModal() {
+      form.reset();
+      msgEl.textContent = '';
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Update Password';
+      // Reset all fields to type=password and eye icons
+      [['my-pw-current','my-pw-t1-show','my-pw-t1-hide'],
+       ['my-pw-new',    'my-pw-t2-show','my-pw-t2-hide'],
+       ['my-pw-confirm','my-pw-t3-show','my-pw-t3-hide']].forEach(function (t) {
+        var inp = document.getElementById(t[0]);
+        var sh  = document.getElementById(t[1]);
+        var hd  = document.getElementById(t[2]);
+        if (inp) inp.type = 'password';
+        if (sh)  sh.style.display = '';
+        if (hd)  hd.style.display = 'none';
+      });
+      var bar = document.getElementById('my-pw-strength');
+      if (bar) bar.style.display = 'none';
+      backdrop.classList.add('modal-open');
+      setTimeout(function () {
+        var f = document.getElementById('my-pw-current');
+        if (f) f.focus();
+      }, 80);
+    }
+
+    function closeModal() {
+      backdrop.classList.remove('modal-open');
+    }
+
+    // ── eye toggles ──────────────────────────────────────────────────────────
+    function wireEye(btnId, inpId, showId, hideId) {
+      var btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        var inp = document.getElementById(inpId);
+        var sh  = document.getElementById(showId);
+        var hd  = document.getElementById(hideId);
+        if (!inp) return;
+        var wasHidden = inp.type === 'password';
+        inp.type = wasHidden ? 'text' : 'password';
+        if (sh) sh.style.display = wasHidden ? 'none' : '';
+        if (hd) hd.style.display = wasHidden ? ''     : 'none';
+      });
+    }
+    wireEye('my-pw-t1', 'my-pw-current', 'my-pw-t1-show', 'my-pw-t1-hide');
+    wireEye('my-pw-t2', 'my-pw-new',     'my-pw-t2-show', 'my-pw-t2-hide');
+    wireEye('my-pw-t3', 'my-pw-confirm', 'my-pw-t3-show', 'my-pw-t3-hide');
+
+    // ── strength meter ───────────────────────────────────────────────────────
+    var newInp = document.getElementById('my-pw-new');
+    if (newInp) {
+      newInp.addEventListener('input', function () {
+        var bar   = document.getElementById('my-pw-strength');
+        var fill  = document.getElementById('my-pw-fill');
+        var lbl   = document.getElementById('my-pw-lbl');
+        var v = newInp.value;
+        if (!v) { if (bar) bar.style.display = 'none'; return; }
+        if (bar) bar.style.display = 'flex';
+        var score = 0;
+        if (v.length >= 8)  score++;
+        if (v.length >= 12) score++;
+        if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+        if (/[0-9]/.test(v)) score++;
+        if (/[^A-Za-z0-9]/.test(v)) score++;
+        var tiers = [
+          {p:'20%',c:'#ef4444',t:'Very Weak'},
+          {p:'40%',c:'#f97316',t:'Weak'},
+          {p:'60%',c:'#eab308',t:'Fair'},
+          {p:'80%',c:'#22c55e',t:'Strong'},
+          {p:'100%',c:'#16a34a',t:'Very Strong'}
+        ];
+        var tier = tiers[Math.min(score, tiers.length - 1)];
+        if (fill) { fill.style.width = tier.p; fill.style.background = tier.c; }
+        if (lbl)  { lbl.textContent  = tier.t; lbl.style.color       = tier.c; }
+      });
+    }
+
+    // ── wire buttons ─────────────────────────────────────────────────────────
+    openBtn.addEventListener('click', openModal);
+    document.getElementById('my-pw-modal-close').addEventListener('click', closeModal);
+    document.getElementById('my-pw-cancel').addEventListener('click', closeModal);
+    backdrop.addEventListener('mousedown', function (e) { if (e.target === backdrop) closeModal(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && backdrop.classList.contains('modal-open')) closeModal();
+    });
+
+    // ── submit ───────────────────────────────────────────────────────────────
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      msgEl.textContent = '';
+
+      var currentPw = document.getElementById('my-pw-current').value;
+      var newPw     = document.getElementById('my-pw-new').value;
+      var confirmPw = document.getElementById('my-pw-confirm').value;
+
+      if (!currentPw)          { msgEl.textContent = 'Please enter your current password.';             return; }
+      if (newPw.length < 8)    { msgEl.textContent = 'New password must be at least 8 characters.';    return; }
+      if (newPw !== confirmPw) { msgEl.textContent = 'New passwords do not match.';                     return; }
+      if (newPw === currentPw) { msgEl.textContent = 'New password must differ from the current one.';  return; }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Updating…';
+
+      try {
+        // 1. Get current admin using app.js's own getCurrentUser()
+        var me = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+        if (!me || !me.username) {
+          msgEl.textContent = 'Session not found. Please log in again.';
+          return;
+        }
+
+        // 2. Fetch full record (with hashed password) directly by username —
+        //    same method as login, guaranteed to work in both Firestore and local mode.
+        var fullRec = null;
+        if (window.api && typeof window.api.signIn === 'function') {
+          fullRec = await window.api.signIn(me.username);
+        }
+        // Fallback: scan in-memory users array
+        if (!fullRec && typeof users !== 'undefined' && Array.isArray(users)) {
+          fullRec = users.find(function (u) { return u.username === me.username || u.id === me.id; });
+        }
+        if (!fullRec) {
+          msgEl.textContent = 'Could not load your account record. Please refresh and try again.';
+          return;
+        }
+
+        // 3. Verify current password with app.js's verifyPassword()
+        var match = await verifyPassword(currentPw, fullRec.password);
+        if (!match) {
+          msgEl.textContent = 'Current password is incorrect.';
+          document.getElementById('my-pw-current').value = '';
+          document.getElementById('my-pw-current').focus();
+          return;
+        }
+
+        // 4. Hash new password and save — use fullRec.id (the real Firestore doc ID)
+        //    NOT me.id which is only the session snapshot and may differ.
+        var hashed = await hashPassword(newPw);
+        var targetId = fullRec.id || me.id;
+
+        if (window.api && typeof window.api.updateUserPassword === 'function') {
+          await window.api.updateUserPassword(targetId, hashed);
+        }
+        // Also update localStorage users cache so it stays in sync
+        try {
+          var cached = JSON.parse(localStorage.getItem('sbp_users') || '[]');
+          var cu = cached.find(function(u) { return u.id === targetId || u.username === me.username; });
+          if (cu) { cu.password = hashed; cu.mustChangePassword = false; }
+          localStorage.setItem('sbp_users', JSON.stringify(cached));
+        } catch(_) {}
+        // Refresh in-memory users array if available
+        if (window.api && typeof window.api.getUsers === 'function') {
+          try {
+            var fresh = await window.api.getUsers();
+            if (typeof users !== 'undefined') users = fresh;
+          } catch(_) {}
+        }
+
+        closeModal();
+        if (typeof showToast === 'function') showToast('Password updated successfully!', 'success');
+
+      } catch (err) {
+        console.error('[MyPW] Error:', err);
+        msgEl.textContent = 'Error: ' + (err.message || 'Could not update password. Please try again.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Update Password';
+      }
+    });
+
+    console.log('[MyPW] Change My Password initialized successfully.');
+  });
+</script>
+
+</body>
 </html>
