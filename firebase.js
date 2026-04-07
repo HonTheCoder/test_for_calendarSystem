@@ -8,13 +8,13 @@
   //   API key restrictions in Google Cloud Console → Credentials
   // ─────────────────────────────────────────────────────────────────────────
   var FIREBASE_CONFIG = {
-    apiKey:            "AIzaSyC5FSWs8Ww_iGpDzePpiZDHOHxxSvKXTA0",
-    authDomain:        "calendarsystem-11866.firebaseapp.com",
-    projectId:         "calendarsystem-11866",
-    storageBucket:     "calendarsystem-11866.firebasestorage.app",
-    messagingSenderId: "1070679441061",
-    appId:             "1:1070679441061:web:70daa5c6ce721a06ee174c",
-    measurementId:     "G-6CP89X1VE7",
+      apiKey: "AIzaSyDEUVl2fQST8BFoL_kxiCyLOR4EB4VMvlE",
+      authDomain: "testingcalendar-41b86.firebaseapp.com",
+      projectId: "testingcalendar-41b86",
+      storageBucket: "testingcalendar-41b86.firebasestorage.app",
+      messagingSenderId: "873072574942",
+      appId: "1:873072574942:web:80061a178d951f5e441d4f",
+      measurementId: "G-CCP2GW0G3B"
   };
 
   function hasFirebase() {
