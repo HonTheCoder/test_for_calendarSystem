@@ -678,7 +678,7 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
   .sidebar { display: none !important; }
 
   /* ── Main scroll ── */
-  .main-scroll  { padding: 14px 12px 88px; }
+  .main-scroll  { padding: 14px 12px calc(72px + env(safe-area-inset-bottom, 0px) + 16px); }
 
   /* ── Topbar ── */
   .topbar               { padding: 0 12px; height: 52px; gap: 6px; }
@@ -1207,7 +1207,7 @@ body > ul.committee-dropdown .committee-dropdown-empty {
   .stat-card-icon  { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; align-self: flex-start; margin-top: 1px; }
   .stat-card-icon svg { width: 14px; height: 14px; }
   .calendar-cell   { min-height: 44px; }
-  .main-scroll     { padding: 10px 8px 88px; }
+  .main-scroll     { padding: 10px 8px calc(72px + env(safe-area-inset-bottom, 0px) + 16px); }
   .welcome-banner  { padding: 14px 14px; }
   #logout-btn      { padding: 0 8px; font-size: 0.66rem; }
 }
@@ -2732,10 +2732,8 @@ tbody tr {
     height: calc(60px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Main scroll bottom padding matches nav height */
-  .main-scroll {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 16px);
-  }
+  /* Main scroll bottom padding — already set above in the main @media block.
+     This rule intentionally removed to avoid cascade conflicts. */
 
   /* Search trigger — icon only on small topbar */
   .global-search-trigger-label { display: none; }

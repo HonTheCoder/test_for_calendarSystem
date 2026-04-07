@@ -251,7 +251,13 @@ input, select, textarea { font: inherit; }
 /* --------------------------------------------------------------------------
    4. APP SHELL
    -------------------------------------------------------------------------- */
-.app-shell { height: 100vh; display: flex; overflow: hidden; max-width: 100vw; }
+.app-shell {
+  height: 100vh;          /* fallback for older browsers */
+  height: 100dvh;         /* dynamic viewport: excludes browser chrome on iOS/Android */
+  display: flex;
+  overflow: hidden;
+  max-width: 100vw;
+}
 
 /* --------------------------------------------------------------------------
    5. SIDEBAR
@@ -1973,7 +1979,7 @@ body[data-page="login"] {
 
 @media (max-width: 768px) {
   html, body { height: 100%; overflow: hidden; }
-  .app-shell  { height: 100vh; }
+  .app-shell  { height: 100vh; height: 100dvh; }  /* dvh = dynamic, excludes browser chrome */
   .sidebar        { display: none; }
   .bottom-nav     { display: flex; }
   .main-scroll    { padding: 16px 16px calc(60px + 24px + env(safe-area-inset-bottom, 0px)); }
