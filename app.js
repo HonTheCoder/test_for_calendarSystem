@@ -1378,8 +1378,6 @@ function renderUsersTable() {
         <td><span class="${roleChipClass(u.role)}">${u.role}</span></td>
         <td>
           <button class="btn btn-sm btn-ghost" data-action="view-user" data-user-id="${u.id}">View</button>
-          <button class="btn btn-sm btn-ghost" data-action="edit-user" data-user-id="${u.id}" style="color:var(--brand-blue,#2563eb)">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:3px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>
           <button class="btn btn-sm btn-ghost" data-action="change-password" data-user-id="${u.id}">Change Password</button>
           <button class="btn btn-sm btn-ghost" data-action="remove-user" data-user-id="${u.id}">Remove</button>
         </td>
@@ -1428,8 +1426,6 @@ function renderUsersTable() {
       <td><span class="${roleChipClass(u.role)}">${u.role}</span></td>
       <td>
         <button class="btn btn-sm btn-ghost" data-action="view-user" data-user-id="${u.id}">View</button>
-        <button class="btn btn-sm btn-ghost" data-action="edit-user" data-user-id="${u.id}" style="color:var(--brand-blue,#2563eb)">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="margin-right:3px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Edit</button>
         <button class="btn btn-sm btn-ghost" data-action="change-password" data-user-id="${u.id}">Change Password</button>
         <button class="btn btn-sm btn-ghost" data-action="remove-user" data-user-id="${u.id}">Remove</button>
       </td>
@@ -3143,29 +3139,19 @@ function _generateMeetingPdfInner(mtg, docType, autoPrint) {
 }
 
 function handleMyMeetingsClick(e) {
-  // ── Mobile fix (iOS & Android) ──────────────────────────────────────────
-  // Inside an overflow-x scrollable table the browser may swallow synthetic
-  // "click" events when it thinks the user is scrolling horizontally.
-  // We therefore listen to "touchstart" (always non-passive-cancelable) AND
-  // "click".  A short-lived dataset flag prevents double-firing when both
-  // events arrive for the same tap.
+  let btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+
+  // ── Mobile/iOS Touch Handling ──
   if (e.type === "touchstart") {
-    const btn = e.target.closest("button[data-action]");
-    if (!btn || btn.disabled || btn.dataset.processing === "1") return;
+    if (btn.disabled || btn.dataset.processing === "1") return;
     btn.dataset._touchFired = "1";
     setTimeout(() => { delete btn.dataset._touchFired; }, 600);
-    // fall through — we process the action immediately on touchstart
+  } else if (e.type === "click" && btn.dataset._touchFired === "1") {
+    delete btn.dataset._touchFired;
+    return;
   }
-  if (e.type === "click") {
-    const btn = e.target.closest("button[data-action]");
-    if (btn && btn.dataset._touchFired === "1") {
-      delete btn.dataset._touchFired;
-      return; // already handled by touchstart, skip ghost click
-    }
-  }
-  // ────────────────────────────────────────────────────────────────────────
-  const btn = e.target.closest("button[data-action]");
-  if (!btn) return;
+
   if (btn.disabled || btn.dataset.processing === "1") return;
 
   const id = btn.dataset.meetingId;
@@ -3175,7 +3161,10 @@ function handleMyMeetingsClick(e) {
 
   if (action === "edit-meeting") {
     const createdAt = mtg.createdAt ? new Date(mtg.createdAt) : null;
-    const within24h = createdAt && (getManilaNow() - createdAt) < 24 * 60 * 60 * 1000;
+    const nowManila = getManilaNow();
+    const msElapsed = createdAt ? Math.max(0, nowManila - createdAt) : Infinity;
+    const within24h = msElapsed < 24 * 60 * 60 * 1000;
+    
     if (!within24h || mtg.status !== "Pending") {
       showToast("Editing is only allowed within 24 hours of submission for Pending meetings.", "warning");
       return;
@@ -3999,6 +3988,12 @@ function openEditMeetingModal(mtg) {
   const currentUser = getCurrentUser();
   if (!currentUser) return;
 
+  // ── Mobile: route to booking drawer (pre-filled) instead of modal ──────────
+  if (window.innerWidth <= 768) {
+    openBookingDrawer(mtg.date, mtg);
+    return;
+  }
+
   _editingMeetingId = mtg.id;
 
   const form = $("#meeting-form");
@@ -4073,8 +4068,14 @@ function openEditMeetingModal(mtg) {
     };
   }
 
+  // ── Open modal — double rAF guarantees iOS Safari paints the display change ──
   const backdrop = $("#meeting-modal");
-  if (backdrop) backdrop.classList.add("modal-open");
+  if (backdrop) {
+    requestAnimationFrame(() => {
+      backdrop.classList.add("modal-open");
+      requestAnimationFrame(() => { void backdrop.offsetHeight; });
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -4112,9 +4113,15 @@ function openPolicyModal(meetingData) {
   if (chk) chk.checked = false;
   const err = document.getElementById("policy-agree-error");
   if (err) err.textContent = "";
-  // Open
+
+  // ── Open modal — double rAF guarantees iOS Safari paints the display change ──
   const backdrop = document.getElementById("policy-modal");
-  if (backdrop) backdrop.classList.add("modal-open");
+  if (backdrop) {
+    requestAnimationFrame(() => {
+      backdrop.classList.add("modal-open");
+      requestAnimationFrame(() => { void backdrop.offsetHeight; });
+    });
+  }
 }
 
 function closePolicyModal() {
@@ -4195,6 +4202,8 @@ function submitMeetingFromPolicy() {
 
     showToast("Meeting updated successfully.", "success");
     closeMeetingModal();
+    // ── iOS Fix: closePolicyModal() if it was open ──
+    closePolicyModal();
     renderMyMeetingsTable(currentUser);
     renderAdminMeetingsTable();
     renderCalendar();
@@ -4277,6 +4286,18 @@ function submitMeetingFromPolicy() {
     ? "Meeting scheduled and automatically approved."
     : "Meeting request submitted successfully.";
   showToast(toastMsg, "success");
+
+  // ── iOS Fix: closePolicyModal() if it was open ──
+  closePolicyModal();
+
+  // ── Mobile drawer cleanup: if the policy was opened from the booking drawer,
+  // clear the flag and close the drawer (it was already closed before the policy
+  // modal opened, but this guards against any edge case where it is still active).
+  if (window._policyOpenedFromDrawer) {
+    window._policyOpenedFromDrawer = false;
+    if (typeof _closeActive === "function") _closeActive();
+  }
+
   renderCalendar();
   renderMyMeetingsTable(currentUser);
   renderAdminMeetingsTable();
@@ -4390,7 +4411,12 @@ function handleMeetingSubmit(e) {
   const _editIdSnapshot = _editingMeetingId;
   closeMeetingModal();
   _editingMeetingId = _editIdSnapshot; // restore after closeMeetingModal() nulled it
-  openPolicyModal({ eventName, committee, venue, councilor, researcher, stakeholders, notes, date: isoDate, timeStart, durationHours, type });
+
+  // ── iOS Fix: wait for first modal dismissal before opening policy ──
+  // Prevents the second modal from being swallowed or layout-glitched on mobile
+  setTimeout(() => {
+    openPolicyModal({ eventName, committee, venue, councilor, researcher, stakeholders, notes, date: isoDate, timeStart, durationHours, type });
+  }, 250);
 }
 
 
@@ -4819,9 +4845,20 @@ async function initUserPage() {
   $("#meeting-form")?.addEventListener("submit", handleMeetingSubmit);
   $("#meeting-cancel-btn")?.addEventListener("click", closeMeetingModal);
   $("#meeting-modal-close")?.addEventListener("click", closeMeetingModal);
-  $("#policy-modal-back")?.addEventListener("click", () => { closePolicyModal(); const b = $("#meeting-modal"); if (b) b.classList.add("modal-open"); });
+  $("#policy-modal-back")?.addEventListener("click", () => {
+    closePolicyModal();
+    // On mobile the source was the booking drawer (not the #meeting-modal backdrop).
+    // Re-open the drawer with the saved pending data so the user can edit their form.
+    if (window._policyOpenedFromDrawer) {
+      window._policyOpenedFromDrawer = false;
+      const d = _pendingMeetingData;
+      if (d) setTimeout(() => openBookingDrawer(d.date, { ...d, id: null, _prefillOnly: true }), 220);
+    } else {
+      const b = $("#meeting-modal");
+      if (b) b.classList.add("modal-open");
+    }
+  });
   $("#policy-modal-confirm")?.addEventListener("click", submitMeetingFromPolicy);
-  $("#my-meetings-body")?.addEventListener("click", handleMyMeetingsClick);
   $("#my-meetings-body")?.addEventListener("touchstart", handleMyMeetingsClick, { passive: true });
   $("#calendar-prev")?.addEventListener("click", () => changeCalendarMonth(-1));
   $("#calendar-next")?.addEventListener("click", () => changeCalendarMonth(1));
@@ -7104,7 +7141,7 @@ function initUserAnnouncements() {
 
   // ── Booking Drawer ────────────────────────────────────────────────────────
 
-  window.openBookingDrawer = function (isoDate) {
+  window.openBookingDrawer = function (isoDate, prefillMtg) {
     const currentUser = getCurrentUser();
     if (!currentUser ||
         ![ROLES.ADMIN, ROLES.COUNCILOR, ROLES.RESEARCHER, ROLES.VICE_MAYOR, ROLES.SECRETARY]
@@ -7113,20 +7150,31 @@ function initUserAnnouncements() {
       return;
     }
 
+    // prefillMtg with a real id = edit mode (from Edit button on mobile)
+    // prefillMtg with _prefillOnly = Back-from-policy re-open (restore form data)
+    const isEditMode   = !!(prefillMtg && prefillMtg.id && !prefillMtg._prefillOnly);
+    const isPrefillOnly = !!(prefillMtg && prefillMtg._prefillOnly);
+    const hasPrefill   = isEditMode || isPrefillOnly;
+
     const todayISO = getTodayISOManila();
-    if (isoDate && isoDate < todayISO) {
+    if (!hasPrefill && isoDate && isoDate < todayISO) {
       showToast("Cannot schedule meetings on past dates.", "error");
       return;
     }
-    const activeDate = isoDate || todayISO;
+    const activeDate = (hasPrefill && prefillMtg.date) ? prefillMtg.date : (isoDate || todayISO);
 
-    const titleHTML = `
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-        <rect x="3" y="4" width="18" height="18" rx="2"/>
-        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-        <line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
-      Schedule Meeting`;
+    const titleHTML = isEditMode
+      ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+           <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+           <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+         </svg>
+         Edit Meeting Request`
+      : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+           <rect x="3" y="4" width="18" height="18" rx="2"/>
+           <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+           <line x1="3" y1="10" x2="21" y2="10"/>
+         </svg>
+         Schedule Meeting`;
 
     // Build councilor options
     const dbCouncilorOpts = users
@@ -7249,7 +7297,7 @@ function initUserAnnouncements() {
           <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/>
           <polyline points="17 21 17 13 7 13 7 21"/>
         </svg>
-        Save Schedule
+        ${isEditMode ? "Save Changes" : "Review &amp; Submit"}
       </button>`;
 
     const drawer = _makeDrawer("drawer-booking", titleHTML, "", bodyHTML, footerHTML);
@@ -7263,6 +7311,61 @@ function initUserAnnouncements() {
       _dbPopulateTime(activeDate);
       _dbPopulateDuration();
       _dbUpdateEndPreview();
+
+      // ── Pre-fill fields when editing or returning from policy Back button ───
+      if (hasPrefill) {
+        const m = prefillMtg;
+        const setDbVal = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+
+        setDbVal("db-event",        m.eventName);
+        setDbVal("db-committee",    m.committee);
+        setDbVal("db-stakeholders", m.stakeholders);
+        setDbVal("db-notes",        m.notes);
+
+        // Type — handle "Others"
+        const knownTypes  = ["Committee Meeting","Committee Hearing","Committee Deliberation","Public Meeting","Consultative Meeting","Others"];
+        const typeEl      = document.getElementById("db-type");
+        const typeOtherEl = document.getElementById("db-type-other");
+        if (typeEl) {
+          if (knownTypes.includes(m.type)) {
+            typeEl.value = m.type;
+          } else {
+            typeEl.value = "Others";
+            if (typeOtherEl) { typeOtherEl.style.display = ""; typeOtherEl.value = m.type || ""; }
+          }
+        }
+
+        // Venue — handle "Others"
+        const knownVenues  = ["SB Hall","Old SB Hall","ABC Hall","Others"];
+        const venueEl      = document.getElementById("db-venue");
+        const venueOtherEl = document.getElementById("db-venue-other");
+        if (venueEl) {
+          if (knownVenues.includes(m.venue)) {
+            venueEl.value = m.venue;
+          } else {
+            venueEl.value = "Others";
+            if (venueOtherEl) { venueOtherEl.style.display = ""; venueOtherEl.value = m.venue || ""; }
+          }
+        }
+
+        // Councilor / Researcher
+        const cEl = document.getElementById("db-councilor");
+        const rEl = document.getElementById("db-researcher");
+        if (cEl) cEl.value = m.councilor || "";
+        if (rEl) rEl.value = m.researcher || "";
+
+        // Date + repopulate time/duration then restore saved values
+        setDbVal("db-date", m.date);
+        _dbPopulateTime(m.date);
+        _dbPopulateDuration();
+        setDbVal("db-time",     m.timeStart);
+        setDbVal("db-duration", String(m.durationHours || SLOT_DURATION_HOURS));
+        _dbUpdateEndPreview();
+
+        // Store the editing meeting ID on the drawer element so _dbHandleSubmit
+        // can detect edit mode and call updateMeeting instead of addMeeting.
+        if (isEditMode) drawer.dataset.editMeetingId = m.id;
+      }
 
       // Event listeners
       document.getElementById("db-cancel")?.addEventListener("click", _closeActive);
@@ -7449,63 +7552,74 @@ function initUserAnnouncements() {
     }
     if (msg) msg.textContent = "";
 
-    const btn = document.getElementById("db-submit");
-    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+    // ── Edit mode: update existing meeting directly (no T&C re-prompt) ────────
+    // When the drawer was opened via the Edit button, the meeting id is stored
+    // on the drawer element. Skip the policy modal and call updateMeeting.
+    const drawerEl = document.getElementById("drawer-booking");
+    const editId   = drawerEl?.dataset.editMeetingId;
 
-    window.api.addMeeting({
-      id: crypto.randomUUID(),
-      eventName, committee, councilor, researcher, stakeholders,
-      date, timeStart, durationHours,
-      type, venue, notes,
-      status: currentUser.role === ROLES.ADMIN ? "Approved" : "Pending",
-      createdBy: currentUser.username,
-      createdByRole: currentUser.role,
-      createdAt: new Date().toISOString(),
-    }).then(() => {
-      // Only notify admins if it's a user request (admin doesn't need to notify themselves)
-      if (currentUser.role !== ROLES.ADMIN) {
+    if (editId) {
+      const existing = meetings.find(m => m.id === editId);
+      if (!existing) {
+        if (msg) msg.textContent = "Meeting no longer found. It may have been deleted.";
+        return;
+      }
+      // Re-validate 24h window
+      const createdAt = existing.createdAt ? new Date(existing.createdAt) : null;
+      const nowManila = getManilaNow();
+      const msElapsed = createdAt ? Math.max(0, nowManila - createdAt) : Infinity;
+      if (msElapsed >= 24 * 60 * 60 * 1000 || existing.status !== "Pending") {
+        showToast("Editing is only allowed within 24 hours of submission for Pending meetings.", "warning");
+        _closeActive();
+        return;
+      }
+
+      const btn = document.getElementById("db-submit");
+      if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+
+      const editedAt = new Date().toISOString();
+      const updated  = {
+        ...existing,
+        eventName, committee, councilor, researcher, stakeholders,
+        date, timeStart, durationHours, type, venue, notes,
+        editedAt,
+        createdAt: editedAt, // restart 24h window from edit time
+      };
+
+      window.api.updateMeeting(editId, updated).then(() => {
+        const currentUser = getCurrentUser();
         users.filter(u => u.role === ROLES.ADMIN).forEach(admin => {
           addNotification(
             admin.id || admin.username,
-            `New meeting request from <strong>${h(currentUser.name)}</strong>: <strong>"${h(eventName)}"</strong> on ${formatDateDisplay(date)} at ${formatTimeRange(timeStart, durationHours)}. Review and take action.`,
-          "info",
-          "meeting-logs"
-        );
+            `<strong>${h(currentUser?.name)}</strong> edited their meeting request <strong>"${h(eventName)}"</strong> (within 24h window). Please review the updated details.`,
+            "info", "meeting-logs"
+          );
+        });
+        showToast("Meeting updated successfully.", "success");
+        renderCalendar();
+        renderMyMeetingsTable(getCurrentUser());
+        renderAdminMeetingsTable();
+        updateStatistics();
+        _closeActive();
+      }).catch(() => {
+        if (msg) msg.textContent = "Failed to save. Please try again.";
+        if (btn) { btn.disabled = false; btn.textContent = "Save Changes"; }
       });
-      } // end if non-admin notify
-      // If admin scheduled on behalf of councilor/researcher, notify them
-      if (currentUser.role === ROLES.ADMIN) {
-        const dateStr = formatDateDisplay(date);
-        const timeStr = formatTimeRange(timeStart, durationHours);
-        if (councilor && councilor !== "N/A") {
-          const cUser = users.find(u => u.name === councilor);
-          if (cUser) addNotification(cUser.id || cUser.username,
-            `The Admin has scheduled a meeting on your behalf: <strong>"${h(eventName)}"</strong> on ${dateStr} at ${timeStr}. Venue: ${h(venue)}. Status: <strong>Approved</strong>.`,
-            "success", "my-meetings");
-        }
-        if (researcher && researcher !== "N/A") {
-          const rUser = users.find(u => u.name === researcher);
-          if (rUser) addNotification(rUser.id || rUser.username,
-            `The Admin has scheduled a meeting on your behalf: <strong>"${h(eventName)}"</strong> on ${dateStr} at ${timeStr}. Venue: ${h(venue)}. Status: <strong>Approved</strong>.`,
-            "success", "my-meetings");
-        }
-      }
-      // Optimistic badge refresh
-      updateNotificationBadge(currentUser.id || currentUser.username);
+      return;
+    }
 
-      const toastMsg = currentUser.role === ROLES.ADMIN
-        ? "Meeting scheduled and automatically approved."
-        : "Meeting request submitted! Awaiting admin approval.";
-      showToast(toastMsg, "success");
-      renderCalendar();
-      renderMyMeetingsTable(currentUser);
-      renderAdminMeetingsTable();
-      updateStatistics();
-      _closeActive();
-    }).catch(() => {
-      if (msg) msg.textContent = "Failed to save. Please try again.";
-      if (btn) { btn.disabled = false; btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v14a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg> Save Schedule`; }
-    });
+    // ── New meeting: route through Terms & Conditions modal ───────────────────
+    // Flag that the policy modal was opened from the mobile drawer so that:
+    //   (a) submitMeetingFromPolicy closes the drawer after saving, and
+    //   (b) the Back button re-opens the drawer instead of #meeting-modal.
+    window._policyOpenedFromDrawer = true;
+
+    // Close the drawer first, then open the policy modal after a short delay
+    // so iOS doesn't try to render two layered overlays simultaneously.
+    _closeActive();
+    setTimeout(() => {
+      openPolicyModal({ eventName, committee, venue, councilor, researcher, stakeholders, notes, date, timeStart, durationHours, type });
+    }, 280);
   }
 
   // ── Logout confirmation drawer (mobile) ───────────────────────────────────

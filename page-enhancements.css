@@ -1124,9 +1124,15 @@ tbody tr:hover { background: rgba(27,75,138,0.03); }
 
   /* ── Tables ── */
   .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0 0 8px; }
-  table          { min-width: 520px; font-size: 0.76rem; }
+  table          { min-width: 600px; font-size: 0.76rem; }
   tbody td       { padding: 10px 12px; }
   .action-btn    { padding: 4px 9px; font-size: 0.68rem; }
+  
+  /* Ensure actions column has enough width for buttons */
+  td:last-child {
+    min-width: 140px;
+    white-space: nowrap;
+  }
 
   /* ── Cards & filters ── */
   .card-header              { flex-direction: column; gap: 10px; align-items: stretch; }

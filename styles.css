@@ -1157,7 +1157,7 @@ tbody tr:hover { background: var(--color-primary-soft); }
   display: none;
   position: fixed; inset: 0;
   background: rgba(7,15,34,0.7);
-  z-index: 500;
+  z-index: 2000;
   align-items: center; justify-content: center;
   padding: 20px;
   backdrop-filter: blur(5px);
@@ -1174,8 +1174,8 @@ tbody tr:hover { background: var(--color-primary-soft); }
   color: var(--color-text);
 }
 
-#confirm-modal  { z-index: 600; }
-#note-modal     { z-index: 600; }
+#confirm-modal  { z-index: 2100; }
+#note-modal     { z-index: 2100; }
 
 .modal {
   background: var(--color-surface);
