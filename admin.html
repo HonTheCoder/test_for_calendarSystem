@@ -1577,7 +1577,7 @@
       });
     }
 
-    function switchSection(key) {
+    function switchSection(key, targetId) {
       function doSwitch() {
         document.querySelectorAll('.admin-section').forEach(function (el) { el.classList.remove('active'); });
         var target = document.getElementById('section-' + key);
@@ -1593,6 +1593,23 @@
         try { sessionStorage.setItem('admin_section', key); } catch(e){}
         // Restore meeting sub-tab when entering meeting-logs
         if (key === 'meeting-logs') { restoreMeetingTab(); syncSubtabBadge(); }
+
+        // Re-render the table with the targetId if we're switching to meeting-logs
+        if (key === 'meeting-logs' && typeof renderAdminMeetingsTable === 'function') {
+          renderAdminMeetingsTable(targetId);
+        }
+
+        // If a targetId is provided, try to find and scroll to it
+        if (targetId) {
+          setTimeout(function() {
+            var el = document.getElementById(targetId) || document.querySelector('[data-id="' + targetId + '"]');
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.add('highlight-pulse');
+              setTimeout(function() { el.classList.remove('highlight-pulse'); }, 3000);
+            }
+          }, 350);
+        }
       }
       if (isFormDirty()) {
         if (typeof openConfirmModal === 'function') {

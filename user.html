@@ -792,7 +792,7 @@
           });
         }
 
-        function switchSection(key) {
+        function switchSection(key, targetId) {
           function doSwitch() {
             document.querySelectorAll('.user-section').forEach(function (el) { el.classList.remove('active'); });
             var target = document.getElementById('section-' + key);
@@ -811,6 +811,23 @@
               try { localStorage.setItem('sbp_ann_seen', Date.now().toString()); } catch(e) {}
             }
             try { sessionStorage.setItem('user_section', key); } catch(e) {}
+
+            // Re-render the table with the targetId if we're switching to my-meetings
+            if (key === 'my-meetings' && typeof renderMyMeetingsTable === 'function') {
+              renderMyMeetingsTable(getCurrentUser(), targetId);
+            }
+
+            // If a targetId is provided, try to find and scroll to it
+            if (targetId) {
+              setTimeout(function() {
+                var el = document.getElementById(targetId) || document.querySelector('[data-id="' + targetId + '"]');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.add('highlight-pulse');
+                  setTimeout(function() { el.classList.remove('highlight-pulse'); }, 3000);
+                }
+              }, 350);
+            }
           }
           var currentActive = document.querySelector('.user-section.active');
           var isOnCalendar = currentActive && currentActive.id === 'section-calendar';

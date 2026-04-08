@@ -2402,3 +2402,24 @@ textarea:focus-visible { outline: 2px solid var(--brand-gold); outline-offset: 2
   border-color: var(--brand-sky);
   box-shadow: 0 0 0 3px rgba(91,163,201,0.1);
 }
+/* --------------------------------------------------------------------------
+   ANIMATIONS & NOTIFICATION CLICKABILITY
+   -------------------------------------------------------------------------- */
+@keyframes highlight-pulse {
+  0% { background-color: transparent; }
+  20% { background-color: var(--color-accent-soft); }
+  100% { background-color: transparent; }
+}
+.highlight-pulse {
+  animation: highlight-pulse 3s ease-out;
+  border-radius: var(--radius-sm);
+}
+
+.notif-item:hover {
+  background-color: var(--color-surface-2) !important;
+  filter: brightness(0.98);
+}
+[data-theme='dark'] .notif-item:hover {
+  background-color: var(--color-surface-2) !important;
+  filter: brightness(1.1);
+}
