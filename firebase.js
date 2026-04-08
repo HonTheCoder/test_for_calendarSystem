@@ -569,11 +569,13 @@
       if (mode === "firestore") {
         var docId = "ann_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)
         var withId = Object.assign({}, enriched, { id: docId })
+        // Do NOT eagerly write to localStorage here — the subscribeAnnouncements
+        // onSnapshot will fire and update localStorage automatically. Writing here
+        // too causes the subscriber callback to fire twice (eager write triggers it
+        // once, then the snapshot fires it again), which pushes 2 bell notifications
+        // for the same announcement.
         return db.collection("announcements").doc(docId).set(withId)
           .then(function () {
-            var list = lsGet(LS.ANNOUNCEMENTS, [])
-            list.unshift(withId)
-            lsSet(LS.ANNOUNCEMENTS, list)
             return withId
           })
           .catch(function (err) {
@@ -670,10 +672,17 @@
       if (mode === "firestore") {
         var docId = notif.id || ("notif_" + Date.now() + "_" + Math.random().toString(36).slice(2,7))
         var withId = Object.assign({}, notif, { id: docId })
+        // Do NOT write to localStorage here — subscribeNotifications will sync
+        // the Firestore doc back into localStorage automatically. Writing here
+        // too causes duplicate notifications in the bell panel.
         return db.collection("notifications").doc(docId).set(withId).catch(function () {
+          // Firestore write failed — fall back to localStorage so the notification isn't lost
           var all = lsGet("sbp_notifications", [])
-          all.unshift(notif)
-          lsSet("sbp_notifications", all.slice(0, 200))
+          var alreadyExists = all.some(function(n) { return n.userId === notif.userId && n.message === notif.message })
+          if (!alreadyExists) {
+            all.unshift(notif)
+            lsSet("sbp_notifications", all.slice(0, 200))
+          }
         })
       } else {
         var all = lsGet("sbp_notifications", [])
@@ -750,6 +759,30 @@
         cb(lsGet("sbp_notifications", []).filter(function (n) { return n.userId === userId }))
         return function () {}
       }
+    },
+    // ── Notification last-seen timestamp ────────────────────────────────────
+    // Stores { userId, lastSeenAt } in the "notif_seen" Firestore collection.
+    // This ensures the "already read" state survives logout, device switches,
+    // and localStorage clears — the badge never re-inflates for old notifications.
+    setNotifLastSeen: function (userId, isoTimestamp) {
+      if (mode === "firestore") {
+        return db.collection("notif_seen").doc(userId).set({ userId: userId, lastSeenAt: isoTimestamp })
+          .catch(function () {
+            // Graceful fallback — localStorage is already updated by app.js
+          });
+      }
+      return Promise.resolve();
+    },
+    getNotifLastSeen: function (userId) {
+      if (mode === "firestore") {
+        return db.collection("notif_seen").doc(userId).get()
+          .then(function (doc) {
+            if (doc.exists) return doc.data().lastSeenAt || null;
+            return null;
+          })
+          .catch(function () { return null; });
+      }
+      return Promise.resolve(null);
     },
     subscribeUsers: function (cb) {
       if (mode === "firestore") {

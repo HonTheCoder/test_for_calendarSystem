@@ -45,6 +45,13 @@ service cloud.firestore {
       allow delete: if isAuthed();
     }
 
+    match /notif_seen/{userId} {
+      allow read:   if isAuthed();
+      allow create: if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

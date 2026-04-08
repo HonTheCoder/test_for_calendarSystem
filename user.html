@@ -434,6 +434,50 @@
                 <div class="page-header-sub">Official notices and updates from the Sangguniang Bayan administration.</div>
               </div>
             </div>
+
+            <!-- ── Special account post form (Vice Mayor / Secretary only) ── -->
+            <div id="special-ann-post-section" style="display:none;margin-bottom:18px;">
+              <div class="card" style="border-left:4px solid #6d28d9;">
+                <div class="card-header" style="padding-bottom:0">
+                  <div class="card-title-wrap">
+                    <div class="card-title-icon" style="background:rgba(109,40,217,0.1);color:#6d28d9">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </div>
+                    <div>
+                      <div class="card-title">Post an Announcement</div>
+                      <div class="card-subtitle">Visible to all users of the system.</div>
+                    </div>
+                  </div>
+                </div>
+                <form id="special-ann-form" autocomplete="off" style="padding:16px 20px 20px;display:flex;flex-direction:column;gap:12px;">
+                  <div>
+                    <label for="special-ann-title" class="field-label">Title <span style="color:#ef4444">*</span></label>
+                    <input id="special-ann-title" class="field" required placeholder="e.g. Session Reminder" maxlength="120" />
+                  </div>
+                  <div>
+                    <label for="special-ann-body" class="field-label">Message <span style="color:#ef4444">*</span></label>
+                    <textarea id="special-ann-body" class="field" required placeholder="Write your announcement here…" rows="4" style="resize:vertical;min-height:80px;font-family:inherit"></textarea>
+                  </div>
+                  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+                    <div style="flex:1;min-width:160px">
+                      <label for="special-ann-type" class="field-label">Type</label>
+                      <select id="special-ann-type" class="field">
+                        <option value="general">General</option>
+                        <option value="urgent">Urgent</option>
+                        <option value="reminder">Reminder</option>
+                        <option value="event">Event</option>
+                      </select>
+                    </div>
+                    <button id="special-ann-submit-btn" type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#6d28d9,#7c3aed);white-space:nowrap;flex-shrink:0;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                      Post Announcement
+                    </button>
+                  </div>
+                  <div id="special-ann-msg" class="helper-text" style="color:#ef4444;min-height:16px"></div>
+                </form>
+              </div>
+            </div>
+
             <!-- Search + filter bar -->
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
               <div class="search-bar-wrap" style="flex:1;min-width:160px">

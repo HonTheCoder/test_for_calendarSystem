@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   CURRENT_USER: "sbp_current_user",
   NOTIFICATIONS: "sbp_notifications",
   SESSION_EXPIRY: "sbp_session_expiry",
+  NOTIF_LAST_SEEN: "sbp_notif_last_seen", // { [userId]: ISO timestamp }
 };
 
 const ROLES = {
@@ -20,7 +21,7 @@ const ROLE_LIMITS = {
   [ROLES.COUNCILOR]: 30,
   [ROLES.RESEARCHER]: 20,
   [ROLES.VICE_MAYOR]: 5,
-  [ROLES.SECRETARY]: 5,
+  [ROLES.SECRETARY]: 10,
 };
 
 // Hard cap on total regular (non-admin, non-special) user accounts
@@ -302,12 +303,43 @@ function addNotification(userId, message, type = "info", section = null) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Last-seen timestamp helpers
+// Persists { userId: ISO-timestamp } so that across logins, any notification
+// created BEFORE the timestamp is treated as already-read (no badge dot).
+// ---------------------------------------------------------------------------
+function getNotificationLastSeen(userId) {
+  const map = load(STORAGE_KEYS.NOTIF_LAST_SEEN, {});
+  return map[userId] || null; // ISO string or null
+}
+
+function setNotificationLastSeen(userId, isoTimestamp) {
+  const map = load(STORAGE_KEYS.NOTIF_LAST_SEEN, {});
+  map[userId] = isoTimestamp;
+  save(STORAGE_KEYS.NOTIF_LAST_SEEN, map);
+  // Also persist to Firestore so it survives clearing localStorage
+  if (window.api && window.api.setNotifLastSeen) {
+    window.api.setNotifLastSeen(userId, isoTimestamp).catch(() => {});
+  }
+}
+
+function isNotifUnread(notif, lastSeenISO) {
+  // A notification is "unread" (shows badge dot) only when it was created
+  // AFTER the user last opened the panel. Older notifications are shown in
+  // the list but without a badge — they are considered already seen.
+  if (!lastSeenISO) return !notif.read; // first-ever login: fall back to stored flag
+  return notif.createdAt > lastSeenISO;
+}
+
 function markAllNotificationsRead(userId) {
-  // Mark read in Firestore (syncs across devices)
+  const now = new Date().toISOString();
+  // 1. Save the "last seen" timestamp so future logins know what was already seen
+  setNotificationLastSeen(userId, now);
+  // 2. Also mark read=true in Firestore for backwards-compat / legacy code paths
   if (window.api && window.api.markNotificationsRead) {
     window.api.markNotificationsRead(userId).catch(() => {});
   }
-  // Also update localStorage cache immediately so the badge clears instantly
+  // 3. Update localStorage cache immediately so the badge clears instantly
   const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
   all.forEach(n => { if (n.userId === userId) n.read = true; });
   save(STORAGE_KEYS.NOTIFICATIONS, all);
@@ -317,7 +349,8 @@ function markAllNotificationsRead(userId) {
 function updateNotificationBadge(userId) {
   const badge = document.getElementById("notif-badge");
   if (!badge) return;
-  const unread = getNotifications(userId).filter(n => !n.read).length;
+  const lastSeen = getNotificationLastSeen(userId);
+  const unread = getNotifications(userId).filter(n => isNotifUnread(n, lastSeen)).length;
   badge.textContent = unread > 9 ? "9+" : String(unread);
   badge.style.display = unread > 0 ? "flex" : "none";
 
@@ -411,7 +444,8 @@ function renderNotificationPanel(userId) {
     return;
   }
 
-  const unreadCount = notifs.filter(n => !n.read).length;
+  const lastSeen = getNotificationLastSeen(userId);
+  const unreadCount = notifs.filter(n => isNotifUnread(n, lastSeen)).length;
   const header = unreadCount > 0
     ? `<div style="padding:8px 14px 6px;font-size:0.72rem;color:${isDark ? "#94a3b8" : "#6b7280"};border-bottom:1px solid ${divCol}">${unreadCount} unread</div>`
     : "";
@@ -431,7 +465,7 @@ function renderNotificationPanel(userId) {
     const cursorStyle = clickable ? "cursor:pointer;" : "";
     const hoverAttr = clickable ? `data-section="${n.section}" data-notif-nav="1"` : "";
     return `
-      <div ${hoverAttr} style="padding:11px 14px;border-bottom:1px solid ${divCol};display:flex;gap:10px;align-items:flex-start;background:${n.read ? readBg : unreadBg};transition:background 0.15s;${cursorStyle}${clickable ? "user-select:none;" : ""}">
+      <div ${hoverAttr} style="padding:11px 14px;border-bottom:1px solid ${divCol};display:flex;gap:10px;align-items:flex-start;background:${isNotifUnread(n, lastSeen) ? unreadBg : readBg};transition:background 0.15s;${cursorStyle}${clickable ? "user-select:none;" : ""}">
         <span style="margin-top:3px;flex-shrink:0">${TYPE_ICONS[n.type] || TYPE_ICONS.info}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:0.8rem;color:${textCol};line-height:1.5">${sanitiseNotifMessage(n.message)}</div>
@@ -440,7 +474,7 @@ function renderNotificationPanel(userId) {
             ${clickable ? `<span style="color:${isDark ? "#60a5fa" : "#3b82f6"};font-weight:500">View &rsaquo;</span>` : ""}
           </div>
         </div>
-        ${!n.read ? `<span style="flex-shrink:0;width:7px;height:7px;border-radius:50%;background:#3b82f6;margin-top:5px"></span>` : ""}
+        ${isNotifUnread(n, lastSeen) ? `<span style="flex-shrink:0;width:7px;height:7px;border-radius:50%;background:#3b82f6;margin-top:5px"></span>` : ""}
       </div>`;
   }).join("");
 }
@@ -457,9 +491,19 @@ function initNotificationBell(user) {
   // on every page load.
   if (window.api && window.api.subscribeNotifications) {
     const unsubNotif = window.api.subscribeNotifications(userId, (liveNotifs) => {
+      // Firestore is the source of truth for this user's notifications.
+      // Replace only this user's entries in the localStorage cache — never merge,
+      // which would double-count entries already in Firestore.
       const all = load(STORAGE_KEYS.NOTIFICATIONS, []);
       const othersNotifs = all.filter(n => n.userId !== userId);
-      const merged = [...liveNotifs, ...othersNotifs];
+      // Dedup liveNotifs by id just in case
+      const seen = new Set();
+      const dedupedLive = liveNotifs.filter(n => {
+        if (!n.id || seen.has(n.id)) return false;
+        seen.add(n.id);
+        return true;
+      });
+      const merged = [...dedupedLive, ...othersNotifs];
       save(STORAGE_KEYS.NOTIFICATIONS, merged);
       updateNotificationBadge(userId);
       const isOpen = notifPanel.classList.contains("notif-panel-open");
@@ -951,8 +995,27 @@ function attachCommonHeader(user) {
     });
   }
 
-  // Wire notification bell
-  initNotificationBell(user);
+  // Sync last-seen timestamp from Firestore into localStorage before wiring
+  // the bell — ensures the badge is accurate immediately on first render after login.
+  const _userId = user.id || user.username;
+  if (window.api && window.api.getNotifLastSeen) {
+    window.api.getNotifLastSeen(_userId).then((remoteTs) => {
+      if (remoteTs) {
+        const localTs = getNotificationLastSeen(_userId);
+        // Keep whichever timestamp is newer (remote wins if user logged in on another device)
+        if (!localTs || remoteTs > localTs) {
+          const map = load(STORAGE_KEYS.NOTIF_LAST_SEEN, {});
+          map[_userId] = remoteTs;
+          save(STORAGE_KEYS.NOTIF_LAST_SEEN, map);
+        }
+      }
+    }).catch(() => {}).finally(() => {
+      initNotificationBell(user);
+    });
+  } else {
+    // Wire notification bell
+    initNotificationBell(user);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -4878,6 +4941,7 @@ async function initUserPage() {
   renderMyMeetingsTable(user);
   updateStatistics();
   initUserAnnouncements();
+  initSpecialAccountAnnouncements();
 }
 
 // ---------------------------------------------------------------------------
@@ -6414,15 +6478,17 @@ window._openAnnModal  = _openAnnModal;
 window._closeAnnModal = _closeAnnModal;
 
 // ── Render announcement card (compact preview — full content opens in modal) ──
-function _renderAnnCard(ann, isAdmin) {
+function _renderAnnCard(ann, isAdmin, isOwner) {
   const meta = _annMeta(ann.type);
   const pinHtml = ann.pinned
     ? `<span style="font-size:0.68rem;font-weight:700;letter-spacing:0.05em;color:#d97706;background:rgba(217,119,6,0.12);padding:2px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;border:1px solid rgba(217,119,6,0.2)">
         <svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/></svg> PINNED</span>` : "";
-  const editHtml = isAdmin
+  const canEdit   = isAdmin;
+  const canDelete = isAdmin || isOwner;
+  const editHtml = canEdit
     ? `<button class="btn btn-ghost btn-sm ann-edit-btn" data-id="${ann.id}" title="Edit" style="color:var(--color-text-muted);padding:5px 7px;border-radius:7px;flex-shrink:0;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>` : "";
-  const deleteHtml = isAdmin
+  const deleteHtml = canDelete
     ? `<button class="btn btn-ghost btn-sm ann-delete-btn" data-id="${ann.id}" title="Delete" style="color:var(--color-text-muted);padding:5px 7px;border-radius:7px;flex-shrink:0;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg></button>` : "";
   const expBadge = ann.expiresAt ? (() => {
@@ -6455,14 +6521,14 @@ function _renderAnnCard(ann, isAdmin) {
           </div>
           <div style="font-weight:700;font-size:0.96rem;color:var(--color-text);line-height:1.35;word-break:break-word;">${h(ann.title)}</div>
         </div>
-        ${isAdmin ? `<div style="display:flex;gap:2px;flex-shrink:0;">${editHtml}${deleteHtml}</div>` : ""}
+        ${(canEdit || canDelete) ? `<div style="display:flex;gap:2px;flex-shrink:0;">${editHtml}${deleteHtml}</div>` : ""}
       </div>
       <div style="height:1px;background:var(--color-border-soft);"></div>
       <div style="font-size:0.855rem;color:var(--color-text-muted);line-height:1.7;word-break:break-word;">${h(preview)}</div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--color-text-muted);">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          ${_annTimeAgo(ann.createdAt)}${ann.postedBy ? ` · <strong style="color:var(--color-text-muted);font-weight:600;">${h(ann.postedBy)}</strong>` : ""}
+          ${_annTimeAgo(ann.createdAt)}${ann.postedBy ? ` · <strong style="color:var(--color-text-muted);font-weight:600;">${h(ann.postedBy)}</strong>` : ""}${ann.postedByRole && ann.postedByRole !== "Admin" ? ` <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.04em;color:#6d28d9;background:rgba(109,40,217,0.09);padding:1px 7px;border-radius:999px;border:1px solid rgba(109,40,217,0.18);">${h(ann.postedByRole)}</span>` : ""}
         </div>
         ${isLong ? `<button onclick="event.stopPropagation();_openAnnModal(window.__annStore&&window.__annStore['${ann.id}']||{})" style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:600;color:${meta.color};background:${meta.bg};border:1px solid ${meta.color}33;padding:5px 13px;border-radius:999px;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Read full</button>` : ""}
@@ -6514,7 +6580,15 @@ function renderUserAnnouncements(list) {
       <p>No announcements yet.</p></div>`;
     return;
   }
-  el.innerHTML = sorted.map(a => _renderAnnCard(a, false)).join("");
+
+  const currentUser = getCurrentUser();
+  const isSpecialPoster = currentUser && [ROLES.VICE_MAYOR, ROLES.SECRETARY].includes(currentUser.role);
+
+  el.innerHTML = sorted.map(a => {
+    // Special accounts can delete only their own posts
+    const isMyPost = isSpecialPoster && (a.postedBy === (currentUser.name || currentUser.username));
+    return _renderAnnCard(a, false, isMyPost);
+  }).join("");
 
   // Show "New" badge if any announcement arrived after last time user visited Announcements section.
   // Uses sbp_ann_seen which is stamped to Date.now() when user navigates to the announcements section.
@@ -6720,14 +6794,10 @@ function initAdminAnnouncements() {
     if (btn) { btn.disabled = true; btn.textContent = "Posting…"; }
     try {
       await window.api.addAnnouncement(ann);
-      // Notify all non-admin users
-      if (window.users) {
-        window.users.filter(u => u.role !== ROLES.ADMIN).forEach(u => {
-          addNotification(u.id || u.username,
-            `New announcement: <strong>${h(title)}</strong>`,
-            "info", "announcements");
-        });
-      }
+      // NOTE: Do NOT push bell notifications here. Each user's own
+      // subscribeAnnouncements listener (initUserAnnouncements) detects
+      // new announcements and pushes exactly one notification per user.
+      // Pushing here too causes every user to receive two notifications.
       showToast("Announcement posted successfully!", "success");
       form.reset();
       // The subscribeAnnouncements callback fires automatically (local & Firestore).
@@ -6772,6 +6842,84 @@ function initAdminAnnouncements() {
       const ann = (window.announcements || []).find(a => a.id === id);
       if (ann) openAnnEditModal(ann);
     }
+  });
+}
+
+// ── Wire special-account announcement posting (Vice Mayor / Secretary) ─────
+function initSpecialAccountAnnouncements() {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return;
+  const isSpecialPoster = [ROLES.VICE_MAYOR, ROLES.SECRETARY].includes(currentUser.role);
+
+  // Show/hide the post form
+  const postSection = document.getElementById("special-ann-post-section");
+  if (postSection) postSection.style.display = isSpecialPoster ? "" : "none";
+  if (!isSpecialPoster) return;
+
+  const form  = document.getElementById("special-ann-form");
+  const msgEl = document.getElementById("special-ann-msg");
+  const btn   = document.getElementById("special-ann-submit-btn");
+  if (!form) return;
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const titleEl = document.getElementById("special-ann-title");
+    const bodyEl  = document.getElementById("special-ann-body");
+    const typeEl  = document.getElementById("special-ann-type");
+
+    const title = (titleEl?.value || "").trim();
+    const body  = (bodyEl?.value  || "").trim();
+    if (!title) { if (msgEl) msgEl.textContent = "Title is required."; titleEl?.focus(); return; }
+    if (!body)  { if (msgEl) msgEl.textContent = "Message is required."; bodyEl?.focus(); return; }
+    if (msgEl) msgEl.textContent = "";
+
+    const ann = {
+      title, body,
+      type:         typeEl?.value || "general",
+      pinned:       false,
+      postedBy:     currentUser.name || currentUser.username,
+      postedByRole: currentUser.role,
+      createdAt:    new Date().toISOString(),
+    };
+
+    if (btn) { btn.disabled = true; btn.textContent = "Posting\u2026"; }
+    try {
+      await window.api.addAnnouncement(ann);
+      showToast("Announcement posted successfully!", "success");
+      form.reset();
+    } catch(err) {
+      if (msgEl) msgEl.textContent = "Failed to post announcement. Please try again.";
+      showToast("Failed to post announcement.", "error");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Post Announcement`;
+      }
+    }
+  });
+
+  // Wire delete for own announcements
+  document.getElementById("user-announce-list")?.addEventListener("click", async e => {
+    const delBtn = e.target.closest(".ann-delete-btn");
+    if (!delBtn) return;
+    const id = delBtn.dataset.id;
+    if (!id) return;
+    const ann = (window.announcements || []).find(a => a.id === id);
+    if (!ann) return;
+    // Confirm it belongs to this user
+    const myName = currentUser.name || currentUser.username;
+    if (ann.postedBy !== myName) { showToast("You can only delete your own announcements.", "error"); return; }
+    openConfirmModal("Delete Announcement",
+      "Are you sure you want to delete this announcement? This cannot be undone.",
+      async () => {
+        try {
+          await window.api.deleteAnnouncement(id);
+          showToast("Announcement deleted.", "success");
+        } catch(err) {
+          showToast("Failed to delete.", "error");
+        }
+      }
+    );
   });
 }
 
