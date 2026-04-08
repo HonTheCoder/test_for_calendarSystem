@@ -274,7 +274,7 @@ function getNotifications(userId) {
   return all.filter(n => n.userId === userId);
 }
 
-function addNotification(userId, message, type = "info", section = null, targetId = null) {
+function addNotification(userId, message, type = "info", section = null, targetId = null, subtab = null) {
   if (!userId) return;
   const notif = {
     id: crypto.randomUUID(),
@@ -283,6 +283,7 @@ function addNotification(userId, message, type = "info", section = null, targetI
     type,
     section,
     targetId,
+    subtab,
     read: false,
     createdAt: new Date().toISOString(),
   };
@@ -389,6 +390,8 @@ function updateNotificationBadge(userId) {
     // Always keep the badge hidden when count is 0 — never show "0"
     pendingBadge.textContent = String(pendingCount);
     pendingBadge.style.display = pendingCount > 0 ? "flex" : "none";
+    // Also mirror the count into the admin Meeting Requests subtab badge if available
+    try { if (typeof window.syncSubtabBadge === "function") window.syncSubtabBadge(); } catch(_) {}
   }
 
   // ── Calendar nav badge (user page only) ────────────────────────────────────
@@ -464,7 +467,7 @@ function renderNotificationPanel(userId) {
     })();
     const clickable = !!n.section;
     const cursorStyle = clickable ? "cursor:pointer;" : "";
-    const hoverAttr = clickable ? `data-section="${n.section}" data-target-id="${n.targetId || ''}" data-notif-nav="1"` : "";
+    const hoverAttr = clickable ? `data-section="${n.section}" data-target-id="${n.targetId || ''}" data-subtab="${n.subtab || ''}" data-notif-nav="1"` : "";
     const bgStyle = isNotifUnread(n, lastSeen) ? unreadBg : readBg;
     return `
       <div ${hoverAttr} class="notif-item" style="padding:11px 14px;border-bottom:1px solid ${divCol};display:flex;gap:10px;align-items:flex-start;background:${bgStyle};transition:all 0.15s;${cursorStyle}user-select:none;">
@@ -533,6 +536,7 @@ function initNotificationBell(user) {
     if (!item) return;
     const section = item.dataset.section;
     const targetId = item.dataset.targetId;
+    const subtab = item.dataset.subtab;
     
     // Close the panel
     notifPanel.classList.remove("notif-panel-open");
@@ -541,6 +545,10 @@ function initNotificationBell(user) {
       // Use the page's switchSection function
       if (typeof switchSection === "function") {
         switchSection(section, targetId);
+        // If admin meeting-logs and a subtab is provided (e.g., 'requests'), switch to it
+        if (subtab && section === "meeting-logs" && typeof window.switchMeetingTab === "function") {
+          setTimeout(() => { try { window.switchMeetingTab(subtab); } catch(_) {} }, 60);
+        }
       } else {
         // Fallback: fire a click on the matching nav link
         const navLink = document.querySelector(`.nav-link[data-section="${section}"]`) ||
@@ -3383,7 +3391,8 @@ function handleMyMeetingsClick(e) {
               `<strong>${h(currentUser.name)}</strong> requested cancellation of <strong>"${h(mtg.eventName)}"</strong> scheduled on ${formatDateDisplay(mtg.date)}. Reason: <em>${h(reason.trim())}</em> — Please review in Meeting Logs.`,
               "warning",
               "meeting-logs",
-              mtg.id
+              mtg.id,
+              "requests"
             );
             updateNotificationBadge(adminUserId);
           });
@@ -4290,7 +4299,8 @@ function submitMeetingFromPolicy() {
         `<strong>${h(currentUser.name)}</strong> edited their meeting request <strong>"${h(d.eventName)}"</strong> (within 24h window). Please review the updated details.`,
         "info",
         "meeting-logs",
-        editId
+        editId,
+        "requests"
       );
       updateNotificationBadge(admin.id || admin.username);
     });
@@ -4345,7 +4355,8 @@ function submitMeetingFromPolicy() {
         `New meeting request from <strong>${h(currentUser.name)}</strong>: <strong>"${h(d.eventName)}"</strong> on ${formatDateDisplay(d.date)} at ${formatTimeRange(d.timeStart, d.durationHours)}. Review and take action.`,
         "info",
         "meeting-logs",
-        meeting.id
+        meeting.id,
+        "requests"
       );
     });
   }
@@ -7778,7 +7789,8 @@ function initUserAnnouncements() {
             admin.id || admin.username,
             `<strong>${h(currentUser?.name)}</strong> edited their meeting request <strong>"${h(eventName)}"</strong> (within 24h window). Please review the updated details.`,
             "info", "meeting-logs",
-            editId
+            editId,
+            "requests"
           );
         });
         showToast("Meeting updated successfully.", "success");
