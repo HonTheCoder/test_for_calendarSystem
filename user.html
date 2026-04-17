@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdnjs.cloudflare.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://www.gstatic.com https://cdnjs.cloudflare.com https://apis.google.com https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app https://*.firebaseapp.com https://securetoken.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://date.nager.at; worker-src blob:; frame-src 'self' https://apis.google.com https://*.firebaseapp.com; object-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdnjs.cloudflare.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://www.gstatic.com https://cdnjs.cloudflare.com https://apis.google.com https://*.googleapis.com https://*.firebaseio.com https://*.firebasestorage.app https://*.firebaseapp.com https://securetoken.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://date.nager.at https://sbp-b2-worker.laliptagupta.workers.dev; worker-src blob:; frame-src 'self' https://apis.google.com https://*.firebaseapp.com; object-src 'none';">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!-- Dark mode anti-flicker: must run before any CSS renders -->
     <script>if(localStorage.getItem('sbp_dark')==='1')document.documentElement.setAttribute('data-theme','dark');</script>
@@ -50,7 +50,8 @@
             <span>Dashboard</span>
           </a>
 
-          <div class="sidebar-nav-label" style="margin-top:14px">Communications</div>
+          <div class="sidebar-section-divider" aria-hidden="true"></div>
+          <div class="sidebar-nav-label">Communication</div>
           <a href="#" class="nav-link" data-section="announcements">
             <span class="nav-link-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
@@ -58,8 +59,18 @@
             <span>Announcements</span>
             <span class="nav-notif-badge" id="new-ann-badge" style="display:none">New</span>
           </a>
+          <a href="#" class="nav-link" data-section="document-dispatch">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="5" width="18" height="14" rx="2"/>
+                <path d="M3 7l9 6 9-6"/>
+              </svg>
+            </span>
+            <span>Document Dispatch</span>
+          </a>
 
-          <div class="sidebar-nav-label" style="margin-top:14px">Meetings</div>
+          <div class="sidebar-section-divider" aria-hidden="true"></div>
+          <div class="sidebar-nav-label">Management</div>
           <a href="#" class="nav-link" data-section="calendar">
             <span class="nav-link-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -74,6 +85,15 @@
             <span>My Meetings</span>
             <!-- Bug Fix #4: pending-badge now exists on user page so updateNotificationBadge() can update it -->
             <span class="nav-notif-badge" id="pending-badge" style="display:none">0</span>
+          </a>
+
+          <div class="sidebar-section-divider" aria-hidden="true"></div>
+          <div class="sidebar-nav-label">Development Credits</div>
+          <a href="#" class="nav-link nav-link-dev-profile" data-section="developers-profile">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </span>
+            <span>System Development Team</span>
           </a>
         </nav>
 
@@ -161,7 +181,7 @@
               </div>
               <div class="dash-welcome-right">
                 <div class="dash-quick-actions">
-                  <button class="dash-quick-btn" onclick="if(typeof switchSection==='function'){switchSection('calendar');}else{document.querySelector('.bottom-nav-item[data-section=calendar]')?.click();}">
+                  <button type="button" id="user-dash-book-meeting" class="dash-quick-btn" onclick="if(typeof switchSection==='function'){switchSection('calendar');}else{document.querySelector('.bottom-nav-item[data-section=calendar]')?.click();}">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                     Book Meeting
                   </button>
@@ -500,6 +520,248 @@
             </div>
           </div>
 
+          <!-- ══════════════════════════
+               DOCUMENT DISPATCH
+          ══════════════════════════ -->
+          <div id="section-document-dispatch" class="user-section">
+            <div class="page-header">
+              <div>
+                <div class="page-header-title">Document Dispatch</div>
+                <div class="page-header-sub">Upload and receive official documents from the Sangguniang Bayan.</div>
+              </div>
+              <button class="btn btn-primary" id="u-dd-upload-btn" style="display:none;align-items:center;gap:8px;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Upload File
+              </button>
+            </div>
+
+            <!-- Upload Modal (moved to document.body on open — centered on viewport) -->
+            <div id="u-dd-upload-modal" class="u-dd-upload-modal-backdrop" style="display:none;">
+              <div class="u-dd-upload-modal-inner" style="background:var(--color-surface);border-radius:14px;padding:28px 28px 24px;width:100%;max-width:500px;box-shadow:0 8px 40px rgba(0,0,0,0.22);position:relative;">
+                <div style="font-size:1.1rem;font-weight:700;color:var(--color-text);margin-bottom:18px;display:flex;align-items:center;gap:10px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Upload Document
+                </div>
+                <!-- Drop Zone -->
+                <div id="u-dd-dropzone" style="border:2px dashed var(--color-border);border-radius:10px;padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;background:var(--color-bg);">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="1.5" style="margin-bottom:10px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <div style="font-weight:600;color:var(--color-text);margin-bottom:4px;">Drag &amp; Drop PDF here</div>
+                  <div style="font-size:0.82rem;color:var(--color-text-muted);margin-bottom:14px;">or click to browse</div>
+                  <input type="file" id="u-dd-file-input" accept=".pdf" style="display:none;">
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('u-dd-file-input').click()">Browse File</button>
+                </div>
+                <div id="u-dd-file-name" style="margin-top:10px;font-size:0.84rem;color:var(--color-primary);font-weight:600;min-height:18px;text-align:center;"></div>
+
+                <!-- Visibility -->
+                <div style="margin-top:18px;">
+                  <div style="font-size:0.83rem;font-weight:600;color:var(--color-text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em;">Upload As</div>
+                  <div style="display:flex;gap:10px;">
+                    <label id="u-dd-opt-public" style="flex:1;border:2px solid var(--color-border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .2s,background .2s;">
+                      <input type="radio" name="u-dd-visibility" value="public" id="u-dd-radio-public" style="display:none;" checked>
+                      <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:rgba(59,130,246,0.1);flex-shrink:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></span>
+                      <div>
+                        <div style="font-weight:600;font-size:0.9rem;color:var(--color-text);">Public</div>
+                        <div style="font-size:0.76rem;color:var(--color-text-muted);">Visible to all users</div>
+                      </div>
+                    </label>
+                    <label id="u-dd-opt-private" style="flex:1;border:2px solid var(--color-border);border-radius:10px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .2s,background .2s;">
+                      <input type="radio" name="u-dd-visibility" value="private" id="u-dd-radio-private" style="display:none;">
+                      <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,0.1);flex-shrink:0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></span>
+                      <div>
+                        <div style="font-weight:600;font-size:0.9rem;color:var(--color-text);">Private</div>
+                        <div style="font-size:0.76rem;color:var(--color-text-muted);">Select recipients</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Recipient selector -->
+                <div id="u-dd-recipients-wrap" style="display:none;margin-top:16px;">
+                  <div style="font-size:0.83rem;font-weight:600;color:var(--color-text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em;">Recipients <span style="color:var(--color-danger)">*</span> <span style="font-weight:400;text-transform:none;font-size:0.78rem;">(1–5 users)</span></div>
+                  <div style="position:relative;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="u-dd-recipient-search" class="field" placeholder="Search registered users…" style="padding-left:32px;" autocomplete="off">
+                  </div>
+                  <div id="u-dd-recipient-dropdown" style="display:none;border:1px solid var(--color-border);border-radius:8px;margin-top:4px;max-height:160px;overflow-y:auto;background:var(--color-surface);box-shadow:0 4px 16px rgba(0,0,0,0.1);"></div>
+                  <div id="u-dd-selected-recipients" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:28px;"></div>
+                  <div id="u-dd-recipient-error" style="color:var(--color-danger);font-size:0.78rem;min-height:16px;"></div>
+                </div>
+
+                <div id="u-dd-upload-error" style="color:var(--color-danger);font-size:0.82rem;min-height:16px;margin-top:8px;"></div>
+
+                <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+                  <button type="button" class="btn btn-ghost btn-sm" id="u-dd-cancel-modal-btn">Cancel</button>
+                  <button type="button" class="btn btn-primary btn-sm" id="u-dd-submit-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cancel Confirmation Modal -->
+            <div id="u-dd-cancel-confirm-modal" style="display:none;position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,0.55);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+              <div style="background:var(--color-surface);border-radius:14px;padding:28px 28px 22px;width:100%;max-width:380px;box-shadow:0 8px 40px rgba(0,0,0,0.22);margin:16px;">
+                <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;">
+                  <div style="width:52px;height:52px;border-radius:50%;background:#fef3c7;display:flex;align-items:center;justify-content:center;margin-bottom:10px;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  </div>
+                  <div style="font-size:1rem;font-weight:700;color:var(--color-text);margin-bottom:6px;">Cancel Upload?</div>
+                  <div style="font-size:0.85rem;color:var(--color-text-muted);line-height:1.55;">Your selected file and settings will be discarded. This action cannot be undone.</div>
+                </div>
+                <div style="display:flex;gap:10px;margin-top:22px;">
+                  <button type="button" id="u-dd-cancel-confirm-no" class="btn btn-ghost" style="flex:1;">Keep Editing</button>
+                  <button type="button" id="u-dd-cancel-confirm-yes" class="btn btn-danger" style="flex:1;">Yes, Cancel</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="sbp-dispatch-success-modal" style="display:none;position:fixed;inset:0;z-index:10120;background:rgba(0,0,0,0.55);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:16px;">
+              <div style="background:var(--color-surface);border-radius:14px;padding:28px 24px 22px;width:100%;max-width:400px;box-shadow:0 8px 40px rgba(0,0,0,0.22);text-align:center;">
+                <div style="width:56px;height:56px;border-radius:50%;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <div id="sbp-dispatch-success-title" style="font-size:1.05rem;font-weight:700;color:var(--color-text);">Uploaded successfully</div>
+                <div id="sbp-dispatch-success-msg" style="font-size:0.86rem;color:var(--color-text-muted);margin-top:8px;line-height:1.5;"></div>
+                <button type="button" id="sbp-dispatch-success-ok" class="btn btn-primary" style="margin-top:22px;width:100%;">OK</button>
+              </div>
+            </div>
+
+            <!-- File lists -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px;" class="u-dd-grid">
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title-wrap">
+                    <div class="card-title-icon" style="background:rgba(99,102,241,0.12);color:#6366f1;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+                    </div>
+                    <div>
+                      <div class="card-title">Your Inbox</div>
+                      <div class="card-subtitle">Files sent privately to you</div>
+                    </div>
+                  </div>
+                </div>
+                <div id="u-dd-inbox-list" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:10px;">
+                  <div style="text-align:center;padding:28px 0;color:var(--color-text-muted);font-size:0.88rem;">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.4;display:block;margin-left:auto;margin-right:auto;"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+                    No private files for you yet
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-header">
+                  <div class="card-title-wrap">
+                    <div class="card-title-icon" style="background:rgba(16,185,129,0.12);color:#10b981;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                    </div>
+                    <div>
+                      <div class="card-title">Public Files</div>
+                      <div class="card-subtitle">Visible to all registered users</div>
+                    </div>
+                  </div>
+                </div>
+                <div id="u-dd-public-list" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:10px;">
+                  <div style="text-align:center;padding:28px 0;color:var(--color-text-muted);font-size:0.88rem;">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.4;display:block;margin-left:auto;margin-right:auto;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                    No public files uploaded yet
+                  </div>
+                </div>
+              </div>
+            </div>
+            <style>
+              @media (max-width:700px) { .u-dd-grid { grid-template-columns:1fr !important; } }
+              @media (min-width: 1024px) {
+                #section-document-dispatch.user-section { margin-top: 14px; padding-top: 6px; }
+              }
+              .u-dd-file-card { display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--color-border);border-radius:10px;background:var(--color-bg);flex-wrap:wrap; }
+              .u-dd-file-card-actions { display:flex;flex-shrink:0;gap:6px;align-items:center;flex-wrap:wrap; }
+              .u-dd-file-delete { color:var(--color-danger) !important; }
+              #u-dd-opt-public.u-dd-selected, #u-dd-opt-private.u-dd-selected { border-color:var(--color-primary);background:rgba(99,102,241,0.06); }
+              .u-dd-upload-modal-backdrop {
+                position:fixed !important;
+                inset:0 !important;
+                z-index:10050 !important;
+                width:100vw !important;
+                min-height:100vh !important;
+                min-height:100dvh !important;
+                box-sizing:border-box !important;
+                padding:16px !important;
+                margin:0 !important;
+                background:rgba(0,0,0,0.55) !important;
+                flex-direction:row !important;
+                align-items:center !important;
+                justify-content:center !important;
+                overflow-y:auto !important;
+                -webkit-overflow-scrolling:touch;
+              }
+              .u-dd-upload-modal-inner {
+                flex-shrink:0;
+                margin:0 auto !important;
+                max-height:calc(100vh - 32px);
+                max-height:calc(100dvh - 32px);
+                overflow-y:auto;
+              }
+            </style>
+          </div>
+
+          <div id="section-developers-profile" class="user-section">
+            <div class="page-header">
+              <div>
+                <div class="page-header-title">System Development Team</div>
+                <div class="page-header-sub">
+                  The team behind the secure, high-performance LGU scheduling platform.
+                </div>
+              </div>
+            </div>
+
+            <div class="dev-profile-hero card">
+              <div class="dev-profile-hero-chip">The Team</div>
+              <h2>Development Team</h2>
+              <p>
+                A skilled trio of IT professionals committed to delivering a secure,
+                efficient, and modern scheduling solution for local government operations.
+              </p>
+            </div>
+
+            <div class="dev-profile-grid">
+              <article class="dev-profile-card dev-profile-card-lead">
+                <div class="dev-profile-avatar">
+                  <img src="images/Hon.jpg" alt="Hon. Ezekiel N. Bogñalbal" />
+                </div>
+                <div class="dev-profile-name">Hon. Ezekiel N. Bogñalbal</div>
+                <div class="dev-profile-role">System Architecture &amp; Firebase Integration</div>
+                <p>
+                  "Focusing on the system's core architecture and logic, I specialized in Firebase database integration, ensuring real-time data synchronization across all administrative modules. My priority was developing scalable, high-performance solutions for the LGU's scheduling workflows."
+                </p>
+              </article>
+
+              <article class="dev-profile-card dev-profile-card-front">
+                <div class="dev-profile-avatar">
+                  <img src="images/Chano.jpg" alt="Christian Marlon E. Factor" />
+                </div>
+                <div class="dev-profile-name">Christian Marlon E. Factor</div>
+                <div class="dev-profile-role">UI/UX Design &amp; Frontend Development</div>
+                <p>
+                  "Led the UI/UX design and frontend development, translating complex legislative processes into the intuitive, dark-themed interface seen in the dashboard. I focused on user engagement and accessibility to streamline navigation for LGU staff."
+                </p>
+              </article>
+
+              <article class="dev-profile-card dev-profile-card-back">
+                <div class="dev-profile-avatar">
+                  <img src="images/Jake.jpg" alt="Jake S. Mariscotes" />
+                </div>
+                <div class="dev-profile-name">Jake S. Mariscotes</div>
+                <div class="dev-profile-role">System Integration &amp; Security Optimization</div>
+                <p>
+                  "Specialized in system integration and backend optimization, managing secure data exchange and implementing robust authentication protocols. My role was critical in ensuring the system's data integrity and operational security."
+                </p>
+              </article>
+            </div>
+          </div>
+
+          <footer class="app-global-footer">
+            © 2026 LGU Scheduling System Website Developed by Alt165. For official government use only.
+          </footer>
         </main>
       </div>
     </div>
@@ -703,7 +965,6 @@
       </div>
     </div>
 
-
     <!-- Mobile bottom nav -->
     <nav class="bottom-nav">
       <a href="#" class="bottom-nav-item bottom-nav-item-active" data-section="dashboard">
@@ -712,15 +973,26 @@
       </a>
       <a href="#" class="bottom-nav-item" data-section="calendar">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span>Calendar</span>
+        <span>Meeting Calendar</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="my-meetings">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span>Meetings</span>
+        <span>Accounts</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="announcements">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
         <span>Announce</span>
+      </a>
+      <a href="#" class="bottom-nav-item" data-section="document-dispatch">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="5" width="18" height="14" rx="2"/>
+          <path d="M3 7l9 6 9-6"/>
+        </svg>
+        <span>Dispatch</span>
+      </a>
+      <a href="#" class="bottom-nav-item" data-section="developers-profile">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span>Developers</span>
       </a>
     </nav>
 
@@ -767,6 +1039,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
     <script src="./firebase.js" defer></script>
     <script src="./app.js" defer></script>
@@ -774,7 +1047,7 @@
     <!-- Section navigation -->
     <script>
       (function () {
-        var SECTION_TITLES = { dashboard: 'Dashboard', calendar: 'Meeting Calendar', 'my-meetings': 'My Meetings', announcements: 'Announcements' };
+        var SECTION_TITLES = { dashboard: 'Dashboard', calendar: 'Meeting Calendar', 'my-meetings': 'My Meetings', announcements: 'Announcements', 'document-dispatch': 'Document Dispatch', 'developers-profile': 'System Development Team' };
         function isFormDirty() {
           var form = document.getElementById('meeting-form');
           if (!form) return false;
@@ -792,17 +1065,40 @@
           });
         }
 
-        function switchSection(key, targetId) {
+        var _lastUserNavBySection = {};
+        function applyUserActiveLinks(key, sourceEl) {
+          var navLinks = Array.prototype.slice.call(document.querySelectorAll('.nav-link[data-section]'));
+          var bottomLinks = Array.prototype.slice.call(document.querySelectorAll('.bottom-nav-item[data-section]'));
+          navLinks.forEach(function (a) { a.classList.remove('nav-link-active'); });
+          bottomLinks.forEach(function (a) { a.classList.remove('bottom-nav-item-active'); });
+
+          var pickedNav = null;
+          var pickedBottom = null;
+          if (sourceEl && sourceEl.matches && sourceEl.matches('.nav-link[data-section]')) {
+            pickedNav = sourceEl;
+          } else if (_lastUserNavBySection[key] && _lastUserNavBySection[key].isConnected) {
+            pickedNav = _lastUserNavBySection[key];
+          } else {
+            pickedNav = navLinks.find(function (a) { return a.dataset.section === key; }) || null;
+          }
+          if (sourceEl && sourceEl.matches && sourceEl.matches('.bottom-nav-item[data-section]')) {
+            pickedBottom = sourceEl;
+          } else {
+            pickedBottom = bottomLinks.find(function (a) { return a.dataset.section === key; }) || null;
+          }
+          if (pickedNav) {
+            pickedNav.classList.add('nav-link-active');
+            _lastUserNavBySection[key] = pickedNav;
+          }
+          if (pickedBottom) pickedBottom.classList.add('bottom-nav-item-active');
+        }
+
+        function switchSection(key, targetId, sourceEl) {
           function doSwitch() {
             document.querySelectorAll('.user-section').forEach(function (el) { el.classList.remove('active'); });
             var target = document.getElementById('section-' + key);
             if (target) target.classList.add('active');
-            document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
-              a.classList.toggle('nav-link-active', a.dataset.section === key);
-            });
-            document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
-              a.classList.toggle('bottom-nav-item-active', a.dataset.section === key);
-            });
+            applyUserActiveLinks(key, sourceEl);
             var titleEl = document.getElementById('topbar-section-title');
             if (titleEl) titleEl.textContent = SECTION_TITLES[key] || key;
             if (key === 'announcements') {
@@ -815,6 +1111,11 @@
             // Re-render the table with the targetId if we're switching to my-meetings
             if (key === 'my-meetings' && typeof renderMyMeetingsTable === 'function') {
               renderMyMeetingsTable(getCurrentUser(), targetId);
+            }
+
+            // Load Document Dispatch data when entering that section
+            if (key === 'document-dispatch' && typeof window.uLoadDispatchFiles === 'function') {
+              window.uLoadDispatchFiles();
             }
 
             // If a targetId is provided, try to find and scroll to it
@@ -857,10 +1158,10 @@
         document.addEventListener('DOMContentLoaded', function () {
           // Register nav + bottom-nav click listeners after DOM is ready
           document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
-            a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+            a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section, null, a); });
           });
           document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
-            a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section); });
+            a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section, null, a); });
           });
           initDirtyTracking('meeting-form');
           // Always land on dashboard when coming fresh from login
@@ -1294,7 +1595,541 @@
       })();
     </script>
 
+    <!-- ═══════════════ DOCUMENT DISPATCH LOGIC (user.html) ═══════════════ -->
+    <script>
+    (function() {
+      "use strict";
+      function uDdEl(id) { return document.getElementById(id); }
 
+      function uDdEscAttr(s) {
+        return String(s == null ? "" : s)
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/</g, "&lt;");
+      }
+
+      var U_DD_PDF_ICON_SVG =
+        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
+      function uDdSetSelectedFileName(name) {
+        var el = uDdEl("u-dd-file-name");
+        if (!el) return;
+        if (!name) {
+          el.innerHTML = "";
+          return;
+        }
+        el.innerHTML =
+          '<span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;">' +
+          U_DD_PDF_ICON_SVG +
+          "<span>" +
+          uDdEscAttr(name) +
+          "</span></span>";
+      }
+
+      function uDdFormatStorageErr(err) {
+        var m = err && err.message ? err.message : String(err);
+        var code = err && err.code ? String(err.code) : "";
+        if (/network|CORS|Failed to fetch|ERR_FAILED/i.test(m + code)) {
+          m +=
+            " This is often fixed by setting Google Cloud Storage CORS on your default bucket (see cors.json in this project), for example: gsutil cors set cors.json gs://testingcalendar-41b86.firebasestorage.app";
+        }
+        return m;
+      }
+
+      function ensureFirebaseAuthUser(callback, onError) {
+        var auth = firebase.auth();
+        function finish(user) {
+          if (user) {
+            callback(user);
+            return;
+          }
+          firebase
+            .auth()
+            .signInAnonymously()
+            .then(function (cred) {
+              if (cred && cred.user) callback(cred.user);
+              else if (onError) onError(new Error("Anonymous sign-in returned no user."));
+            })
+            .catch(function (e) {
+              if (onError) onError(e);
+            });
+        }
+        if (auth.currentUser) {
+          finish(auth.currentUser);
+          return;
+        }
+        if (auth.authStateReady) {
+          auth.authStateReady().then(function () {
+            finish(auth.currentUser);
+          });
+          return;
+        }
+        var unsub = auth.onAuthStateChanged(function (user) {
+          try {
+            unsub();
+          } catch (e1) {}
+          finish(user);
+        });
+      }
+
+      (function initDispatchSuccessModal() {
+        var modal = document.getElementById("sbp-dispatch-success-modal");
+        var titleEl = document.getElementById("sbp-dispatch-success-title");
+        var msgEl = document.getElementById("sbp-dispatch-success-msg");
+        var okBtn = document.getElementById("sbp-dispatch-success-ok");
+        if (!modal || !titleEl || !msgEl || !okBtn) return;
+        function closeSuccess() {
+          modal.style.display = "none";
+        }
+        window.openSuccessModal = function (title, msg) {
+          titleEl.textContent = title || "Success";
+          msgEl.textContent = msg || "";
+          if (modal.parentNode !== document.body) document.body.appendChild(modal);
+          modal.style.display = "flex";
+        };
+        okBtn.addEventListener("click", closeSuccess);
+        modal.addEventListener("click", function (e) {
+          if (e.target === modal) closeSuccess();
+        });
+      })();
+
+      function uDdResetSubmitBtn(btn) {
+        if (!btn) return;
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Upload';
+      }
+
+      function uPurgeExpiredDispatchFiles(db) {
+        try {
+          var cutoff = firebase.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          db.collection("dispatch_files")
+            .where("timestamp", "<", cutoff)
+            .limit(25)
+            .get()
+            .then(function (snap) {
+              if (snap.empty) return null;
+              var batch = db.batch();
+              var ops = [];
+              snap.forEach(function (docSnap) {
+                var d = docSnap.data();
+                if (d.b2FileId && d.filePath) {
+                  ops.push(fetch(B2_WORKER_URL + "/delete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ fileId: d.b2FileId, fileName: d.filePath })
+                  }).catch(function () {}));
+                }
+                batch.delete(docSnap.ref);
+              });
+              return Promise.all(ops).then(function () { return batch.commit(); });
+            })
+            .catch(function (err) { console.warn("[U-DD] purgeExpired", err); });
+        } catch (e) { console.warn("[U-DD] purgeExpired", e); }
+      }
+
+      function uDdDownloadFile(url, fileName) {
+        if (!url) return;
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = fileName || "document.pdf";
+        a.rel = "noopener";
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+
+      function uDdDeleteDispatchDoc(docId, filePath, b2FileId) {
+        if (!docId || !confirm("Delete this file from Storage and the list?")) return;
+        var db = firebase.firestore();
+        var p = (b2FileId && filePath)
+          ? fetch(B2_WORKER_URL + "/delete", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ fileId: b2FileId, fileName: filePath })
+            }).catch(function () { return null; })
+          : Promise.resolve();
+        p.then(function () { return db.collection("dispatch_files").doc(docId).delete(); })
+          .then(function () { alert("File deleted."); })
+          .catch(function (err) {
+            console.error("[U-DD] delete", err);
+            alert("Delete failed: " + (err && err.message ? err.message : String(err)));
+          });
+      }
+
+      function uDdAttachListActions(listEl) {
+        if (!listEl || listEl._uDdActionsBound) return;
+        listEl._uDdActionsBound = true;
+        listEl.addEventListener("click", function (e) {
+          var btn = e.target.closest("[data-u-dd-action]");
+          if (!btn || !listEl.contains(btn)) return;
+          var act = btn.getAttribute("data-u-dd-action");
+          if (act === "download") {
+            e.preventDefault();
+            uDdDownloadFile(btn.getAttribute("data-u-dd-url"), btn.getAttribute("data-u-dd-name"));
+          } else if (act === "delete") {
+            e.preventDefault();
+            uDdDeleteDispatchDoc(btn.getAttribute("data-u-dd-id"), btn.getAttribute("data-u-dd-path"), btn.getAttribute("data-u-dd-b2id"));
+          }
+        });
+      }
+
+      function renderFileCard(docId, doc, viewerUid) {
+        var isPublic = doc.type === "public";
+        var badgeColor = isPublic ? "#10b981" : "#6366f1";
+        var badgeLabel = isPublic ? "🌐 Public" : "🔒 Private";
+        var date = doc.timestamp
+          ? new Date(doc.timestamp.seconds ? doc.timestamp.seconds*1000 : doc.timestamp)
+              .toLocaleDateString("en-PH",{year:"numeric",month:"short",day:"numeric"})
+          : "—";
+        var canDelete = viewerUid && doc.uploadedBy === viewerUid;
+        var url = doc.filePath ? uDdEscAttr(B2_WORKER_URL + "/download?filePath=" + encodeURIComponent(doc.filePath)) : "";
+        var path = uDdEscAttr(doc.filePath || "");
+        var b2id = uDdEscAttr(doc.b2FileId || "");
+        var fn = uDdEscAttr(doc.fileName || "document.pdf");
+        var idAttr = uDdEscAttr(docId);
+        var openSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>';
+        var dlSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+        var delSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+        return '<div class="u-dd-file-card">'
+          + '<div style="width:38px;height:38px;background:rgba(239,68,68,0.1);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>'
+          + '<div style="flex:1;min-width:0;">'
+          + '<div style="font-weight:600;font-size:0.88rem;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="'+uDdEscAttr(doc.fileName||"")+'">'+(doc.fileName||"Untitled")+'</div>'
+          + '<div style="font-size:0.76rem;color:var(--color-text-muted);margin-top:2px;">'+(doc.uploadedByName||"Unknown")+' &nbsp;·&nbsp; '+date+' &nbsp;·&nbsp; <span style="color:'+badgeColor+';font-weight:600;">'+badgeLabel+'</span></div>'
+          + '</div>'
+          + '<div class="u-dd-file-card-actions">'
+          + '<a href="'+(url ? url : "#")+'" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="padding:6px 10px;" title="Open PDF">'+openSvg+'</a>'
+          + '<button type="button" class="btn btn-ghost btn-sm" style="padding:6px 10px;" data-u-dd-action="download" data-u-dd-url="'+url+'" data-u-dd-name="'+fn+'" title="Download">'+dlSvg+'</button>'
+          + (canDelete ? '<button type="button" class="btn btn-ghost btn-sm u-dd-file-delete" style="padding:6px 10px;" data-u-dd-action="delete" data-u-dd-id="'+idAttr+'" data-u-dd-path="'+path+'" data-u-dd-b2id="'+b2id+'" title="Delete">'+delSvg+'</button>' : "")
+          + "</div></div>";
+      }
+
+      var uUnsubPublic = null;
+      var uUnsubInbox  = null;
+
+      function loadDispatchFiles() {
+        // Use the already-initialized Firestore instance from firebase.js.
+        var db = firebase.firestore();
+        uDdAttachListActions(uDdEl("u-dd-public-list"));
+        uDdAttachListActions(uDdEl("u-dd-inbox-list"));
+        uPurgeExpiredDispatchFiles(db);
+        if (uUnsubPublic) { uUnsubPublic(); uUnsubPublic = null; }
+        if (uUnsubInbox)  { uUnsubInbox();  uUnsubInbox  = null; }
+
+        var emptyPublic = '<div style="text-align:center;padding:28px 0;color:var(--color-text-muted);font-size:0.88rem;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.4;display:block;margin:0 auto 8px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>No public files uploaded yet</div>';
+        var emptyInbox  = '<div style="text-align:center;padding:28px 0;color:var(--color-text-muted);font-size:0.88rem;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.4;display:block;margin:0 auto 8px;"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>No private files for you yet</div>';
+
+        // NOTE: This query requires a Firestore composite index on
+        // dispatch_files: type ASC, timestamp DESC.
+        // Falls back to a JS-sorted unordered query if the index is not yet built.
+        function subscribePublic(ordered) {
+          var q = ordered
+            ? db.collection("dispatch_files").where("type","==","public").orderBy("timestamp","desc").limit(50)
+            : db.collection("dispatch_files").where("type","==","public").limit(50);
+          return q.onSnapshot(function(snap) {
+            var list = uDdEl("u-dd-public-list");
+            if (!list) return;
+            if (snap.empty) { list.innerHTML = emptyPublic; return; }
+            var docs = snap.docs.slice();
+            if (!ordered) {
+              docs.sort(function(a,b){
+                var sa = a.data().timestamp ? (a.data().timestamp.seconds||0) : 0;
+                var sb = b.data().timestamp ? (b.data().timestamp.seconds||0) : 0;
+                return sb - sa;
+              });
+            }
+            var viewerUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || "";
+            list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), viewerUid); }).join("");
+          }, function(e){
+            if (ordered && e.code === "failed-precondition") {
+              console.warn("[U-DD] composite index not ready, falling back to JS sort:", e.message);
+              if (uUnsubPublic) { uUnsubPublic(); }
+              uUnsubPublic = subscribePublic(false);
+            } else {
+              console.error("[U-DD] public error:", e);
+            }
+          });
+        }
+        uUnsubPublic = subscribePublic(true);
+
+        // FIX: onAuthStateChanged fires immediately with null before
+        // signInAnonymously() resolves, making inbox stay empty permanently.
+        // Instead we wait for auth to settle before subscribing.
+        function subscribeInbox(uid) {
+          if (uUnsubInbox) { uUnsubInbox(); uUnsubInbox = null; }
+          if (!uid) {
+            var list = uDdEl("u-dd-inbox-list");
+            if (list) list.innerHTML = emptyInbox;
+            return;
+          }
+          uUnsubInbox = db.collection("dispatch_files")
+            .where("type","==","private")
+            .where("recipients","array-contains", uid)
+            .limit(50)
+            .onSnapshot(function(snap) {
+              var list = uDdEl("u-dd-inbox-list");
+              if (!list) return;
+              if (snap.empty) { list.innerHTML = emptyInbox; return; }
+              var docs = snap.docs.slice().sort(function(a,b){
+                var sa = a.data().timestamp ? (a.data().timestamp.seconds||0) : 0;
+                var sb = b.data().timestamp ? (b.data().timestamp.seconds||0) : 0;
+                return sb - sa;
+              });
+              var viewerUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || "";
+              list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), viewerUid); }).join("");
+            }, function(e){ console.error("[U-DD] inbox error:", e); });
+        }
+
+        // authStateReady() (Firebase 9.22+) resolves once auth state is known.
+        // Falls back to a one-shot onAuthStateChanged for older SDK versions.
+        var auth = firebase.auth();
+        if (auth.authStateReady) {
+          auth.authStateReady().then(function() {
+            subscribeInbox(auth.currentUser ? auth.currentUser.uid : null);
+          });
+        } else {
+          var _unsubAuth = auth.onAuthStateChanged(function(user) {
+            _unsubAuth(); // unsubscribe immediately — only need the first settled value
+            subscribeInbox(user ? user.uid : null);
+          });
+        }
+      }
+
+      // Expose immediately — not inside DOMContentLoaded
+      window.uLoadDispatchFiles = loadDispatchFiles;
+
+      // ── Upload modal ──────────────────────────────────────────────────────
+      var uSelectedFile = null;
+      var uSelectedRecipients = [];
+      var uAllUsers = [];
+
+      function uOpenModal() {
+        uSelectedFile = null; uSelectedRecipients = [];
+        uDdSetSelectedFileName("");
+        uDdEl("u-dd-upload-error").textContent = "";
+        if (uDdEl("u-dd-recipient-error")) uDdEl("u-dd-recipient-error").textContent = "";
+        uDdEl("u-dd-file-input").value = "";
+        uDdEl("u-dd-radio-public").checked = true;
+        uDdEl("u-dd-recipients-wrap").style.display = "none";
+        uDdEl("u-dd-selected-recipients").innerHTML = "";
+        uDdEl("u-dd-recipient-search").value = "";
+        uDdEl("u-dd-recipient-dropdown").style.display = "none";
+        uUpdateVisibilityUI();
+        var uModalRoot = uDdEl("u-dd-upload-modal");
+        if (uModalRoot) {
+          if (uModalRoot.parentNode !== document.body) {
+            document.body.appendChild(uModalRoot);
+          }
+          uModalRoot.style.display = "flex";
+        }
+        uFetchAllUsers();
+      }
+
+      function uCloseModal() {
+        var confirmModal = document.getElementById("u-dd-cancel-confirm-modal");
+        if (confirmModal) {
+          if (confirmModal.parentNode !== document.body) document.body.appendChild(confirmModal);
+          confirmModal.style.display = "flex";
+        }
+      }
+
+      function uCloseCancelConfirmModal() {
+        var confirmModal = document.getElementById("u-dd-cancel-confirm-modal");
+        if (confirmModal) confirmModal.style.display = "none";
+      }
+
+      function uConfirmCancelUpload() {
+        uCloseCancelConfirmModal();
+        uDdEl("u-dd-upload-modal").style.display = "none";
+      }
+
+      function uUpdateVisibilityUI() {
+        var isPrivate = uDdEl("u-dd-radio-private").checked;
+        uDdEl("u-dd-recipients-wrap").style.display = isPrivate ? "block" : "none";
+        uDdEl("u-dd-opt-public").classList.toggle("u-dd-selected", !isPrivate);
+        uDdEl("u-dd-opt-private").classList.toggle("u-dd-selected", isPrivate);
+      }
+
+      function uFetchAllUsers() {
+        firebase.firestore().collection("users").get()
+          .then(function(snap){ uAllUsers = snap.docs.map(function(d){ return Object.assign({uid:d.id},d.data()); }); })
+          .catch(function(e){ console.warn("[U-DD] fetchUsers",e); });
+      }
+
+      function uRenderDropdown(query) {
+        var q = query.trim().toLowerCase();
+        var user = firebase.auth().currentUser;
+        var matches = uAllUsers.filter(function(u) {
+          if (user && u.uid===user.uid) return false;
+          if (uSelectedRecipients.find(function(r){ return r.uid===u.uid; })) return false;
+          return !q || (u.displayName||u.username||u.email||"").toLowerCase().includes(q);
+        }).slice(0,8);
+        var dd = uDdEl("u-dd-recipient-dropdown");
+        if (!matches.length) { dd.style.display="none"; return; }
+        dd.innerHTML = matches.map(function(u){
+          return '<div data-uid="'+u.uid+'" style="padding:9px 14px;cursor:pointer;font-size:0.88rem;color:var(--color-text);border-bottom:1px solid var(--color-border);" onmousedown="event.preventDefault()">'
+            +'<strong>'+(u.displayName||u.username||"—")+'</strong>'
+            +'<span style="color:var(--color-text-muted);font-size:0.78rem;margin-left:6px;">'+(u.username||u.email||"")+'</span>'
+            +'</div>';
+        }).join("");
+        dd.style.display="block";
+        dd.querySelectorAll("div[data-uid]").forEach(function(item){
+          item.addEventListener("click", function(){
+            if (uSelectedRecipients.length>=5){ uDdEl("u-dd-recipient-error").textContent="Maximum 5 recipients."; return; }
+            var u = uAllUsers.find(function(x){ return x.uid===item.dataset.uid; });
+            if (!u) return;
+            uSelectedRecipients.push({uid:u.uid, displayName:u.displayName||u.username||u.email});
+            uDdEl("u-dd-recipient-search").value="";
+            dd.style.display="none";
+            uDdEl("u-dd-recipient-error").textContent="";
+            uRenderTags();
+          });
+        });
+      }
+
+      function uRenderTags() {
+        var wrap = uDdEl("u-dd-selected-recipients");
+        wrap.innerHTML = uSelectedRecipients.map(function(r,i){
+          return '<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(99,102,241,0.12);color:var(--color-primary);border-radius:20px;padding:4px 10px;font-size:0.8rem;font-weight:600;">'
+            +r.displayName
+            +'<button type="button" data-i="'+i+'" style="background:none;border:none;cursor:pointer;color:var(--color-text-muted);font-size:1rem;line-height:1;padding:0 0 0 2px;">&times;</button></span>';
+        }).join("");
+        wrap.querySelectorAll("button[data-i]").forEach(function(btn){
+          btn.addEventListener("click", function(){ uSelectedRecipients.splice(parseInt(btn.dataset.i),1); uRenderTags(); });
+        });
+      }
+
+      function uHandleSubmit() {
+        var errEl = uDdEl("u-dd-upload-error");
+        errEl.textContent = "";
+        if (!uSelectedFile) { errEl.textContent="Please select a PDF file."; return; }
+        var isPrivate = uDdEl("u-dd-radio-private").checked;
+        if (isPrivate && uSelectedRecipients.length===0) { uDdEl("u-dd-recipient-error").textContent="Select at least 1 recipient."; return; }
+        var submitBtn = uDdEl("u-dd-submit-btn");
+        var db = firebase.firestore();
+        submitBtn.disabled=true;
+        submitBtn.textContent="Uploading…";
+
+        var B2_WORKER_URL = "https://sbp-b2-worker.laliptagupta.workers.dev";
+
+        function continueUpload(user) {
+          var fileName = Date.now() + "_" + uSelectedFile.name;
+          var filePath = "dispatch_files/" + fileName;
+          var formData = new FormData();
+          formData.append("file", uSelectedFile, fileName);
+          formData.append("fileName", fileName);
+          formData.append("filePath", filePath);
+          fetch(B2_WORKER_URL + "/upload", {
+            method: "POST",
+            body: formData
+          })
+          .then(function(res) {
+            if (!res.ok) throw new Error("Upload failed: HTTP " + res.status);
+            return res.json();
+          })
+          .then(function(data) {
+            return db.collection("dispatch_files").add({
+              fileName: uSelectedFile.name,
+              filePath: filePath,
+              b2FileId: data.fileId || "",
+              fileURL: null,
+              type: isPrivate ? "private" : "public",
+              uploadedBy: user.uid,
+              uploadedByName: user.displayName || user.email || user.uid,
+              recipients: isPrivate ? uSelectedRecipients.map(function(r){ return r.uid; }) : [],
+              timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          })
+          .then(function () {
+            uDdEl("u-dd-upload-modal").style.display="none";
+            uDdResetSubmitBtn(submitBtn);
+            if (typeof window.openSuccessModal === "function") {
+              window.openSuccessModal("File Uploaded", "Your document has been dispatched successfully.");
+            } else {
+              alert("File uploaded successfully.");
+            }
+            if (typeof window.uLoadDispatchFiles === "function") window.uLoadDispatchFiles();
+          })
+          .catch(function (err) {
+            console.error("[U-DD] upload error", err);
+            errEl.textContent = "Upload failed: " + (err && err.message ? err.message : String(err));
+            uDdResetSubmitBtn(submitBtn);
+          });
+        }
+
+        ensureFirebaseAuthUser(continueUpload, function (errAuth) {
+          errEl.textContent =
+            "Could not authenticate for upload: " +
+            (errAuth && errAuth.message ? errAuth.message : String(errAuth));
+          uDdResetSubmitBtn(submitBtn);
+        });
+      }
+
+      // ── Bind events directly (script is at bottom of body, DOM is ready) ──
+      var ubtn = uDdEl("u-dd-upload-btn");
+      if (ubtn) ubtn.addEventListener("click", uOpenModal);
+      var ucxl = uDdEl("u-dd-cancel-modal-btn");
+      if (ucxl) ucxl.addEventListener("click", uCloseModal);
+
+      var uCancelNo = document.getElementById("u-dd-cancel-confirm-no");
+      if (uCancelNo) uCancelNo.addEventListener("click", uCloseCancelConfirmModal);
+
+      var uCancelYes = document.getElementById("u-dd-cancel-confirm-yes");
+      if (uCancelYes) uCancelYes.addEventListener("click", uConfirmCancelUpload);
+      var usbm = uDdEl("u-dd-submit-btn");
+      if (usbm) usbm.addEventListener("click", uHandleSubmit);
+
+      var ufi = uDdEl("u-dd-file-input");
+      if (ufi) ufi.addEventListener("change", function(){
+        if (ufi.files[0]){ uSelectedFile=ufi.files[0]; uDdSetSelectedFileName(uSelectedFile.name); }
+      });
+
+      var udz = uDdEl("u-dd-dropzone");
+      if (udz) {
+        udz.addEventListener("click", function(e){ if(!e.target.closest("button")) uDdEl("u-dd-file-input").click(); });
+        udz.addEventListener("dragover", function(e){ e.preventDefault(); udz.style.borderColor="var(--color-primary)"; udz.style.background="rgba(99,102,241,0.05)"; });
+        udz.addEventListener("dragleave", function(){ udz.style.borderColor=""; udz.style.background=""; });
+        udz.addEventListener("drop", function(e){
+          e.preventDefault(); udz.style.borderColor=""; udz.style.background="";
+          var f=e.dataTransfer.files[0];
+          if(f&&f.type==="application/pdf"){ uSelectedFile=f; uDdSetSelectedFileName(f.name); }
+          else { uDdEl("u-dd-upload-error").textContent="Only PDF files are accepted."; }
+        });
+      }
+
+      document.querySelectorAll("input[name='u-dd-visibility']").forEach(function(r){ r.addEventListener("change", uUpdateVisibilityUI); });
+      var op=uDdEl("u-dd-opt-public"), opr=uDdEl("u-dd-opt-private");
+      if(op) op.addEventListener("click",function(){ uDdEl("u-dd-radio-public").checked=true; uUpdateVisibilityUI(); });
+      if(opr) opr.addEventListener("click",function(){ uDdEl("u-dd-radio-private").checked=true; uUpdateVisibilityUI(); });
+      uUpdateVisibilityUI();
+
+      var urs=uDdEl("u-dd-recipient-search");
+      if(urs){
+        urs.addEventListener("input",function(){ uRenderDropdown(urs.value); });
+        urs.addEventListener("focus",function(){ uRenderDropdown(urs.value); });
+        urs.addEventListener("blur",function(){ setTimeout(function(){ uDdEl("u-dd-recipient-dropdown").style.display="none"; },150); });
+      }
+
+      var umod=uDdEl("u-dd-upload-modal");
+      if(umod) umod.addEventListener("click",function(e){ if(e.target===umod) uCloseModal(); });
+
+      var uCancelConfirmModal = document.getElementById("u-dd-cancel-confirm-modal");
+      if(uCancelConfirmModal) uCancelConfirmModal.addEventListener("click",function(e){ if(e.target===uCancelConfirmModal) uCloseCancelConfirmModal(); });
+
+    })();
+    </script>
+    
+    <script>
+  // Hintayin ang pag-load ng buong page
+  window.addEventListener('load', function() {
+    if (typeof window.uLoadDispatchFiles === 'function') {
+      console.log("Loading Dispatch Files...");
+      window.uLoadDispatchFiles();
+    } else {
+      console.error("uLoadDispatchFiles is not defined or not a function.");
+    }
+  });
+</script>
 
   </body>
 </html>

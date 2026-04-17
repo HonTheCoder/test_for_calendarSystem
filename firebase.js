@@ -33,6 +33,13 @@
     try {
       var app = firebase.initializeApp(getConfig())
       db = firebase.firestore(app)
+      try {
+        if (typeof firebase.storage === "function") {
+          firebase.storage(app)
+        }
+      } catch (storageInitErr) {
+        console.warn("Firebase Storage init:", storageInitErr && storageInitErr.message)
+      }
       mode = "firestore"
       // ── Anonymous Auth ────────────────────────────────────────────────────
       // Sign in anonymously so request.auth is always populated in Firestore

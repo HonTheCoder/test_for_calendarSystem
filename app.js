@@ -14,21 +14,34 @@ const ROLES = {
   VICE_MAYOR: "Vice Mayor",
   COUNCILOR: "Councilor",
   RESEARCHER: "Researcher",
+  STAFF: "Staff",
   SECRETARY: "Secretary",
+  INTER_DEPT: "Inter Department",
 };
 
 const ROLE_LIMITS = {
   [ROLES.COUNCILOR]: 30,
   [ROLES.RESEARCHER]: 20,
+  [ROLES.STAFF]: 10,
   [ROLES.VICE_MAYOR]: 5,
   [ROLES.SECRETARY]: 10,
+  [ROLES.INTER_DEPT]: 50,
 };
 
 // Hard cap on total regular (non-admin, non-special) user accounts
-const MAX_REGULAR_USERS = 50;
+const MAX_REGULAR_USERS = 60;
 
 // Roles that are special accounts (not full admins) routed to user.html
 const SPECIAL_ROLES = [ROLES.VICE_MAYOR, ROLES.SECRETARY];
+
+/** Inter-Department / depthead_* — calendar view-only; no booking or edits */
+function isScheduleBookRestricted(user) {
+  if (!user) return false;
+  if (user.role === ROLES.STAFF) return true;
+  if (user.role === ROLES.INTER_DEPT) return true;
+  const un = (user.username || "").toLowerCase();
+  return un.startsWith("depthead_");
+}
 
 const WORK_START_HOUR = 8;
 const WORK_END_HOUR = 17;
@@ -70,6 +83,7 @@ const MEETINGS_PAGE_SIZE = 7;
 let adminMeetingsPage = 1;
 let myMeetingsPage = 1;
 let usersPage = 1;
+let interDeptUsersPage = 1;
 
 // ---------------------------------------------------------------------------
 // Philippine Holiday System — fetched live from Nager.Date API
@@ -871,6 +885,7 @@ function roleChipClass(role) {
     "Admin": "chip-role chip-role-admin",
     "Councilor": "chip-role chip-role-councilor",
     "Researcher": "chip-role chip-role-researcher",
+    "Staff": "chip-role chip-role-researcher",
     "Vice Mayor": "chip-role chip-role-vicemayor",
     "Secretary": "chip-role chip-role-secretary",
   };
@@ -909,10 +924,12 @@ let myMeetingsSearch = "";
 let usersSearch = "";
 let specialUsersSearch = "";
 let regularUsersSearch = "";
+let interDeptUsersSearch = "";
 
 // Sort direction state — "asc" (A→Z) or "desc" (Z→A); default alphabetical A→Z
 let specialUsersSortDir = "asc";
 let regularUsersSortDir = "asc";
+let interDeptUsersSortDir = "asc";
 let adminMeetingsSortDir = "asc";
 let myMeetingsSortDir = "asc";
 
@@ -932,8 +949,10 @@ function requireAuth({ allowAdmin, allowCouncilor, allowResearcher, onFail }) {
   const ok = (role === ROLES.ADMIN && allowAdmin) ||
               (role === ROLES.COUNCILOR && allowCouncilor) ||
               (role === ROLES.RESEARCHER && allowResearcher) ||
+              (role === ROLES.STAFF && allowCouncilor) ||
               (role === ROLES.VICE_MAYOR && allowCouncilor) ||
-              (role === ROLES.SECRETARY && allowCouncilor);
+              (role === ROLES.SECRETARY && allowCouncilor) ||
+              (role === ROLES.INTER_DEPT && allowCouncilor);
   if (!ok) {
     if (onFail === "button") { showAccessDeniedPage("Your role cannot access this page."); return null; }
     window.location.href = "./index.html";
@@ -1423,8 +1442,10 @@ function countUsersByRole(role) {
 function renderUsersTable() {
   const tbody = $("#user-table-body");
   const specialTbody = $("#special-accounts-table-body");
+  const interDeptTbody = $("#inter-dept-table-body");
 
-  const specialRoles = [ROLES.VICE_MAYOR, ROLES.SECRETARY];
+  const specialRoles  = [ROLES.VICE_MAYOR, ROLES.SECRETARY];
+  const interDeptRoles = [ROLES.INTER_DEPT];
   const allNonAdmin = [...users].filter(u => u.role !== ROLES.ADMIN);
 
   // ── Special Accounts: own search + sort ───────────────────────────────────
@@ -1463,7 +1484,7 @@ function renderUsersTable() {
   // ── Regular Users: own search + sort + pagination ─────────────────────────
   if (!tbody) return;
 
-  let regularList = allNonAdmin.filter(u => !specialRoles.includes(u.role));
+  let regularList = allNonAdmin.filter(u => !specialRoles.includes(u.role) && !interDeptRoles.includes(u.role));
   if (regularUsersSearch) {
     const q = regularUsersSearch.toLowerCase();
     regularList = regularList.filter(u =>
@@ -1479,7 +1500,7 @@ function renderUsersTable() {
   });
 
   // Update the user count badge
-  const regularRoles = [ROLES.COUNCILOR, ROLES.RESEARCHER];
+  const regularRoles = [ROLES.COUNCILOR, ROLES.RESEARCHER, ROLES.STAFF];
   const totalRegular = users.filter(u => regularRoles.includes(u.role)).length;
   const userCountEl = document.getElementById("user-count-badge");
   if (userCountEl) {
@@ -1508,6 +1529,61 @@ function renderUsersTable() {
   }
 
   renderPagination("users-pagination", totalPages, usersPage, (p) => { usersPage = p; renderUsersTable(); });
+
+  // ── Inter Department Users: own search + sort + pagination ────────────────
+  if (interDeptTbody) {
+    let interDeptList = allNonAdmin.filter(u => interDeptRoles.includes(u.role));
+    if (interDeptUsersSearch) {
+      const q = interDeptUsersSearch.toLowerCase();
+      interDeptList = interDeptList.filter(u =>
+        (u.username || "").toLowerCase().includes(q) ||
+        (u.name || "").toLowerCase().includes(q) ||
+        (u.role || "").toLowerCase().includes(q)
+      );
+    }
+    interDeptList.sort((a, b) => {
+      const nameA = (a.name || a.username || "").toLowerCase();
+      const nameB = (b.name || b.username || "").toLowerCase();
+      return interDeptUsersSortDir === "asc" ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    });
+
+    // Update inter-dept count badge
+    const totalInterDept = users.filter(u => interDeptRoles.includes(u.role)).length;
+    const interDeptCountEl = document.getElementById("inter-dept-count-badge");
+    if (interDeptCountEl) {
+      const limit = ROLE_LIMITS[ROLES.INTER_DEPT];
+      interDeptCountEl.textContent = `${totalInterDept} / ${limit} users`;
+      interDeptCountEl.style.color = totalInterDept >= limit ? "var(--color-danger)" : "var(--color-text-muted)";
+      interDeptCountEl.style.fontWeight = totalInterDept >= limit ? "700" : "500";
+    }
+
+    const interDeptTotalPages = Math.max(1, Math.ceil(interDeptList.length / MEETINGS_PAGE_SIZE));
+    if (interDeptUsersPage > interDeptTotalPages) interDeptUsersPage = interDeptTotalPages;
+    const interDeptPaginated = interDeptList.slice(
+      (interDeptUsersPage - 1) * MEETINGS_PAGE_SIZE,
+      interDeptUsersPage * MEETINGS_PAGE_SIZE
+    );
+
+    if (!interDeptPaginated.length) {
+      interDeptTbody.innerHTML = '<tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px">No inter-department accounts found.</td></tr>';
+    } else {
+      interDeptTbody.innerHTML = interDeptPaginated.map(u => `<tr>
+        <td>${h(u.username)}</td>
+        <td>${h(u.name || "")}</td>
+        <td><span class="${roleChipClass(u.role)}">${u.role}</span></td>
+        <td>
+          <button class="btn btn-sm btn-ghost" data-action="view-user" data-user-id="${u.id}">View</button>
+          <button class="btn btn-sm btn-ghost" data-action="change-password" data-user-id="${u.id}">Change Password</button>
+          <button class="btn btn-sm btn-ghost" data-action="remove-user" data-user-id="${u.id}">Remove</button>
+        </td>
+      </tr>`).join("");
+    }
+
+    renderPagination("inter-dept-pagination", interDeptTotalPages, interDeptUsersPage, (p) => {
+      interDeptUsersPage = p; renderUsersTable();
+    });
+  }
+
   // Keep system settings user-selects in sync
   populateEditUserSelect();
 }
@@ -1518,8 +1594,10 @@ function getRolePrefix(role) {
   const map = {
     [ROLES.COUNCILOR]:  "councilor_",
     [ROLES.RESEARCHER]: "researcher_",
+    [ROLES.STAFF]:      "staff_",
     [ROLES.VICE_MAYOR]: "vicemayor_",
     [ROLES.SECRETARY]:  "secretary_",
+    [ROLES.INTER_DEPT]: "depthead_",
   };
   return map[role] || "";
 }
@@ -1701,12 +1779,12 @@ async function handleUserFormSubmit(e) {
   if (password !== confirm)  { msg.textContent = "Passwords do not match."; showToast("Passwords do not match.", "error"); return; }
   if (users.some(u => u.username === username)) { msg.textContent = `Username "${username}" already exists.`; showToast("Username already exists.", "error"); return; }
 
-  // Check total regular-user cap (20 max — Councilors + Researchers combined)
-  const regularRoles = [ROLES.COUNCILOR, ROLES.RESEARCHER];
+  // Check total regular-user cap (Councilors + Researchers + Staff combined)
+  const regularRoles = [ROLES.COUNCILOR, ROLES.RESEARCHER, ROLES.STAFF];
   if (regularRoles.includes(role)) {
     const regularCount = users.filter(u => regularRoles.includes(u.role)).length;
     if (regularCount >= MAX_REGULAR_USERS) {
-      msg.textContent = `User limit reached. A maximum of ${MAX_REGULAR_USERS} regular accounts (Councilors + Researchers) are allowed.`;
+      msg.textContent = `User limit reached. A maximum of ${MAX_REGULAR_USERS} regular accounts (Councilors + Researchers + Staff) are allowed.`;
       showToast(`User limit reached (max ${MAX_REGULAR_USERS}).`, "error");
       return;
     }
@@ -1782,6 +1860,58 @@ async function handleSpecialAccountFormSubmit(e) {
     msg.textContent = "";
     const prevS = document.getElementById("special-username-preview");
     if (prevS) prevS.innerHTML = "";
+    renderUsersTable();
+    updateStatistics();
+    showUsernameCreatedPopup(username, role, name);
+  };
+
+  if (window.api && window.api.createUser) {
+    window.api.createUser(newUser).then(async () => {
+      users = await window.api.getUsers();
+      onDone();
+    });
+  } else {
+    users.push(newUser);
+    persistUsers();
+    onDone();
+  }
+}
+
+async function handleInterDeptFormSubmit(e) {
+  e.preventDefault();
+  const rawUsername = $("#inter-dept-username").value.trim();
+  const name        = $("#inter-dept-name").value.trim();
+  const password    = $("#inter-dept-password").value;
+  const confirm     = $("#inter-dept-confirm").value;
+  const role        = $("#inter-dept-role").value;
+  const msg         = $("#inter-dept-form-message");
+
+  // Build prefixed username
+  const username = buildPrefixedUsername(rawUsername, role);
+
+  if (!rawUsername || !name) { msg.textContent = "Username and full name are required."; showToast("Username and full name are required.", "error"); return; }
+  if (password.length < 8)   { msg.textContent = "Password must be at least 8 characters."; showToast("Password too short.", "error"); return; }
+  if (password !== confirm)  { msg.textContent = "Passwords do not match."; showToast("Passwords do not match.", "error"); return; }
+  if (users.some(u => u.username === username)) { msg.textContent = `Username "${username}" already exists.`; showToast("Username already exists.", "error"); return; }
+
+  const limit = ROLE_LIMITS[role];
+  if (limit != null && countUsersByRole(role) >= limit) {
+    msg.textContent = `Role limit reached for ${role}. Maximum of ${limit} accounts allowed.`;
+    showToast(`Role limit reached for ${role}.`, "error");
+    return;
+  }
+
+  const hashedPwd = await hashPassword(password);
+  const newUser = {
+    id: crypto.randomUUID(),
+    username, name, password: hashedPwd, role,
+  };
+
+  const onDone = async () => {
+    $("#inter-dept-form").reset();
+    msg.textContent = "";
+    const prevI = document.getElementById("inter-dept-username-preview");
+    if (prevI) prevI.innerHTML = "";
     renderUsersTable();
     updateStatistics();
     showUsernameCreatedPopup(username, role, name);
@@ -2243,7 +2373,7 @@ function renderMyMeetingsTable(currentUser, targetId) {
   }
 
   tbody.innerHTML = paginated.map(m => {
-    const canRequestCancel = currentUser.role !== ROLES.ADMIN && ["Pending", "Approved"].includes(m.status);
+    const canRequestCancel = currentUser.role !== ROLES.ADMIN && !isScheduleBookRestricted(currentUser) && ["Pending", "Approved"].includes(m.status);
     const noteTitle = m.adminNote ? ` title="${h(m.adminNote)}"` : "";
     const noteHint = m.adminNote ? `<div style="font-size:0.72rem;color:#6b7280;margin-top:3px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${h(m.adminNote)}">Note: ${h(m.adminNote)}</div>` : "";
     const createdAt = m.createdAt ? new Date(m.createdAt) : null;
@@ -2256,7 +2386,7 @@ function renderMyMeetingsTable(currentUser, targetId) {
     const countdownStr = hoursLeft > 0 ? `${hoursLeft}h ${minsLeft}m` : `${minsLeft}m`;
 
     // ── Edit button: only within 24h and only for Pending meetings ──
-    const canEdit = within24h && m.status === "Pending" && currentUser.role !== ROLES.ADMIN;
+    const canEdit = within24h && m.status === "Pending" && currentUser.role !== ROLES.ADMIN && !isScheduleBookRestricted(currentUser);
     const editBtn = canEdit
       ? `<button class="btn btn-sm btn-ghost" data-action="edit-meeting" data-meeting-id="${m.id}"
            style="display:flex;align-items:center;gap:5px;color:var(--brand-blue,#2563eb);touch-action:manipulation;-webkit-tap-highlight-color:transparent;min-height:38px;padding:0 10px;">
@@ -3257,6 +3387,10 @@ function handleMyMeetingsClick(e) {
   if (!mtg) return;
 
   if (action === "edit-meeting") {
+    if (isScheduleBookRestricted(getCurrentUser())) {
+      showToast("Your account is view-only; you cannot edit meetings.", "warning");
+      return;
+    }
     const createdAt = mtg.createdAt ? new Date(mtg.createdAt) : null;
     const nowManila = getManilaNow();
     const msElapsed = createdAt ? Math.max(0, nowManila - createdAt) : Infinity;
@@ -3283,6 +3417,10 @@ function handleMyMeetingsClick(e) {
   }
 
   if (action === "request-cancel") {
+    if (isScheduleBookRestricted(getCurrentUser())) {
+      showToast("Your account is view-only; you cannot cancel meetings.", "warning");
+      return;
+    }
     btn.disabled = true;
     btn.dataset.processing = "1";
     const reenable = () => { btn.disabled = false; btn.dataset.processing = "0"; };
@@ -3696,8 +3834,9 @@ function _renderCalendarNow() {
     }
 
     // ── Interactivity ──
-    const canInteract = currentUser &&
+    const canBookMeetings = currentUser &&
       [ROLES.ADMIN, ROLES.COUNCILOR, ROLES.RESEARCHER, ROLES.VICE_MAYOR, ROLES.SECRETARY].includes(currentUser.role);
+    const viewOnlyDept = currentUser && isScheduleBookRestricted(currentUser);
 
     if (isPast || isHoliday || !isWorkday) {
       cell.classList.add("calendar-cell-muted");
@@ -3709,8 +3848,11 @@ function _renderCalendarNow() {
         cell.classList.add("calendar-cell-readonly");
         cell.addEventListener("click", () => openDayScheduleModal(isoDate, true));
       }
-    } else if (canInteract) {
+    } else if (canBookMeetings) {
       cell.addEventListener("click", () => openDayScheduleModal(isoDate, false));
+    } else if (viewOnlyDept) {
+      cell.classList.add("calendar-cell-readonly");
+      cell.addEventListener("click", () => openDayScheduleModal(isoDate, true));
     } else {
       cell.classList.add("calendar-cell-muted");
       cell.disabled = true;
@@ -4021,7 +4163,8 @@ function _getResearcherValue() {
 
 function openMeetingModal(isoDate) {
   const currentUser = getCurrentUser();
-  if (!currentUser || ![ROLES.ADMIN, ROLES.COUNCILOR, ROLES.RESEARCHER, ROLES.VICE_MAYOR, ROLES.SECRETARY].includes(currentUser.role)) {
+  if (!currentUser || isScheduleBookRestricted(currentUser) ||
+      ![ROLES.ADMIN, ROLES.COUNCILOR, ROLES.RESEARCHER, ROLES.VICE_MAYOR, ROLES.SECRETARY].includes(currentUser.role)) {
     showToast("Only authorized roles may book meetings.", "warning");
     return;
   }
@@ -4090,6 +4233,10 @@ let _editingMeetingId = null;
 function openEditMeetingModal(mtg) {
   const currentUser = getCurrentUser();
   if (!currentUser) return;
+  if (isScheduleBookRestricted(currentUser)) {
+    showToast("Your account is view-only; you cannot edit meetings.", "warning");
+    return;
+  }
 
   // ── Mobile: route to booking drawer (pre-filled) instead of modal ──────────
   if (window.innerWidth <= 768) {
@@ -4235,6 +4382,13 @@ function closePolicyModal() {
 function submitMeetingFromPolicy() {
   const chk = document.getElementById("policy-agree-check");
   const err = document.getElementById("policy-agree-error");
+  const _cuPolicy = getCurrentUser();
+  if (_cuPolicy && isScheduleBookRestricted(_cuPolicy)) {
+    showToast("Your account is view-only; you cannot book or edit meetings.", "warning");
+    closePolicyModal();
+    _pendingMeetingData = null;
+    return;
+  }
   if (!chk || !chk.checked) {
     if (err) err.textContent = "Please check the box to agree before submitting.";
     const lbl = document.getElementById("policy-agree-label");
@@ -4418,6 +4572,10 @@ function handleMeetingSubmit(e) {
   const msg = $("#meeting-form-message");
   const currentUser = getCurrentUser();
   if (!currentUser) return;
+  if (isScheduleBookRestricted(currentUser)) {
+    showToast("Your account is view-only; you cannot book meetings.", "warning");
+    return;
+  }
 
   const eventName   = $("#meeting-event")?.value.trim() || "";
   const committee   = $("#meeting-committee")?.value.trim() || "";
@@ -4810,18 +4968,23 @@ async function initAdminPage() {
 
   $("#user-form")?.addEventListener("submit", handleUserFormSubmit);
   $("#special-account-form")?.addEventListener("submit", handleSpecialAccountFormSubmit);
+  $("#inter-dept-form")?.addEventListener("submit", handleInterDeptFormSubmit);
   $("#user-table-body")?.addEventListener("click", handleUserTableClick);
   $("#special-accounts-table-body")?.addEventListener("click", handleUserTableClick);
+  $("#inter-dept-table-body")?.addEventListener("click", handleUserTableClick);
   $("#password-form")?.addEventListener("submit", handlePasswordSubmit);
   $("#password-cancel-btn")?.addEventListener("click", closePasswordModal);
   $("#password-modal-close")?.addEventListener("click", closePasswordModal);
 
-  // Search inputs — separate for Special Accounts and Regular Users
+  // Search inputs — separate for Special Accounts, Regular Users, and Inter-Department
   document.getElementById("search-special-users")?.addEventListener("input", e => {
     specialUsersSearch = e.target.value; renderUsersTable();
   });
   document.getElementById("search-regular-users")?.addEventListener("input", e => {
     regularUsersSearch = e.target.value; usersPage = 1; renderUsersTable();
+  });
+  document.getElementById("search-inter-dept-users")?.addEventListener("input", e => {
+    interDeptUsersSearch = e.target.value; interDeptUsersPage = 1; renderUsersTable();
   });
   document.getElementById("search-admin-meetings")?.addEventListener("input", e => {
     adminMeetingsSearch = e.target.value; adminMeetingsPage = 1; renderAdminMeetingsTable();
@@ -4833,6 +4996,9 @@ async function initAdminPage() {
   });
   document.getElementById("sort-regular-users")?.addEventListener("change", e => {
     regularUsersSortDir = e.target.value; usersPage = 1; renderUsersTable();
+  });
+  document.getElementById("sort-inter-dept-users")?.addEventListener("change", e => {
+    interDeptUsersSortDir = e.target.value; interDeptUsersPage = 1; renderUsersTable();
   });
   document.getElementById("sort-admin-meetings")?.addEventListener("change", e => {
     adminMeetingsSortDir = e.target.value; adminMeetingsPage = 1; renderAdminMeetingsTable();
@@ -4889,8 +5055,9 @@ async function initAdminPage() {
   initSystemSettings();
 
   // Password strength meters
-  initPwdStrength("user-password",    "user-pwd-strength",    "user-pwd-fill",    "user-pwd-label");
-  initPwdStrength("special-password", "special-pwd-strength", "special-pwd-fill", "special-pwd-label");
+  initPwdStrength("user-password",       "user-pwd-strength",       "user-pwd-fill",       "user-pwd-label");
+  initPwdStrength("special-password",    "special-pwd-strength",    "special-pwd-fill",    "special-pwd-label");
+  initPwdStrength("inter-dept-password", "inter-dept-pwd-strength", "inter-dept-pwd-fill", "inter-dept-pwd-label");
 
   // Change-password modal: strength indicator + show/hide toggles
   initPwdStrength("password-new", "chpwd-strength", "chpwd-fill", "chpwd-label");
@@ -4917,10 +5084,21 @@ async function initAdminPage() {
 // User page init
 // ---------------------------------------------------------------------------
 
+function applyInterDeptViewOnlyUI(user) {
+  if (!isScheduleBookRestricted(user)) return;
+  document.body.classList.add("sbp-inter-dept-view-only");
+  const calSub = document.querySelector("#section-calendar .page-header-sub");
+  if (calSub) {
+    calSub.textContent = "View-only: browse the calendar. Booking and edits are disabled for Inter-Department accounts.";
+  }
+}
+
 async function initUserPage() {
   await initDataLayer();
   const user = requireAuth({ allowAdmin: false, allowCouncilor: true, allowResearcher: true });
   if (!user) return;
+
+  applyInterDeptViewOnlyUI(user);
 
   initSessionTimeout();
   attachCommonHeader(user);
@@ -6901,6 +7079,12 @@ function initSpecialAccountAnnouncements() {
   // Show/hide the post form
   const postSection = document.getElementById("special-ann-post-section");
   if (postSection) postSection.style.display = isSpecialPoster ? "" : "none";
+
+  // Show upload button for Inter Department, Vice Mayor, Secretary
+  const canUpload = [ROLES.VICE_MAYOR, ROLES.SECRETARY, ROLES.INTER_DEPT].includes(currentUser.role);
+  const uploadBtn = document.getElementById("u-dd-upload-btn");
+  if (uploadBtn) uploadBtn.style.display = canUpload ? "flex" : "none";
+
   if (!isSpecialPoster) return;
 
   const form  = document.getElementById("special-ann-form");
@@ -7218,7 +7402,7 @@ function initUserAnnouncements() {
              const timeRange = m.timeStart
                ? formatTimeRange(m.timeStart, m.durationHours || SLOT_DURATION_HOURS) : "—";
              const belongsToMe = meetingBelongsToUser(m, currentUser);
-             const canCancel = belongsToMe && currentUser.role !== ROLES.ADMIN && ["Pending", "Approved"].includes(m.status);
+             const canCancel = belongsToMe && currentUser.role !== ROLES.ADMIN && !isScheduleBookRestricted(currentUser) && ["Pending", "Approved"].includes(m.status);
             const createdAt = m.createdAt ? new Date(m.createdAt) : null;
             const nowM = getManilaNow();
             const within24h = !!(createdAt && Math.max(0, nowM - createdAt) < 24 * 60 * 60 * 1000);
@@ -7339,7 +7523,7 @@ function initUserAnnouncements() {
 
   window.openBookingDrawer = function (isoDate, prefillMtg) {
     const currentUser = getCurrentUser();
-    if (!currentUser ||
+    if (!currentUser || isScheduleBookRestricted(currentUser) ||
         ![ROLES.ADMIN, ROLES.COUNCILOR, ROLES.RESEARCHER, ROLES.VICE_MAYOR, ROLES.SECRETARY]
           .includes(currentUser.role)) {
       showToast("Only authorized roles may book meetings.", "warning");
@@ -7704,6 +7888,11 @@ function initUserAnnouncements() {
     const msg = document.getElementById("db-form-msg");
     const currentUser = getCurrentUser();
     if (!currentUser) return;
+    if (isScheduleBookRestricted(currentUser)) {
+      showToast("Your account is view-only; you cannot book meetings.", "warning");
+      if (typeof _closeActive === "function") _closeActive();
+      return;
+    }
 
     const get = id => document.getElementById(id)?.value.trim();
 
@@ -7867,6 +8056,7 @@ function initUserAnnouncements() {
     'announcements':    'Announcements',
     'calendar':         'Meeting Calendar',
     'my-meetings':      'My Meetings',
+    'document-dispatch': 'Document Dispatch',
   };
   const topbarTitle = document.getElementById('topbar-section-title');
   if (topbarTitle) {

@@ -2789,6 +2789,12 @@ tbody tr {
   .stat-value           { font-size: 1.5rem; }
 }
 
+/* Inter-Department (view-only): hide booking shortcuts — class set in app.js */
+body.sbp-inter-dept-view-only #user-quick-schedule,
+body.sbp-inter-dept-view-only #user-dash-book-meeting {
+  display: none !important;
+}
+
 /* ── PRINT STYLES ─────────────────────────────────────────────────────────── */
 @media print {
   .sidebar, .topbar, .bottom-nav,

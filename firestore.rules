@@ -52,6 +52,41 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Document Dispatch — PDF metadata + Storage path; 7d TTL enforced in rules + client cleanup
+    match /dispatch_files/{docId} {
+      function isDispatchReader() {
+        return resource.data.type == 'public'
+          || resource.data.uploadedBy == request.auth.uid
+          || (resource.data.type == 'private'
+              && 'recipients' in resource.data
+              && request.auth.uid in resource.data.recipients);
+      }
+      function isDispatchOwner() {
+        return resource.data.uploadedBy == request.auth.uid;
+      }
+      function isExpiredDispatch() {
+        return resource.data.timestamp != null
+          && resource.data.timestamp < request.time - duration.value(7, 'd');
+      }
+      allow read:   if isAuthed() && isDispatchReader();
+      allow create: if isAuthed()
+        && request.resource.data.uploadedBy == request.auth.uid
+        && request.resource.data.type in ['public', 'private']
+        && request.resource.data.fileName is string
+        && request.resource.data.fileURL is string
+        && request.resource.data.filePath is string
+        && (
+          request.resource.data.type == 'public'
+          || (
+            request.resource.data.recipients is list
+            && request.resource.data.recipients.size() >= 1
+            && request.resource.data.recipients.size() <= 5
+          )
+        );
+      allow update: if false;
+      allow delete: if isAuthed() && (isDispatchOwner() || isExpiredDispatch());
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
