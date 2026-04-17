@@ -1599,6 +1599,7 @@
     <script>
     (function() {
       "use strict";
+      var B2_WORKER_URL = "https://sbp-b2-worker.laliptagupta.workers.dev";
       function uDdEl(id) { return document.getElementById(id); }
 
       function uDdEscAttr(s) {
@@ -2047,8 +2048,6 @@
         var db = firebase.firestore();
         submitBtn.disabled=true;
         submitBtn.textContent="Uploading…";
-
-        var B2_WORKER_URL = "https://sbp-b2-worker.laliptagupta.workers.dev";
 
         function continueUpload(user) {
           var fileName = Date.now() + "_" + uSelectedFile.name;
