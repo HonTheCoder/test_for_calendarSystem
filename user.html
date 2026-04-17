@@ -2053,8 +2053,8 @@
           var fileName = Date.now() + "_" + uSelectedFile.name;
           var filePath = "dispatch_files/" + fileName;
           var formData = new FormData();
-          formData.append("file", uSelectedFile, fileName);
-          formData.append("fileName", fileName);
+          formData.append("file", uSelectedFile, filePath);
+          formData.append("fileName", filePath);
           formData.append("filePath", filePath);
           fetch(B2_WORKER_URL + "/upload", {
             method: "POST",
