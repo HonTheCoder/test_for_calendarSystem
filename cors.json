@@ -10,7 +10,9 @@
       "http://127.0.0.1:4173",
       "http://localhost:4173",
       "https://testingcalendar-41b86.firebaseapp.com",
-      "https://testingcalendar-41b86.web.app"
+      "https://testingcalendar-41b86.web.app",
+      "https://calendarsystem-phi.vercel.app",
+      "https://test-for-calendar-system.vercel.app"
     ],
     "method": ["GET", "POST", "PUT", "HEAD", "DELETE", "OPTIONS"],
     "maxAgeSeconds": 3600,
