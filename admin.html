@@ -6767,14 +6767,33 @@
       var ddUnsubInbox  = null;
 
       function loadDispatchFiles() {
-        // Use the already-initialized Firestore instance from firebase.js.
         var db = firebase.firestore();
-
         ddAttachListActions(ddEl("dd-public-list"));
         ddAttachListActions(ddEl("dd-inbox-list"));
-        purgeExpiredDispatchFiles(db);
 
-        // Unsubscribe previous listeners to avoid duplicates
+        if (ddUnsubPublic) { ddUnsubPublic(); ddUnsubPublic = null; }
+        if (ddUnsubInbox)  { ddUnsubInbox();  ddUnsubInbox  = null; }
+
+        // Fetch current user's role first, then subscribe
+        var auth = firebase.auth();
+        var currentUser = auth.currentUser;
+        if (!currentUser) return;
+
+        db.collection("users").doc(currentUser.uid).get().then(function(userDoc) {
+          var userRole = (userDoc.exists && userDoc.data().role) ? userDoc.data().role : "";
+          var currentIsAdmin = (userRole === "Admin");
+
+          // Only admins auto-purge expired files
+          if (currentIsAdmin) purgeExpiredDispatchFiles(db);
+
+          _startDispatchSubscriptions(db, currentUser.uid, currentIsAdmin);
+        }).catch(function(err) {
+          console.warn("[DD] Could not fetch user role, defaulting to non-admin:", err);
+          _startDispatchSubscriptions(db, currentUser.uid, false);
+        });
+      }
+
+      function _startDispatchSubscriptions(db, viewerUid, currentIsAdmin) {
         if (ddUnsubPublic) { ddUnsubPublic(); ddUnsubPublic = null; }
         if (ddUnsubInbox)  { ddUnsubInbox();  ddUnsubInbox  = null; }
 
@@ -6783,13 +6802,16 @@
           var fi = document.getElementById(filterId);
           var li = document.getElementById(listId);
           if (!fi || !li) return;
-          fi.addEventListener("input", function() {
-            var q = fi.value.trim().toLowerCase();
-            Array.from(li.querySelectorAll(".dd-file-card")).forEach(function(card) {
-              var txt = (card.getAttribute("data-dd-search") || "").toLowerCase();
-              card.style.display = (!q || txt.includes(q)) ? "" : "none";
+          if (!fi._ddFilterBound) {
+            fi._ddFilterBound = true;
+            fi.addEventListener("input", function() {
+              var q = fi.value.trim().toLowerCase();
+              Array.from(li.querySelectorAll(".dd-file-card")).forEach(function(card) {
+                var txt = (card.getAttribute("data-dd-search") || "").toLowerCase();
+                card.style.display = (!q || txt.includes(q)) ? "" : "none";
+              });
             });
-          });
+          }
         }
         wireFilter("dd-public-filter", "dd-public-list");
         wireFilter("dd-inbox-filter", "dd-inbox-list");
@@ -6815,9 +6837,7 @@
                 return sb - sa;
               });
             }
-            var viewerUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || "";
-            list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), viewerUid, true); }).join("");
-            // Re-apply filter if typed
+            list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), viewerUid, currentIsAdmin); }).join("");
             var fi = document.getElementById("dd-public-filter");
             if (fi && fi.value.trim()) fi.dispatchEvent(new Event("input"));
           }, function(err) {
@@ -6838,6 +6858,7 @@
           + 'No private files for you yet</div>';
 
         function subscribeInbox(uid) {
+          var viewerUid = uid || "";
           if (ddUnsubInbox) { ddUnsubInbox(); ddUnsubInbox = null; }
           if (!uid) {
             var list = ddEl("dd-inbox-list");
@@ -6857,25 +6878,14 @@
                 var sb = b.data().timestamp ? (b.data().timestamp.seconds||0) : 0;
                 return sb - sa;
               });
-              var viewerUid = (firebase.auth().currentUser && firebase.auth().currentUser.uid) || "";
-              list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), viewerUid, true); }).join("");
+              list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), viewerUid, currentIsAdmin); }).join("");
               var fi = document.getElementById("dd-inbox-filter");
               if (fi && fi.value.trim()) fi.dispatchEvent(new Event("input"));
             }, function(err) { console.error("[DD] inbox error:", err); });
         }
 
-        // authStateReady() (Firebase 9.22+) resolves once auth state is known.
-        var auth = firebase.auth();
-        if (auth.authStateReady) {
-          auth.authStateReady().then(function() {
-            subscribeInbox(auth.currentUser ? auth.currentUser.uid : null);
-          });
-        } else {
-          var _unsubAuth = auth.onAuthStateChanged(function(user) {
-            _unsubAuth();
-            subscribeInbox(user ? user.uid : null);
-          });
-        }
+        // Subscribe inbox directly — viewerUid already known from closure
+        subscribeInbox(viewerUid);
       }
 
       // ── Expose immediately (not inside DOMContentLoaded) ──────────────────
