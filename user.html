@@ -545,7 +545,7 @@
                   </div>
                   <div id="u-dd-posted-by-wrap">
                     <label id="u-dd-posted-by-label" style="font-size:0.83rem;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Who Posted It</label>
-                    <input id="u-dd-doc-posted-by" class="field" placeholder="e.g. Office of the Secretary" maxlength="100" autocomplete="off" style="width:100%;box-sizing:border-box;">
+                    <input id="u-dd-doc-posted-by" class="field" placeholder="Auto-filled from your account" maxlength="100" autocomplete="off" readonly style="width:100%;box-sizing:border-box;opacity:0.75;cursor:default;background:var(--color-bg-subtle,rgba(0,0,0,0.03));">
                   </div>
                 </div>
 
@@ -1993,7 +1993,11 @@
         uDdEl("u-dd-recipient-dropdown").style.display = "none";
         if (uDdEl("u-dd-doc-title")) uDdEl("u-dd-doc-title").value = "";
         if (uDdEl("u-dd-doc-subject")) uDdEl("u-dd-doc-subject").value = "";
-        if (uDdEl("u-dd-doc-posted-by")) uDdEl("u-dd-doc-posted-by").value = "";
+        // Auto-fill "Who Posted It" from logged-in user
+        if (uDdEl("u-dd-doc-posted-by")) {
+          var _uCu = firebase.auth().currentUser;
+          uDdEl("u-dd-doc-posted-by").value = (_uCu && (_uCu.displayName || _uCu.email)) ? (_uCu.displayName || _uCu.email) : "";
+        }
         uUpdateVisibilityUI();
         var uModalRoot = uDdEl("u-dd-upload-modal");
         if (uModalRoot) {
