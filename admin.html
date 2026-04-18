@@ -6647,23 +6647,50 @@
       }
 
       function ddDeleteDispatchDoc(docId, filePath, b2FileId) {
-        if (!docId || !confirm("Delete this file from Storage and the list?")) return;
-        var db = firebase.firestore();
-        var p = (b2FileId && filePath)
-          ? fetch(B2_WORKER_URL + "/delete", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ fileId: b2FileId, fileName: filePath })
-            }).catch(function () { return null; })
-          : Promise.resolve();
-        p.then(function () { return db.collection("dispatch_files").doc(docId).delete(); })
-          .then(function () {
-            if (typeof showToast === "function") showToast("File deleted.", "success");
-          })
-          .catch(function (err) {
-            console.error("[DD] delete", err);
-            alert("Delete failed: " + (err && err.message ? err.message : String(err)));
-          });
+        if (!docId) return;
+        ddShowConfirm(
+          "Delete File",
+          "This cannot be undone",
+          "Are you sure you want to permanently delete this file from storage and the dispatch list?",
+          "Delete",
+          function () {
+            var db = firebase.firestore();
+            // Ensure user is authenticated before Firestore delete
+            var user = firebase.auth().currentUser;
+            if (!user) {
+              if (typeof showToast === "function") showToast("Not authenticated. Please refresh and try again.", "error");
+              return;
+            }
+            // Try B2 delete — if b2FileId missing or 404, still proceed with Firestore delete
+            var b2Promise = (b2FileId && b2FileId !== "" && filePath && filePath !== "")
+              ? fetch(B2_WORKER_URL + "/delete", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ fileId: b2FileId, fileName: filePath })
+                }).catch(function (err) {
+                  console.warn("[DD] B2 delete failed (continuing):", err);
+                  return null;
+                })
+              : Promise.resolve(null);
+
+            b2Promise.then(function () {
+              return db.collection("dispatch_files").doc(docId).delete();
+            }).then(function () {
+              if (typeof showToast === "function") showToast("File deleted successfully.", "success");
+            }).catch(function (err) {
+              console.error("[DD] Firestore delete error:", err);
+              if (err && err.code === "permission-denied") {
+                if (typeof showToast === "function") {
+                  showToast("Permission denied. You can only delete your own files.", "error");
+                }
+              } else {
+                if (typeof showToast === "function") {
+                  showToast("Delete failed: " + (err && err.message ? err.message : String(err)), "error");
+                }
+              }
+            });
+          }
+        );
       }
 
       function ddAttachListActions(listEl) {

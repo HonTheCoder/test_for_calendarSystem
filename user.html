@@ -1773,20 +1773,32 @@
       }
 
       function uDdDeleteDispatchDoc(docId, filePath, b2FileId) {
-        if (!docId || !confirm("Delete this file from Storage and the list?")) return;
+        if (!docId) return;
+        // Simple inline confirm modal reuse or fallback
+        var confirmed = window.confirm("Delete this file permanently?");
+        if (!confirmed) return;
         var db = firebase.firestore();
-        var p = (b2FileId && filePath)
+        var user = firebase.auth().currentUser;
+        if (!user) { alert("Not authenticated. Please refresh."); return; }
+        var b2Promise = (b2FileId && b2FileId !== "" && filePath && filePath !== "")
           ? fetch(B2_WORKER_URL + "/delete", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ fileId: b2FileId, fileName: filePath })
-            }).catch(function () { return null; })
-          : Promise.resolve();
-        p.then(function () { return db.collection("dispatch_files").doc(docId).delete(); })
-          .then(function () { alert("File deleted."); })
+            }).catch(function (err) { console.warn("[U-DD] B2 delete failed:", err); return null; })
+          : Promise.resolve(null);
+        b2Promise
+          .then(function () { return db.collection("dispatch_files").doc(docId).delete(); })
+          .then(function () {
+            if (typeof showToast === "function") showToast("File deleted successfully.", "success");
+          })
           .catch(function (err) {
-            console.error("[U-DD] delete", err);
-            alert("Delete failed: " + (err && err.message ? err.message : String(err)));
+            console.error("[U-DD] delete error:", err);
+            if (err && err.code === "permission-denied") {
+              alert("Permission denied. You can only delete your own files.");
+            } else {
+              alert("Delete failed: " + (err && err.message ? err.message : String(err)));
+            }
           });
       }
 

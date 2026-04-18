@@ -6,6 +6,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdmin() {
+      return isAuthed()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
     match /admin_audit_logs/{doc} {
       allow read, write: if false;
     }
@@ -52,10 +58,10 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Document Dispatch — PDF metadata + Storage path; 7d TTL enforced in rules + client cleanup
     match /dispatch_files/{docId} {
       function isDispatchReader() {
-        return resource.data.type == 'public'
+        return isAdmin()
+          || resource.data.type == 'public'
           || resource.data.uploadedBy == request.auth.uid
           || (resource.data.type == 'private'
               && 'recipients' in resource.data
@@ -73,7 +79,6 @@ service cloud.firestore {
         && request.resource.data.uploadedBy == request.auth.uid
         && request.resource.data.type in ['public', 'private']
         && request.resource.data.fileName is string
-        && request.resource.data.fileURL is string
         && request.resource.data.filePath is string
         && (
           request.resource.data.type == 'public'
@@ -84,7 +89,7 @@ service cloud.firestore {
           )
         );
       allow update: if false;
-      allow delete: if isAuthed() && (isDispatchOwner() || isExpiredDispatch());
+      allow delete: if isAuthed() && (isAdmin() || isDispatchOwner() || isExpiredDispatch());
     }
 
     match /{document=**} {
