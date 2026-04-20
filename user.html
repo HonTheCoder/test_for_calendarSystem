@@ -1790,32 +1790,48 @@
 
       function uDdDeleteDispatchDoc(docId, filePath, b2FileId) {
         if (!docId) return;
-        // Simple inline confirm modal reuse or fallback
-        var confirmed = window.confirm("Delete this file permanently?");
-        if (!confirmed) return;
         var db = firebase.firestore();
         var user = firebase.auth().currentUser;
         if (!user) { alert("Not authenticated. Please refresh."); return; }
-        var b2Promise = (b2FileId && b2FileId !== "" && filePath && filePath !== "")
-          ? fetch(B2_WORKER_URL + "/delete", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ fileId: b2FileId, fileName: filePath })
-            }).catch(function (err) { console.warn("[U-DD] B2 delete failed:", err); return null; })
-          : Promise.resolve(null);
-        b2Promise
-          .then(function () { return db.collection("dispatch_files").doc(docId).delete(); })
-          .then(function () {
-            if (typeof showToast === "function") showToast("File deleted successfully.", "success");
-          })
-          .catch(function (err) {
-            console.error("[U-DD] delete error:", err);
-            if (err && err.code === "permission-denied") {
-              alert("Permission denied. You can only delete your own files.");
-            } else {
-              alert("Delete failed: " + (err && err.message ? err.message : String(err)));
-            }
-          });
+        // ── Server-side ownership verification before delete ──────────────
+        db.collection("dispatch_files").doc(docId).get().then(function(docSnap) {
+          if (!docSnap.exists) { if (typeof showToast === "function") showToast("File not found.", "error"); return; }
+          var data = docSnap.data();
+          // Only the uploader can delete their own file
+          if (data.uploadedBy !== user.uid) {
+            if (typeof showToast === "function") showToast("Permission denied. You can only delete your own files.", "error");
+            else alert("Permission denied. You can only delete your own files.");
+            return;
+          }
+          // Confirmed ownership — ask confirmation then delete
+          var confirmed = window.confirm("Delete this file permanently? This cannot be undone.");
+          if (!confirmed) return;
+          var b2Promise = (b2FileId && b2FileId !== "" && filePath && filePath !== "")
+            ? fetch(B2_WORKER_URL + "/delete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fileId: b2FileId, fileName: filePath })
+              }).catch(function (err) { console.warn("[U-DD] B2 delete failed:", err); return null; })
+            : Promise.resolve(null);
+          b2Promise
+            .then(function () { return db.collection("dispatch_files").doc(docId).delete(); })
+            .then(function () {
+              if (typeof showToast === "function") showToast("File deleted successfully.", "success");
+            })
+            .catch(function (err) {
+              console.error("[U-DD] delete error:", err);
+              if (err && err.code === "permission-denied") {
+                if (typeof showToast === "function") showToast("Permission denied. You can only delete your own files.", "error");
+                else alert("Permission denied. You can only delete your own files.");
+              } else {
+                if (typeof showToast === "function") showToast("Delete failed: " + (err && err.message ? err.message : String(err)), "error");
+                else alert("Delete failed: " + (err && err.message ? err.message : String(err)));
+              }
+            });
+        }).catch(function(err) {
+          console.error("[U-DD] ownership check error:", err);
+          if (typeof showToast === "function") showToast("Could not verify file ownership. Please try again.", "error");
+        });
       }
 
       function uDdAttachListActions(listEl) {
@@ -1894,7 +1910,7 @@
         var db = firebase.firestore();
         uDdAttachListActions(uDdEl("u-dd-public-list"));
         uDdAttachListActions(uDdEl("u-dd-inbox-list"));
-        uPurgeExpiredDispatchFiles(db);
+        // Purge expired files is handled only by admins (in admin.html loadDispatchFiles)
         if (uUnsubPublic) { uUnsubPublic(); uUnsubPublic = null; }
         if (uUnsubInbox)  { uUnsubInbox();  uUnsubInbox  = null; }
 

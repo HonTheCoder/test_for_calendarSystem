@@ -7177,6 +7177,7 @@
             function() {
               deleteAllBtn.disabled = true;
               deleteAllBtn.textContent = "Deleting…";
+          ensureFirebaseAuthUser(function() {
           var db = firebase.firestore();
           db.collection("dispatch_files").limit(100).get().then(function(snap) {
             if (snap.empty) {
@@ -7209,6 +7210,11 @@
             deleteAllBtn.disabled = false;
             deleteAllBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg> Delete All Uploaded Files';
           });
+          }, function(authErr) {
+            if (msgEl) { msgEl.textContent = "Auth error: " + (authErr.message || authErr); msgEl.style.color = "var(--color-danger)"; }
+            deleteAllBtn.disabled = false;
+            deleteAllBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg> Delete All Uploaded Files';
+          }); // end ensureFirebaseAuthUser
             } // end ddShowConfirm callback
           );
         }
@@ -7222,6 +7228,7 @@
             function() {
               purgeExpBtn.disabled = true;
               purgeExpBtn.textContent = "Purging…";
+          ensureFirebaseAuthUser(function() {
           var db2 = firebase.firestore();
           var cutoff = firebase.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
           db2.collection("dispatch_files").where("timestamp","<",cutoff).limit(100).get().then(function(snap) {
@@ -7254,6 +7261,11 @@
             purgeExpBtn.disabled = false;
             purgeExpBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Purge Expired Files (&gt;7 days)';
           });
+          }, function(authErr) {
+            if (msgEl) { msgEl.textContent = "Auth error: " + (authErr.message || authErr); msgEl.style.color = "var(--color-danger)"; }
+            purgeExpBtn.disabled = false;
+            purgeExpBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Purge Expired Files (&gt;7 days)';
+          }); // end ensureFirebaseAuthUser
             } // end ddShowConfirm callback
           );
         }
