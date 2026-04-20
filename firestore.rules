@@ -59,14 +59,6 @@ service cloud.firestore {
     }
 
     match /dispatch_files/{docId} {
-      function isDispatchReader() {
-        return isAdmin()
-          || resource.data.type == 'public'
-          || resource.data.uploadedBy == request.auth.uid
-          || (resource.data.type == 'private'
-              && 'recipients' in resource.data
-              && request.auth.uid in resource.data.recipients);
-      }
       function isDispatchOwner() {
         return resource.data.uploadedBy == request.auth.uid;
       }
@@ -74,7 +66,9 @@ service cloud.firestore {
         return resource.data.timestamp != null
           && resource.data.timestamp < request.time - duration.value(7, 'd');
       }
-      allow read:   if isAuthed() && isDispatchReader();
+
+      allow read:   if isAuthed();
+
       allow create: if isAuthed()
         && request.resource.data.uploadedBy == request.auth.uid
         && request.resource.data.type in ['public', 'private']
@@ -88,7 +82,9 @@ service cloud.firestore {
             && request.resource.data.recipients.size() <= 5
           )
         );
+
       allow update: if false;
+
       allow delete: if isAuthed() && (isAdmin() || isDispatchOwner() || isExpiredDispatch());
     }
 
