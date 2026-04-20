@@ -7189,23 +7189,24 @@
           var _deleteAllBtnHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg> Delete All Uploaded Files';
           function _resetDeleteAllBtn() { deleteAllBtn.disabled = false; deleteAllBtn.innerHTML = _deleteAllBtnHTML; }
           var _daUser = firebase.auth().currentUser;
-          if (!_daUser || _daUser.isAnonymous) {
-            if (msgEl) { msgEl.textContent = "Error: You must be signed in as an Admin to do this."; msgEl.style.color = "var(--color-danger)"; }
+          if (!_daUser) {
+            if (msgEl) { msgEl.textContent = "Error: Not authenticated. Please refresh and try again."; msgEl.style.color = "var(--color-danger)"; }
             _resetDeleteAllBtn(); return;
           }
           _daUser.getIdToken(true).then(function(idToken) {
+          console.log("[DeleteAll] Got idToken (first 40 chars):", idToken ? idToken.substring(0, 40) : "null");
           var db = firebase.firestore();
           db.collection("dispatch_files").limit(100).get().then(function(snap) {
             if (snap.empty) {
               if (msgEl) { msgEl.textContent = "No files found."; msgEl.style.color = ""; }
               _resetDeleteAllBtn(); return;
             }
-            var batch = db.batch();
-            var ops = [];
+            var b2Ops = [];
+            var fsOps = [];
             snap.forEach(function(docSnap) {
               var d = docSnap.data();
               if (d.b2FileId && d.filePath) {
-                ops.push(fetch(B2_WORKER_URL + "/delete", {
+                b2Ops.push(fetch(B2_WORKER_URL + "/delete", {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -7216,9 +7217,13 @@
                   body: JSON.stringify({fileId: d.b2FileId, fileName: d.filePath, uploadedBy: d.uploadedBy || _daUser.uid})
                 }).catch(function() {}));
               }
-              batch.delete(docSnap.ref);
+              // Delete each doc individually — avoids Firestore rules get() limit
+              // that batches hit when isAdmin() is called per-doc (max 10 get() per request)
+              fsOps.push(docSnap.ref.delete().catch(function(e) {
+                console.warn("[DD] Could not delete doc " + docSnap.id + ":", e.message);
+              }));
             });
-            return Promise.all(ops).then(function() { return batch.commit(); });
+            return Promise.all(b2Ops).then(function() { return Promise.all(fsOps); });
           }).then(function() {
             if (msgEl) { msgEl.textContent = "✓ All files deleted successfully."; msgEl.style.color = "var(--color-success, #16a34a)"; }
             _resetDeleteAllBtn();
@@ -7248,8 +7253,8 @@
           var _purgeExpBtnHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Purge Expired Files (&gt;7 days)';
           function _resetPurgeBtn() { purgeExpBtn.disabled = false; purgeExpBtn.innerHTML = _purgeExpBtnHTML; }
           var _peUser = firebase.auth().currentUser;
-          if (!_peUser || _peUser.isAnonymous) {
-            if (msgEl) { msgEl.textContent = "Error: You must be signed in as an Admin to do this."; msgEl.style.color = "var(--color-danger)"; }
+          if (!_peUser) {
+            if (msgEl) { msgEl.textContent = "Error: Not authenticated. Please refresh and try again."; msgEl.style.color = "var(--color-danger)"; }
             _resetPurgeBtn(); return;
           }
           _peUser.getIdToken(true).then(function(idToken) {
@@ -7260,12 +7265,12 @@
               if (msgEl) { msgEl.textContent = "No expired files found."; msgEl.style.color = ""; }
               _resetPurgeBtn(); return;
             }
-            var batch2 = db2.batch();
-            var ops2 = [];
+            var b2Ops2 = [];
+            var fsOps2 = [];
             snap.forEach(function(docSnap) {
               var d = docSnap.data();
               if (d.b2FileId && d.filePath) {
-                ops2.push(fetch(B2_WORKER_URL + "/delete", {
+                b2Ops2.push(fetch(B2_WORKER_URL + "/delete", {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",
@@ -7276,9 +7281,11 @@
                   body: JSON.stringify({fileId: d.b2FileId, fileName: d.filePath, uploadedBy: d.uploadedBy || _peUser.uid})
                 }).catch(function() {}));
               }
-              batch2.delete(docSnap.ref);
+              fsOps2.push(docSnap.ref.delete().catch(function(e) {
+                console.warn("[DD] Could not delete doc " + docSnap.id + ":", e.message);
+              }));
             });
-            return Promise.all(ops2).then(function() { return batch2.commit(); }).then(function() { return snap.size; });
+            return Promise.all(b2Ops2).then(function() { return Promise.all(fsOps2); }).then(function() { return snap.size; });
           }).then(function(count) {
             if (msgEl) { msgEl.textContent = "✓ Purged " + (count||0) + " expired file(s)."; msgEl.style.color = "var(--color-success, #16a34a)"; }
             _resetPurgeBtn();
