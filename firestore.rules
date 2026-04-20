@@ -85,7 +85,7 @@ service cloud.firestore {
 
       allow update: if false;
 
-      allow delete: if isAuthed() && (isAdmin() || isDispatchOwner() || isExpiredDispatch());
+      allow delete: if isAuthed();
     }
 
     match /{document=**} {
