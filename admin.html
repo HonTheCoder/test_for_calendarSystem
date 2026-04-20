@@ -6655,39 +6655,47 @@
           "Delete",
           function () {
             var db = firebase.firestore();
-            // Ensure user is authenticated before Firestore delete
-            var user = firebase.auth().currentUser;
-            if (!user) {
-              if (typeof showToast === "function") showToast("Not authenticated. Please refresh and try again.", "error");
-              return;
-            }
-            // Try B2 delete — if b2FileId missing or 404, still proceed with Firestore delete
-            var b2Promise = (b2FileId && b2FileId !== "" && filePath && filePath !== "")
-              ? fetch(B2_WORKER_URL + "/delete", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ fileId: b2FileId, fileName: filePath })
-                }).catch(function (err) {
-                  console.warn("[DD] B2 delete failed (continuing):", err);
-                  return null;
-                })
-              : Promise.resolve(null);
+            ensureFirebaseAuthUser(function(user) {
+              user.getIdToken().then(function(idToken) {
+                var callerRole = window._currentAdminRole || "Admin";
+                // Try B2 delete — if b2FileId missing or 404, still proceed with Firestore delete
+                var b2Promise = (b2FileId && b2FileId !== "" && filePath && filePath !== "")
+                  ? fetch(B2_WORKER_URL + "/delete", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + idToken,
+                        "X-Caller-Role": callerRole,
+                        "X-Caller-Uid": user.uid
+                      },
+                      body: JSON.stringify({ fileId: b2FileId, fileName: filePath, uploadedBy: user.uid })
+                    }).catch(function (err) {
+                      console.warn("[DD] B2 delete failed (continuing):", err);
+                      return null;
+                    })
+                  : Promise.resolve(null);
 
-            b2Promise.then(function () {
-              return db.collection("dispatch_files").doc(docId).delete();
-            }).then(function () {
-              if (typeof showToast === "function") showToast("File deleted successfully.", "success");
-            }).catch(function (err) {
-              console.error("[DD] Firestore delete error:", err);
-              if (err && err.code === "permission-denied") {
-                if (typeof showToast === "function") {
-                  showToast("Permission denied. You can only delete your own files.", "error");
-                }
-              } else {
-                if (typeof showToast === "function") {
-                  showToast("Delete failed: " + (err && err.message ? err.message : String(err)), "error");
-                }
-              }
+                b2Promise.then(function () {
+                  return db.collection("dispatch_files").doc(docId).delete();
+                }).then(function () {
+                  if (typeof showToast === "function") showToast("File deleted successfully.", "success");
+                }).catch(function (err) {
+                  console.error("[DD] Firestore delete error:", err);
+                  if (err && err.code === "permission-denied") {
+                    if (typeof showToast === "function") {
+                      showToast("Permission denied. You can only delete your own files.", "error");
+                    }
+                  } else {
+                    if (typeof showToast === "function") {
+                      showToast("Delete failed: " + (err && err.message ? err.message : String(err)), "error");
+                    }
+                  }
+                });
+              }).catch(function(err) {
+                if (typeof showToast === "function") showToast("Auth error: " + (err.message || err), "error");
+              });
+            }, function(authErr) {
+              if (typeof showToast === "function") showToast("Not authenticated: " + (authErr.message || authErr), "error");
             });
           }
         );
@@ -6782,6 +6790,7 @@
         db.collection("users").doc(currentUser.uid).get().then(function(userDoc) {
           var userRole = (userDoc.exists && userDoc.data().role) ? userDoc.data().role : "";
           var currentIsAdmin = (userRole === "Admin");
+          window._currentAdminRole = userRole; // store for delete calls
 
           // Only admins auto-purge expired files
           if (currentIsAdmin) purgeExpiredDispatchFiles(db);
@@ -7177,7 +7186,8 @@
             function() {
               deleteAllBtn.disabled = true;
               deleteAllBtn.textContent = "Deleting…";
-          ensureFirebaseAuthUser(function() {
+          ensureFirebaseAuthUser(function(user) {
+          user.getIdToken().then(function(idToken) {
           var db = firebase.firestore();
           db.collection("dispatch_files").limit(100).get().then(function(snap) {
             if (snap.empty) {
@@ -7192,8 +7202,14 @@
               var d = docSnap.data();
               if (d.b2FileId && d.filePath) {
                 ops.push(fetch(B2_WORKER_URL + "/delete", {
-                  method: "POST", headers: {"Content-Type":"application/json"},
-                  body: JSON.stringify({fileId: d.b2FileId, fileName: d.filePath})
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + idToken,
+                    "X-Caller-Role": "Admin",
+                    "X-Caller-Uid": user.uid
+                  },
+                  body: JSON.stringify({fileId: d.b2FileId, fileName: d.filePath, uploadedBy: d.uploadedBy || user.uid})
                 }).catch(function() {}));
               }
               batch.delete(docSnap.ref);
@@ -7210,6 +7226,11 @@
             deleteAllBtn.disabled = false;
             deleteAllBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg> Delete All Uploaded Files';
           });
+          }).catch(function(err) { // getIdToken error
+            if (msgEl) { msgEl.textContent = "Token error: " + (err.message || err); msgEl.style.color = "var(--color-danger)"; }
+            deleteAllBtn.disabled = false;
+            deleteAllBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg> Delete All Uploaded Files';
+          }); // end getIdToken
           }, function(authErr) {
             if (msgEl) { msgEl.textContent = "Auth error: " + (authErr.message || authErr); msgEl.style.color = "var(--color-danger)"; }
             deleteAllBtn.disabled = false;
@@ -7228,7 +7249,8 @@
             function() {
               purgeExpBtn.disabled = true;
               purgeExpBtn.textContent = "Purging…";
-          ensureFirebaseAuthUser(function() {
+          ensureFirebaseAuthUser(function(user) {
+          user.getIdToken().then(function(idToken) {
           var db2 = firebase.firestore();
           var cutoff = firebase.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
           db2.collection("dispatch_files").where("timestamp","<",cutoff).limit(100).get().then(function(snap) {
@@ -7244,8 +7266,14 @@
               var d = docSnap.data();
               if (d.b2FileId && d.filePath) {
                 ops2.push(fetch(B2_WORKER_URL + "/delete", {
-                  method: "POST", headers: {"Content-Type":"application/json"},
-                  body: JSON.stringify({fileId: d.b2FileId, fileName: d.filePath})
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + idToken,
+                    "X-Caller-Role": "Admin",
+                    "X-Caller-Uid": user.uid
+                  },
+                  body: JSON.stringify({fileId: d.b2FileId, fileName: d.filePath, uploadedBy: d.uploadedBy || user.uid})
                 }).catch(function() {}));
               }
               batch2.delete(docSnap.ref);
@@ -7261,6 +7289,11 @@
             purgeExpBtn.disabled = false;
             purgeExpBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Purge Expired Files (&gt;7 days)';
           });
+          }).catch(function(err) { // getIdToken error
+            if (msgEl) { msgEl.textContent = "Token error: " + (err.message || err); msgEl.style.color = "var(--color-danger)"; }
+            purgeExpBtn.disabled = false;
+            purgeExpBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Purge Expired Files (&gt;7 days)';
+          }); // end getIdToken
           }, function(authErr) {
             if (msgEl) { msgEl.textContent = "Auth error: " + (authErr.message || authErr); msgEl.style.color = "var(--color-danger)"; }
             purgeExpBtn.disabled = false;
