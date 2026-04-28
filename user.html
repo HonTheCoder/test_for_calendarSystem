@@ -3018,15 +3018,19 @@
     var defaultCfg = {
       secretary: { enabled: true,  name: "NORBERTO S. SABAYBAY",       title: "Secretary"  },
       vicemayor: { enabled: true,  name: "HON. CHERILIE MELLA-SAMPAL", title: "Vice Mayor" },
-      addressee: "secretary"
+      addressee: "secretary",
+      notedby:   "vicemayor"
     };
 
     function applyConfig(cfg) {
       try { localStorage.setItem(SKEY_CFG, JSON.stringify(cfg)); } catch(e) {}
-      var addrRole = cfg.addressee || "secretary";
-      var addrData = cfg[addrRole] || cfg.secretary || defaultCfg.secretary;
+      var addrRole  = cfg.addressee || "secretary";
+      var notedRole = cfg.notedby   || "vicemayor";
+      var addrData  = cfg[addrRole]  || cfg.secretary || defaultCfg.secretary;
+      var notedData = cfg[notedRole] || cfg.vicemayor || defaultCfg.vicemayor;
       var legacyVal = (addrData.name || "") + "|" + (addrData.title || "");
       try { localStorage.setItem(SKEY_LEG, legacyVal); } catch(e) {}
+      try { localStorage.setItem("sbp_pdf_notedby", (notedData.name || "") + "|" + (notedData.title || "")); } catch(e) {}
     }
 
     function deepMerge(loaded) {
@@ -3035,6 +3039,7 @@
         else loaded[role] = Object.assign({}, defaultCfg[role], loaded[role]);
       });
       if (!loaded.addressee) loaded.addressee = defaultCfg.addressee;
+      if (!loaded.notedby)   loaded.notedby   = defaultCfg.notedby;
       return loaded;
     }
 
