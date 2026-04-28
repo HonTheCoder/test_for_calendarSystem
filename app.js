@@ -3283,11 +3283,12 @@ function _generateMeetingPdfInner(mtg, docType, autoPrint) {
     y += LINE_H * 1.8;
 
     // ── Addressee ─────────────────────────────────────────────────────────────
-    // Read full signatory config (set by admin in System Settings → PDF Document Settings)
+    // Read full signatory config saved by admin in System Settings → PDF Document Settings
     const _defaultSig = {
       secretary: { enabled: true, name: "NORBERTO S. SABAYBAY",       title: "Secretary"  },
       vicemayor: { enabled: true, name: "HON. CHERILIE MELLA-SAMPAL", title: "Vice Mayor" },
-      addressee: "secretary"
+      addressee: "secretary",
+      notedby:   "vicemayor"
     };
     let _sigCfg = _defaultSig;
     try {
@@ -3297,16 +3298,17 @@ function _generateMeetingPdfInner(mtg, docType, autoPrint) {
         _sigCfg = {
           secretary: Object.assign({}, _defaultSig.secretary, _parsed.secretary || {}),
           vicemayor: Object.assign({}, _defaultSig.vicemayor, _parsed.vicemayor || {}),
-          addressee: _parsed.addressee || _defaultSig.addressee
+          addressee: _parsed.addressee || _defaultSig.addressee,
+          notedby:   _parsed.notedby   || _defaultSig.notedby
         };
       }
     } catch(e) {}
-    const _addrRole  = _sigCfg.addressee || "secretary";
-    const _notedRole = (_addrRole === "secretary") ? "vicemayor" : "secretary";
-    const _addrData  = _sigCfg[_addrRole]  || _defaultSig[_addrRole];
-    const _notedData = _sigCfg[_notedRole] || _defaultSig[_notedRole];
-    const _sigName   = _addrData.name  || _defaultSig[_addrRole].name;
-    const _sigTitle  = _addrData.title || _defaultSig[_addrRole].title;
+    const _addrRole   = _sigCfg.addressee || "secretary";
+    const _notedRole  = _sigCfg.notedby   || "vicemayor";
+    const _addrData   = _sigCfg[_addrRole]  || _defaultSig[_addrRole];
+    const _notedData  = _sigCfg[_notedRole] || _defaultSig[_notedRole];
+    const _sigName    = _addrData.name  || _defaultSig[_addrRole].name;
+    const _sigTitle   = _addrData.title || _defaultSig[_addrRole].title;
     const _notedName  = _notedData.enabled ? (_notedData.name  || _defaultSig[_notedRole].name)  : "";
     const _notedTitle = _notedData.enabled ? (_notedData.title || _defaultSig[_notedRole].title) : "";
     doc.setFont("times", "bold");

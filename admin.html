@@ -3638,35 +3638,31 @@
                 </div>
               </div>
               <div class="card-body" style="padding: 20px;">
-                <div style="max-width: 580px;">
+                <div style="max-width: 600px;">
                   <p style="font-size: 12px; color: var(--color-text-muted); margin: 0 0 18px; line-height: 1.6;">
-                    Configure which signatories appear in exported PDF documents. Toggle each one on/off, edit their name and title inline, and choose who appears as the <strong>Addressee</strong> at the top of the letter.
+                    Configure which signatories appear in exported PDF documents. Toggle each on/off, edit their name and title, then choose who appears as the <strong>Addressee</strong> (top of letter) and who signs as <strong>Noted By</strong> (bottom of letter).
                   </p>
 
                   <!-- ── Signatory rows ── -->
-                  <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                  <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px;">
 
                     <!-- Secretary row -->
                     <div class="pdf-sig-row" id="pdf-sig-row-secretary" style="border: 1.5px solid var(--color-border); border-radius: 12px; padding: 14px 16px; background: var(--color-bg); transition: border-color .2s, background .2s;">
                       <div style="display: flex; align-items: center; gap: 12px;">
-                        <!-- Toggle -->
                         <label class="pdf-sig-toggle-wrap" title="Include in PDF">
                           <input type="checkbox" id="pdf-sig-secretary-enabled" class="pdf-sig-checkbox" data-role="secretary" checked style="display:none;">
                           <span class="pdf-sig-toggle"></span>
                         </label>
-                        <!-- Info -->
                         <div style="flex:1; min-width:0;">
                           <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); margin-bottom: 2px;">Secretary</div>
                           <div id="pdf-sig-secretary-display" style="font-weight: 600; font-size: 0.9rem; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">NORBERTO S. SABAYBAY</div>
                           <div id="pdf-sig-secretary-title-display" style="font-size: 0.76rem; color: var(--color-text-muted);">Secretary</div>
                         </div>
-                        <!-- Edit button -->
                         <button type="button" class="btn btn-ghost btn-sm pdf-sig-edit-btn" data-target="secretary" style="flex-shrink:0; font-size: 0.78rem; padding: 5px 10px;">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
                           Edit
                         </button>
                       </div>
-                      <!-- Inline edit form (hidden by default) -->
                       <div class="pdf-sig-edit-form" id="pdf-sig-secretary-form" style="display:none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border-soft);">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                           <div>
@@ -3678,7 +3674,7 @@
                             <input id="pdf-sig-secretary-title-input" class="field" placeholder="e.g. Secretary" value="Secretary" style="font-size:0.85rem;">
                           </div>
                         </div>
-                        <div style="display:flex; gap:8px; margin-top:10px;">
+                        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
                           <button type="button" class="btn btn-primary btn-sm pdf-sig-save-row-btn" data-target="secretary" style="font-size:0.8rem; padding:5px 14px;">Apply</button>
                           <button type="button" class="btn btn-ghost btn-sm pdf-sig-cancel-row-btn" data-target="secretary" style="font-size:0.8rem; padding:5px 14px;">Cancel</button>
                         </div>
@@ -3713,7 +3709,7 @@
                             <input id="pdf-sig-vicemayor-title-input" class="field" placeholder="e.g. Vice Mayor" value="Vice Mayor" style="font-size:0.85rem;">
                           </div>
                         </div>
-                        <div style="display:flex; gap:8px; margin-top:10px;">
+                        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
                           <button type="button" class="btn btn-primary btn-sm pdf-sig-save-row-btn" data-target="vicemayor" style="font-size:0.8rem; padding:5px 14px;">Apply</button>
                           <button type="button" class="btn btn-ghost btn-sm pdf-sig-cancel-row-btn" data-target="vicemayor" style="font-size:0.8rem; padding:5px 14px;">Cancel</button>
                         </div>
@@ -3721,23 +3717,62 @@
                     </div>
                   </div>
 
-                  <!-- ── Addressee radio ── -->
-                  <div style="background: var(--color-surface-alt, var(--color-bg)); border: 1px solid var(--color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;">
-                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); margin-bottom: 10px;">Addressee (top of letter)</div>
-                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-                      <label style="display:flex; align-items:center; gap:7px; cursor:pointer; font-size:0.86rem; color:var(--color-text); font-weight:500;">
-                        <input type="radio" name="pdf-addressee" id="pdf-addressee-secretary" value="secretary" checked style="accent-color: var(--color-primary); width:15px; height:15px;">
-                        Secretary
-                      </label>
-                      <label style="display:flex; align-items:center; gap:7px; cursor:pointer; font-size:0.86rem; color:var(--color-text); font-weight:500;">
-                        <input type="radio" name="pdf-addressee" id="pdf-addressee-vicemayor" value="vicemayor" style="accent-color: var(--color-primary); width:15px; height:15px;">
-                        Vice Mayor
-                      </label>
+                  <!-- ── Addressee Assignment: TOP and BOTTOM ── -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px;">
+
+                    <!-- Top of letter (Addressee) -->
+                    <div style="background: var(--color-surface-alt, var(--color-bg)); border: 1px solid var(--color-border-soft); border-radius: 12px; padding: 14px 16px;">
+                      <div style="display:flex; align-items:center; gap:6px; margin-bottom:10px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary,#2563eb)" stroke-width="2.2"><polyline points="18 15 12 9 6 15"/></svg>
+                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-primary, #2563eb);">Addressee</div>
+                      </div>
+                      <div style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 10px; line-height:1.5;">Who appears at the <strong>top</strong> of the letter — the person the document is addressed to.</div>
+                      <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label id="pdf-addressee-secretary-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--color-border); background: var(--color-bg); transition: border-color .15s, background .15s;">
+                          <input type="radio" name="pdf-addressee" id="pdf-addressee-secretary" value="secretary" checked style="accent-color: var(--color-primary); width:15px; height:15px; flex-shrink:0;">
+                          <div style="min-width:0;">
+                            <div style="font-size:0.83rem; font-weight:600; color:var(--color-text);">Secretary</div>
+                            <div id="pdf-addr-top-sec-name" style="font-size:0.74rem; color:var(--color-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                          </div>
+                        </label>
+                        <label id="pdf-addressee-vicemayor-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--color-border); background: var(--color-bg); transition: border-color .15s, background .15s;">
+                          <input type="radio" name="pdf-addressee" id="pdf-addressee-vicemayor" value="vicemayor" style="accent-color: var(--color-primary); width:15px; height:15px; flex-shrink:0;">
+                          <div style="min-width:0;">
+                            <div style="font-size:0.83rem; font-weight:600; color:var(--color-text);">Vice Mayor</div>
+                            <div id="pdf-addr-top-vm-name" style="font-size:0.74rem; color:var(--color-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- Bottom of letter (Noted By) — independent radio choice -->
+                    <div style="background: var(--color-surface-alt, var(--color-bg)); border: 1px solid var(--color-border-soft); border-radius: 12px; padding: 14px 16px;">
+                      <div style="display:flex; align-items:center; gap:6px; margin-bottom:10px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg>
+                        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted);">Noted By</div>
+                      </div>
+                      <div style="font-size: 11px; color: var(--color-text-muted); margin-bottom: 10px; line-height:1.5;">Who signs at the <strong>bottom</strong> of the letter — independently chosen.</div>
+                      <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label id="pdf-noted-secretary-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--color-border); background: var(--color-bg); transition: border-color .15s, background .15s;">
+                          <input type="radio" name="pdf-notedby" id="pdf-notedby-secretary" value="secretary" style="accent-color: var(--color-primary); width:15px; height:15px; flex-shrink:0;">
+                          <div style="min-width:0;">
+                            <div style="font-size:0.83rem; font-weight:600; color:var(--color-text);">Secretary</div>
+                            <div id="pdf-noted-sec-name" style="font-size:0.74rem; color:var(--color-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                          </div>
+                        </label>
+                        <label id="pdf-noted-vicemayor-label" style="display:flex; align-items:center; gap:8px; cursor:pointer; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--color-border); background: var(--color-bg); transition: border-color .15s, background .15s;">
+                          <input type="radio" name="pdf-notedby" id="pdf-notedby-vicemayor" value="vicemayor" checked style="accent-color: var(--color-primary); width:15px; height:15px; flex-shrink:0;">
+                          <div style="min-width:0;">
+                            <div style="font-size:0.83rem; font-weight:600; color:var(--color-text);">Vice Mayor</div>
+                            <div id="pdf-noted-vm-name" style="font-size:0.74rem; color:var(--color-text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+                          </div>
+                        </label>
+                      </div>
                     </div>
                   </div>
 
                   <!-- ── Save + feedback ── -->
-                  <div style="display: flex; align-items: center; gap: 10px;">
+                  <div style="display: flex; align-items: center; gap: 10px; flex-wrap:wrap; margin-bottom: 20px;">
                     <button class="btn btn-primary btn-sm" id="pdf-signatory-save-btn" style="padding: 8px 18px;">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
@@ -3753,63 +3788,51 @@
                   </div>
 
                   <!-- ── Live PDF Preview ── -->
-                  <div id="pdf-signatory-preview" style="margin-top: 20px; border: 1px solid var(--color-border-soft); border-radius: 10px; overflow: hidden; font-size: 12px; color: var(--color-text-muted);">
+                  <div id="pdf-signatory-preview" style="margin-top: 4px; border: 1px solid var(--color-border-soft); border-radius: 10px; overflow: hidden; font-size: 12px;">
                     <div style="background: var(--color-surface-alt, var(--color-bg)); padding: 8px 14px; border-bottom: 1px solid var(--color-border-soft); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); display:flex; align-items:center; gap:6px;">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                       Live PDF Preview — mirrors the actual exported document
                     </div>
-                    <div style="padding: 22px 26px; background: #fff; font-family: 'Times New Roman', serif; line-height: 1.75; color: #141414;">
+                    <div style="padding: 22px 26px; background: #fff; font-family: 'Times New Roman', serif; line-height: 1.75; color: #141414; overflow-x:auto;">
                       <!-- Date -->
                       <div style="text-align:right; font-size: 11px; color: #888; margin-bottom:14px;">Date: [Auto-filled on export]</div>
-
-                      <!-- Addressee block -->
+                      <!-- Addressee (top) -->
                       <div style="font-size:12px; margin-bottom:12px;">
                         <div id="pdf-preview-name" style="font-weight:700; text-transform:uppercase; margin-bottom:1px;"></div>
-                        <div id="pdf-preview-title" style="font-weight:400; font-size:11px;"></div>
+                        <div id="pdf-preview-title" style="font-weight:400; font-size:11px; color:#444;"></div>
                         <div style="font-size:11px; color:#555;">Municipality of Polangui</div>
                       </div>
-
                       <!-- Salutation -->
                       <div style="font-size:11.5px; margin-bottom:8px;">Dear <span id="pdf-preview-salutation" style="font-weight:700;"></span>,</div>
-
                       <!-- Body placeholder -->
-                      <div style="font-size:11px; color:#aaa; font-style:italic; margin-bottom:16px; border-left:2px solid #e5e7eb; padding-left:10px; line-height:1.6;">
-                        We respectfully request your approval to conduct a [Meeting Type] of the [Committee], which will be held to discuss matters within the committee's jurisdiction…
+                      <div style="font-size:11px; color:#bbb; font-style:italic; margin-bottom:14px; border-left:2px solid #e5e7eb; padding-left:10px; line-height:1.6;">
+                        We respectfully request your approval to conduct a [Meeting Type] of the [Committee]…
                       </div>
-
                       <!-- Details placeholder -->
-                      <div style="font-size:10.5px; color:#bbb; margin-bottom:20px; padding-left:8px; line-height:1.9;">
-                        <div><span style="font-weight:700; color:#999;">Event/Title:</span> [Event Name]</div>
-                        <div><span style="font-weight:700; color:#999;">Date:</span> [Meeting Date]</div>
-                        <div><span style="font-weight:700; color:#999;">Venue:</span> [Venue]</div>
+                      <div style="font-size:10.5px; color:#ccc; margin-bottom:20px; padding-left:8px; line-height:2;">
+                        <div><span style="font-weight:700;color:#aaa;">Event/Title:</span> [Event Name]</div>
+                        <div><span style="font-weight:700;color:#aaa;">Date:</span> [Meeting Date]</div>
+                        <div><span style="font-weight:700;color:#aaa;">Venue:</span> [Venue]</div>
                       </div>
-
                       <!-- Closing -->
-                      <div style="font-size:11px; color:#aaa; font-style:italic; margin-bottom:24px;">
-                        …We respectfully seek your approval for the conduct of the said meeting. Thank you.
-                      </div>
-
-                      <!-- Signature block — mirrors app.js exactly -->
-                      <div style="font-size:11px; margin-bottom:6px;">Respectfully yours,</div>
-                      <div style="margin-bottom:22px;">
-                        <div style="width:140px; border-bottom: 1px solid #555; margin-bottom:4px; margin-top:28px;"></div>
-                        <div style="font-size:11px;">Municipal Councilor</div>
-                      </div>
-
-                      <!-- NOTED block -->
-                      <div style="font-size:11px; font-weight:700; text-transform:uppercase; margin-bottom:6px;">Noted:</div>
-                      <div style="width:160px; border-bottom: 1px solid #555; margin-bottom:4px; margin-top:28px;"></div>
-                      <div id="pdf-preview-noted" style="font-weight:700; font-size:12px; text-transform:uppercase; margin-bottom:1px;"></div>
+                      <div style="font-size:11px; color:#bbb; font-style:italic; margin-bottom:22px;">…We respectfully seek your approval. Thank you.</div>
+                      <!-- Respectfully yours -->
+                      <div style="font-size:11px; margin-bottom:4px; color:#444;">Respectfully yours,</div>
+                      <div style="width:130px; border-bottom:1px solid #999; margin-top:26px; margin-bottom:4px;"></div>
+                      <div style="font-size:11px; color:#555; margin-bottom:22px;">Municipal Councilor</div>
+                      <!-- NOTED block (bottom) -->
+                      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#444; margin-bottom:4px;">Noted:</div>
+                      <div style="width:150px; border-bottom:1px solid #999; margin-top:26px; margin-bottom:4px;"></div>
+                      <div id="pdf-preview-noted" style="font-weight:700; font-size:12px; text-transform:uppercase; color:#141414; margin-bottom:1px;"></div>
                       <div id="pdf-preview-noted-title" style="font-size:11px; color:#555;"></div>
                     </div>
-                    <!-- Dark-mode overlay note -->
                     <div style="background: var(--color-surface-alt, var(--color-bg)); padding: 6px 14px; border-top: 1px solid var(--color-border-soft); font-size: 10.5px; color: var(--color-text-muted); display:flex; align-items:center; gap:5px;">
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      The actual PDF always uses a white background regardless of dark mode.
+                      The exported PDF always uses a white background regardless of dark mode.
                     </div>
                   </div>
 
-                  <!-- Toggle CSS -->
+                  <!-- Toggle + card CSS -->
                   <style>
                     .pdf-sig-toggle-wrap { display:inline-flex; align-items:center; cursor:pointer; flex-shrink:0; }
                     .pdf-sig-toggle {
@@ -3827,6 +3850,20 @@
                     .pdf-sig-checkbox:checked + .pdf-sig-toggle::after { transform: translateX(18px); }
                     .pdf-sig-row.pdf-sig-disabled { opacity: 0.45; }
                     .pdf-sig-row.pdf-sig-active { border-color: var(--color-primary, #2563eb) !important; background: rgba(37,99,235,0.03) !important; }
+                    /* Addressee radio card active state */
+                    .pdf-addr-radio-active {
+                      border-color: var(--color-primary, #2563eb) !important;
+                      background: rgba(37,99,235,0.04) !important;
+                    }
+                    /* Noted-by radio card active state */
+                    .pdf-noted-radio-active {
+                      border-color: var(--color-primary, #2563eb) !important;
+                      background: rgba(37,99,235,0.04) !important;
+                    }
+                    @media (max-width: 520px) {
+                      /* Stack top/bottom grid to single column on small screens */
+                      #pdf-addr-grid { grid-template-columns: 1fr !important; }
+                    }
                   </style>
                 </div>
               </div>
@@ -7571,7 +7608,8 @@
       var defaultCfg = {
         secretary: { enabled: true,  name: "NORBERTO S. SABAYBAY",       title: "Secretary"  },
         vicemayor: { enabled: true,  name: "HON. CHERILIE MELLA-SAMPAL", title: "Vice Mayor" },
-        addressee: "secretary"
+        addressee: "secretary",
+        notedby:   "vicemayor"
       };
 
       // ── Persist to localStorage (instant, device-local) ───────────────────
@@ -7587,6 +7625,7 @@
             secretary: cfg.secretary,
             vicemayor: cfg.vicemayor,
             addressee: cfg.addressee,
+            notedby:   cfg.notedby,
             updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
           }).catch(function(e){ console.warn("[PDFSig] Firestore save error:", e); });
         } catch(e) { console.warn("[PDFSig] Firestore unavailable:", e); }
@@ -7599,6 +7638,7 @@
           else loaded[role] = Object.assign({}, defaultCfg[role], loaded[role]);
         });
         if (!loaded.addressee) loaded.addressee = defaultCfg.addressee;
+        if (!loaded.notedby)   loaded.notedby   = defaultCfg.notedby;
         return loaded;
       }
 
@@ -7629,24 +7669,48 @@
       // ── Addressee radio disable logic: grey out radios for disabled signatories
       function syncAddresseeRadioStates() {
         ["secretary","vicemayor"].forEach(function(role) {
+          // Addressee radios
           var rad   = el("pdf-addressee-" + role);
           var label = rad ? rad.closest("label") : null;
-          if (!rad) return;
-          var disabled = !cfg[role].enabled;
-          rad.disabled = disabled;
-          if (label) {
-            label.style.opacity = disabled ? "0.4" : "";
-            label.style.cursor  = disabled ? "not-allowed" : "pointer";
-            label.title         = disabled ? "Enable this signatory first" : "";
+          if (rad) {
+            var disabled = !cfg[role].enabled;
+            rad.disabled = disabled;
+            if (label) {
+              label.style.opacity = disabled ? "0.4" : "";
+              label.style.cursor  = disabled ? "not-allowed" : "pointer";
+              label.title         = disabled ? "Enable this signatory first" : "";
+            }
+            // If the currently selected addressee just got disabled, switch to the other one
+            if (disabled && cfg.addressee === role) {
+              var other = (role === "secretary") ? "vicemayor" : "secretary";
+              if (cfg[other].enabled) {
+                cfg.addressee = other;
+                var otherRad = el("pdf-addressee-" + other);
+                if (otherRad) otherRad.checked = true;
+                rad.checked = false;
+              }
+            }
           }
-          // If the currently selected addressee just got disabled, switch to the other one
-          if (disabled && cfg.addressee === role) {
-            var other = (role === "secretary") ? "vicemayor" : "secretary";
-            if (cfg[other].enabled) {
-              cfg.addressee = other;
-              var otherRad = el("pdf-addressee-" + other);
-              if (otherRad) otherRad.checked = true;
-              rad.checked = false;
+          // Noted-by radios
+          var nbRad   = el("pdf-notedby-" + role);
+          var nbLabel = nbRad ? nbRad.closest("label") : null;
+          if (nbRad) {
+            var nbDisabled = !cfg[role].enabled;
+            nbRad.disabled = nbDisabled;
+            if (nbLabel) {
+              nbLabel.style.opacity = nbDisabled ? "0.4" : "";
+              nbLabel.style.cursor  = nbDisabled ? "not-allowed" : "pointer";
+              nbLabel.title         = nbDisabled ? "Enable this signatory first" : "";
+            }
+            // If the currently selected notedby just got disabled, switch to the other one
+            if (nbDisabled && cfg.notedby === role) {
+              var nbOther = (role === "secretary") ? "vicemayor" : "secretary";
+              if (cfg[nbOther].enabled) {
+                cfg.notedby = nbOther;
+                var nbOtherRad = el("pdf-notedby-" + nbOther);
+                if (nbOtherRad) nbOtherRad.checked = true;
+                nbRad.checked = false;
+              }
             }
           }
         });
@@ -7670,26 +7734,32 @@
         var vmRad  = el("pdf-addressee-vicemayor");
         if (secRad) secRad.checked = (cfg.addressee === "secretary");
         if (vmRad)  vmRad.checked  = (cfg.addressee === "vicemayor");
+
+        var nbSecRad = el("pdf-notedby-secretary");
+        var nbVmRad  = el("pdf-notedby-vicemayor");
+        if (nbSecRad) nbSecRad.checked = (cfg.notedby === "secretary");
+        if (nbVmRad)  nbVmRad.checked  = (cfg.notedby === "vicemayor");
+
         syncAddresseeRadioStates();
       }
 
       function updatePreview() {
         var addrRole  = cfg.addressee;
-        var notedRole = (addrRole === "secretary") ? "vicemayor" : "secretary";
+        var notedRole = cfg.notedby;
         var addrData  = cfg[addrRole]  || cfg.secretary;
         var notedData = cfg[notedRole] || cfg.vicemayor;
 
+        // ── Live preview panel ──────────────────────────────────────────────
         var pname  = el("pdf-preview-name");
         var ptitl  = el("pdf-preview-title");
         var psal   = el("pdf-preview-salutation");
         var pnoted = el("pdf-preview-noted");
         var pntitl = el("pdf-preview-noted-title");
 
-        if (pname)  pname.textContent  = addrData.name;
-        if (ptitl)  ptitl.textContent  = addrData.title;
-        if (psal)   psal.textContent   = addrData.name.replace(/^HON\.\s*/i,"").split(" ").slice(-1)[0];
+        if (pname) pname.textContent  = addrData.name;
+        if (ptitl) ptitl.textContent  = addrData.title;
+        if (psal)  psal.textContent   = addrData.name.replace(/^HON\.\s*/i,"").split(" ").slice(-1)[0];
 
-        // Noted-by = the OTHER signatory (only if enabled)
         if (notedData.enabled) {
           if (pnoted) pnoted.textContent = notedData.name;
           if (pntitl) pntitl.textContent = notedData.title;
@@ -7697,6 +7767,28 @@
           if (pnoted) pnoted.textContent = "—";
           if (pntitl) pntitl.textContent = "(disabled)";
         }
+
+        // ── Addressee radio card highlight ─────────────────────────────────
+        var secLabel = el("pdf-addressee-secretary-label");
+        var vmLabel  = el("pdf-addressee-vicemayor-label");
+        if (secLabel) secLabel.classList.toggle("pdf-addr-radio-active", addrRole === "secretary");
+        if (vmLabel)  vmLabel.classList.toggle("pdf-addr-radio-active",  addrRole === "vicemayor");
+
+        // ── Noted-by radio card highlight ──────────────────────────────────
+        var nbSecLabel = el("pdf-noted-secretary-label");
+        var nbVmLabel  = el("pdf-noted-vicemayor-label");
+        if (nbSecLabel) nbSecLabel.classList.toggle("pdf-noted-radio-active", notedRole === "secretary");
+        if (nbVmLabel)  nbVmLabel.classList.toggle("pdf-noted-radio-active",  notedRole === "vicemayor");
+
+        // Keep name previews in the Addressee + Noted-by panels fresh
+        var topSecName = el("pdf-addr-top-sec-name");
+        var topVmName  = el("pdf-addr-top-vm-name");
+        var botSecName = el("pdf-noted-sec-name");
+        var botVmName  = el("pdf-noted-vm-name");
+        if (topSecName) topSecName.textContent = cfg.secretary.name;
+        if (topVmName)  topVmName.textContent  = cfg.vicemayor.name;
+        if (botSecName) botSecName.textContent  = cfg.secretary.name;
+        if (botVmName)  botVmName.textContent   = cfg.vicemayor.name;
       }
 
       function syncAll() {
@@ -7793,6 +7885,16 @@
         });
       });
 
+      // ── Noted-by radios ────────────────────────────────────────────────────
+      document.querySelectorAll("input[name='pdf-notedby']").forEach(function(r) {
+        r.addEventListener("change", function() {
+          if (!r.disabled) {
+            cfg.notedby = r.value;
+            updatePreview();
+          }
+        });
+      });
+
       // ── Save Settings → localStorage + Firestore ───────────────────────────
       var saveBtn = el("pdf-signatory-save-btn");
       var msgEl   = el("pdf-signatory-saved-msg");
@@ -7801,8 +7903,10 @@
           saveCfgLocal(cfg);
           saveCfgFirestore(cfg);
           // Legacy key for app.js PDF generation
-          var addrData = cfg[cfg.addressee] || cfg.secretary;
+          var addrData  = cfg[cfg.addressee] || cfg.secretary;
+          var notedData = cfg[cfg.notedby]   || cfg.vicemayor;
           try { localStorage.setItem("sbp_pdf_signatory", addrData.name + "|" + addrData.title); } catch(e) {}
+          try { localStorage.setItem("sbp_pdf_notedby",   notedData.name + "|" + notedData.title); } catch(e) {}
           if (msgEl) {
             msgEl.style.display = "inline-flex";
             setTimeout(function() { msgEl.style.display = "none"; }, 2500);
