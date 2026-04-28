@@ -3027,7 +3027,7 @@
       var addrRole  = cfg.addressee || "secretary";
       var notedRole = cfg.notedby   || "vicemayor";
       var addrData  = cfg[addrRole]  || cfg.secretary || defaultCfg.secretary;
-      var notedData = cfg[notedRole] || cfg.vicemayor || defaultCfg.vicemayor;
+      var notedData = cfg[notedRole] || cfg.vicemayor  || defaultCfg.vicemayor;
       var legacyVal = (addrData.name || "") + "|" + (addrData.title || "");
       try { localStorage.setItem(SKEY_LEG, legacyVal); } catch(e) {}
       try { localStorage.setItem("sbp_pdf_notedby", (notedData.name || "") + "|" + (notedData.title || "")); } catch(e) {}

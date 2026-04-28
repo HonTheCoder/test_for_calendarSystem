@@ -3855,7 +3855,7 @@
                       border-color: var(--color-primary, #2563eb) !important;
                       background: rgba(37,99,235,0.04) !important;
                     }
-                    /* Noted-by radio card active state */
+                    /* Noted-by radio active card */
                     .pdf-noted-radio-active {
                       border-color: var(--color-primary, #2563eb) !important;
                       background: rgba(37,99,235,0.04) !important;
@@ -7680,7 +7680,6 @@
               label.style.cursor  = disabled ? "not-allowed" : "pointer";
               label.title         = disabled ? "Enable this signatory first" : "";
             }
-            // If the currently selected addressee just got disabled, switch to the other one
             if (disabled && cfg.addressee === role) {
               var other = (role === "secretary") ? "vicemayor" : "secretary";
               if (cfg[other].enabled) {
@@ -7702,7 +7701,6 @@
               nbLabel.style.cursor  = nbDisabled ? "not-allowed" : "pointer";
               nbLabel.title         = nbDisabled ? "Enable this signatory first" : "";
             }
-            // If the currently selected notedby just got disabled, switch to the other one
             if (nbDisabled && cfg.notedby === role) {
               var nbOther = (role === "secretary") ? "vicemayor" : "secretary";
               if (cfg[nbOther].enabled) {
@@ -7734,12 +7732,10 @@
         var vmRad  = el("pdf-addressee-vicemayor");
         if (secRad) secRad.checked = (cfg.addressee === "secretary");
         if (vmRad)  vmRad.checked  = (cfg.addressee === "vicemayor");
-
         var nbSecRad = el("pdf-notedby-secretary");
         var nbVmRad  = el("pdf-notedby-vicemayor");
         if (nbSecRad) nbSecRad.checked = (cfg.notedby === "secretary");
         if (nbVmRad)  nbVmRad.checked  = (cfg.notedby === "vicemayor");
-
         syncAddresseeRadioStates();
       }
 
@@ -7774,7 +7770,7 @@
         if (secLabel) secLabel.classList.toggle("pdf-addr-radio-active", addrRole === "secretary");
         if (vmLabel)  vmLabel.classList.toggle("pdf-addr-radio-active",  addrRole === "vicemayor");
 
-        // ── Noted-by radio card highlight ──────────────────────────────────
+        // ── Noted-by radio card highlight ──
         var nbSecLabel = el("pdf-noted-secretary-label");
         var nbVmLabel  = el("pdf-noted-vicemayor-label");
         if (nbSecLabel) nbSecLabel.classList.toggle("pdf-noted-radio-active", notedRole === "secretary");
