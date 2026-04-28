@@ -20,7 +20,7 @@ service cloud.firestore {
       allow read:   if isAuthed();
       allow create: if isAuthed();
       allow update: if isAuthed();
-      allow delete: if isAuthed();
+      allow delete: if isAdmin();
     }
 
     match /meetings/{docId} {
@@ -60,14 +60,18 @@ service cloud.firestore {
 
     match /dispatch_files/{docId} {
       function isDispatchOwner() {
-        return resource.data.uploadedBy == request.auth.uid;
+        return resource != null && resource.data.uploadedBy == request.auth.uid;
       }
-      function isExpiredDispatch() {
-        return resource.data.timestamp != null
-          && resource.data.timestamp < request.time - duration.value(7, 'd');
+      function isRecipient() {
+        return resource != null
+          && resource.data.recipients is list
+          && resource.data.recipients.hasAny([request.auth.uid]);
+      }
+      function isPublicDoc() {
+        return resource != null && resource.data.type == 'public';
       }
 
-      allow read:   if isAuthed();
+      allow read: if isAuthed();
 
       allow create: if isAuthed()
         && request.resource.data.uploadedBy == request.auth.uid
@@ -85,10 +89,18 @@ service cloud.firestore {
 
       allow update: if false;
 
-      allow delete: if isAuthed();
+      allow delete: if isAuthed() && (isDispatchOwner() || isAdmin()
+        || (resource.data.timestamp is timestamp
+            && resource.data.timestamp < request.time - duration.value(7, 'd')));
     }
 
-    match /{document=**} {
+    // PDF signature config — readable by all authed users, writable only by admins.
+    match /settings/{docId} {
+      allow read:  if isAuthed();
+      allow write: if isAdmin();
+    }
+
+        match /{document=**} {
       allow read, write: if false;
     }
   }

@@ -47,10 +47,24 @@
       // required. It just gives each browser session a valid auth token so
       // our security rules (require request.auth != null) work correctly.
       if (typeof firebase.auth === "function") {
-        firebase.auth(app).signInAnonymously().catch(function(err) {
-          // Non-fatal: if anonymous auth fails (e.g. not enabled in Firebase
-          // console), log a warning but continue — Firestore reads/writes that
-          // don't require auth (like public announcements) will still work.
+        // Expose a promise that resolves once anon auth + firebaseUid write are done.
+        // user.html waits on window._firebaseUidReady before running Firestore queries
+        // so there's no race between the UID update and recipient-based reads.
+        window._firebaseUidReady = firebase.auth(app).signInAnonymously().then(function(cred) {
+          // After anon sign-in, write the Firebase UID back to the user's
+          // Firestore doc so Firestore rules can match recipients by Firebase UID.
+          try {
+            var raw = localStorage.getItem("sbp_current_user");
+            if (raw) {
+              var appUser = JSON.parse(raw);
+              if (appUser && appUser.id && cred && cred.user) {
+                return db.collection("users").doc(appUser.id)
+                  .update({ firebaseUid: cred.user.uid })
+                  .catch(function() {});
+              }
+            }
+          } catch(e) {}
+        }).catch(function(err) {
           console.warn("Anonymous auth failed — Firestore rules may block reads/writes.", err.message);
         });
       }

@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   NOTIFICATIONS: "sbp_notifications",
   SESSION_EXPIRY: "sbp_session_expiry",
   NOTIF_LAST_SEEN: "sbp_notif_last_seen", // { [userId]: ISO timestamp }
+  PDF_SIGNATORY: "sbp_pdf_signatory",     // "NAME|Title" or ""
 };
 
 const ROLES = {
@@ -3229,10 +3230,14 @@ function _generateMeetingPdfInner(mtg, docType, autoPrint) {
     y += LINE_H * 1.8;
 
     // ── Addressee ─────────────────────────────────────────────────────────────
+    const _pdfSig = (localStorage.getItem(STORAGE_KEYS.PDF_SIGNATORY) || "").trim();
+    const _sigParts = _pdfSig ? _pdfSig.split("|") : [];
+    const _sigName  = _sigParts[0] || "HON. CHERILIE MELLA-SAMPAL";
+    const _sigTitle = _sigParts[1] || "Vice Mayor";
     doc.setFont("times", "bold");
-    doc.text("HON. CHERILIE MELLA-SAMPAL", INDENT, y); y += LINE_H;
+    doc.text(_sigName, INDENT, y); y += LINE_H;
     doc.setFont("times", "normal");
-    doc.text("Vice Mayor", INDENT, y); y += LINE_H;
+    doc.text(_sigTitle, INDENT, y); y += LINE_H;
     doc.text("Municipality of Polangui", INDENT, y); y += LINE_H * 1.8;
 
     // ── Subject ───────────────────────────────────────────────────────────────
@@ -3336,10 +3341,10 @@ function _generateMeetingPdfInner(mtg, docType, autoPrint) {
     doc.line(INDENT, y, INDENT + 75, y);
     y += LINE_H * 0.8;
     doc.setFont("times", "bold");
-    doc.text("HON. CHERILIE MELLA-SAMPAL", INDENT, y);
+    doc.text(_sigName, INDENT, y);
     y += LINE_H;
     doc.setFont("times", "normal");
-    doc.text("Vice Mayor", INDENT, y);
+    doc.text(_sigTitle, INDENT, y);
 
     // ── Official note above footer ────────────────────────────────────────────
     doc.setFontSize(7);

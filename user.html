@@ -89,6 +89,13 @@
 
           <div class="sidebar-section-divider" aria-hidden="true"></div>
           <div class="sidebar-nav-label">Development Credits</div>
+          <a href="#" class="nav-link" data-section="faq">
+            <span class="nav-link-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </span>
+            <span>FAQ &amp; Help Guide</span>
+          </a>
+
           <a href="#" class="nav-link nav-link-dev-profile" data-section="developers-profile">
             <span class="nav-link-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
@@ -193,8 +200,112 @@
               </div>
             </div>
 
+            <!-- Inter-Department custom dashboard -->
+            <div id="interdept-dashboard" style="display:none;">
+
+              <!-- View-only notice banner -->
+              <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;margin-bottom:18px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.2" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span style="font-size:0.85rem;color:var(--color-text);"><strong style="color:#6366f1;">View-only access.</strong> You can view the meeting calendar and dispatched documents, but cannot schedule meetings.</span>
+                <button type="button" onclick="if(typeof switchSection==='function'){switchSection('calendar');}" style="margin-left:auto;flex-shrink:0;padding:6px 14px;background:rgba(99,102,241,0.12);color:#6366f1;border:1px solid rgba(99,102,241,0.25);border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;">
+                  View Calendar →
+                </button>
+              </div>
+
+              <!-- Stat cards: Files Sent + Files Received only -->
+              <div class="dash-stat-row">
+                <div class="dash-stat-card">
+                  <div class="stat-accent-bar" style="background:linear-gradient(180deg,#6366f1,#818cf8);"></div>
+                  <div class="stat-card-inner">
+                    <div class="stat-card-body">
+                      <div class="stat-label">Files Sent</div>
+                      <div id="idstat-sent" class="stat-value"><span class="skeleton skeleton-stat-value"></span></div>
+                      <div class="stat-sub">Private dispatches</div>
+                    </div>
+                    <div class="stat-card-icon" style="background:rgba(99,102,241,0.12);color:#6366f1;">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="dash-stat-card">
+                  <div class="stat-accent-bar" style="background:linear-gradient(180deg,#10b981,#34d399);"></div>
+                  <div class="stat-card-inner">
+                    <div class="stat-card-body">
+                      <div class="stat-label">Files Received</div>
+                      <div id="idstat-received" class="stat-value"><span class="skeleton skeleton-stat-value"></span></div>
+                      <div class="stat-sub">In your inbox</div>
+                    </div>
+                    <div class="stat-card-icon" style="background:rgba(16,185,129,0.12);color:#10b981;">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+                    </div>
+                  </div>
+                </div>
+                <div class="dash-stat-card">
+                  <div class="stat-accent-bar" style="background:linear-gradient(180deg,#f59e0b,#fbbf24);"></div>
+                  <div class="stat-card-inner">
+                    <div class="stat-card-body">
+                      <div class="stat-label">Upcoming Meetings</div>
+                      <div id="idstat-meetings" class="stat-value"><span class="skeleton skeleton-stat-value"></span></div>
+                      <div class="stat-sub">Scheduled ahead</div>
+                    </div>
+                    <div class="stat-card-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Upcoming Meetings (view-only) -->
+              <div class="chart-card" style="margin-top:18px;">
+                <div class="chart-card-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Upcoming Meetings
+                  <span class="dash-see-all" onclick="if(typeof switchSection==='function'){switchSection('calendar');}">View Calendar &#8594;</span>
+                </div>
+                <div class="upcoming-preview-list" id="idstat-meetings-list">
+                  <div style="text-align:center;padding:24px 0;color:var(--color-text-muted);font-size:0.85rem;">No upcoming meetings</div>
+                </div>
+              </div>
+
+              <!-- Recently Sent Files -->
+              <div class="chart-card" style="margin-top:14px;">
+                <div class="chart-card-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Recently Sent Files
+                  <span class="dash-see-all" onclick="if(typeof switchSection==='function'){switchSection('document-dispatch');}">See all &#8594;</span>
+                </div>
+                <div id="idstat-sent-list" style="padding:0 4px;">
+                  <div style="text-align:center;padding:24px 0;color:var(--color-text-muted);font-size:0.85rem;">No files sent yet</div>
+                </div>
+              </div>
+
+              <!-- Recently Received Files -->
+              <div class="chart-card" style="margin-top:14px;">
+                <div class="chart-card-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+                  Recently Received Files
+                  <span class="dash-see-all" onclick="if(typeof switchSection==='function'){switchSection('document-dispatch');}">See all &#8594;</span>
+                </div>
+                <div id="idstat-received-list" style="padding:0 4px;">
+                  <div style="text-align:center;padding:24px 0;color:var(--color-text-muted);font-size:0.85rem;">No files received yet</div>
+                </div>
+              </div>
+
+              <!-- Announcements -->
+              <div class="chart-card" style="margin-top:14px;">
+                <div class="chart-card-title">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                  Announcements
+                  <span class="dash-see-all" onclick="if(typeof switchSection==='function'){switchSection('announcements');}">See all &#8594;</span>
+                </div>
+                <div id="idstat-announce-preview" style="padding:0 4px">
+                  <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span></div>
+                </div>
+              </div>
+            </div>
+
             <!-- Stat cards -->
-            <div class="dash-stat-row">
+            <div class="dash-stat-row" id="regular-dash-stat-row">
               <div class="dash-stat-card">
                 <div class="stat-accent-bar stat-accent-blue"></div>
                 <div class="stat-card-inner">
@@ -528,7 +639,7 @@
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="1.5" style="margin-bottom:10px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   <div style="font-weight:600;color:var(--color-text);margin-bottom:4px;">Drag &amp; Drop PDF here</div>
                   <div style="font-size:0.82rem;color:var(--color-text-muted);margin-bottom:14px;">or click to browse</div>
-                  <input type="file" id="u-dd-file-input" accept=".pdf" style="display:none;">
+                  <input type="file" id="u-dd-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" style="display:none;">
                   <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('u-dd-file-input').click()">Browse File</button>
                 </div>
                 <div id="u-dd-file-name" style="margin-top:10px;font-size:0.84rem;color:var(--color-primary);font-weight:600;min-height:18px;text-align:center;"></div>
@@ -676,8 +787,33 @@
                   </div>
                 </div>
               </div>
-            </div>
 
+              <!-- Sent -->
+              <div class="card u-dd-list-card" id="u-dd-sent-card">
+                <div class="card-header u-dd-list-header">
+                  <div class="card-title-wrap">
+                    <div class="card-title-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b;">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </div>
+                    <div>
+                      <div class="card-title">Sent Files</div>
+                      <div class="card-subtitle">Private files you dispatched</div>
+                    </div>
+                  </div>
+                  <div class="search-bar-wrap" style="max-width:180px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="u-dd-sent-filter" class="field" placeholder="Search sent…" style="font-size:0.82rem;">
+                  </div>
+                </div>
+                <div id="u-dd-sent-list" class="u-dd-list-body">
+                  <div class="u-dd-empty-state">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <span>No private files sent yet</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
             <style>
               .u-dd-section-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:6px; }
               @media (max-width:700px) { .u-dd-section-grid { grid-template-columns:1fr !important; } }
@@ -756,10 +892,225 @@
             </div>
           </div>
 
+        <!-- ══════════════════════════
+     FAQ
+══════════════════════════ -->
+<div id="section-faq" class="user-section">
+<div class="page-header">
+    <div>
+      <div class="page-header-title">Frequently Asked Questions</div>
+      <div class="page-header-sub">Step-by-step guides on how to use the Sangguniang Bayan Scheduling System.</div>
+    </div>
+  </div>
+
+  <!-- ── Hero stepper card ── -->
+  <div class="card" style="margin-bottom:18px;overflow:hidden;">
+
+    <!-- Card header -->
+    <div class="card-header" style="border-bottom:1px solid var(--color-border-soft);padding-bottom:18px;">
+      <div class="card-title-wrap">
+        <div class="card-title-icon" style="background:rgba(27,75,138,0.12);color:var(--brand-blue,#1B4B8A);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div>
+          <div class="card-title">How to Schedule a Meeting</div>
+          <div class="card-subtitle">Follow these three steps to successfully book a meeting through the system.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body" style="padding:0;">
+
+      <!-- Step 1 -->
+      <div style="display:flex;gap:0;align-items:stretch;border-bottom:1px solid var(--color-border-soft);">
+        <!-- Left accent strip + number -->
+        <div style="flex-shrink:0;width:72px;display:flex;flex-direction:column;align-items:center;padding:24px 0 24px;background:rgba(27,75,138,0.05);border-right:1px solid var(--color-border-soft);gap:10px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--brand-blue,#1B4B8A);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1rem;font-family:var(--font-display);flex-shrink:0;">1</div>
+          <!-- connector line -->
+          <div style="flex:1;width:2px;background:var(--color-border-soft);border-radius:2px;min-height:12px;"></div>
+        </div>
+        <!-- Content -->
+        <div style="flex:1;padding:24px 24px 24px 20px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:7px;font-weight:700;font-size:1rem;color:var(--color-text);">
+              <div style="width:30px;height:30px;border-radius:8px;background:rgba(27,75,138,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue,#1B4B8A)" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              Book an Appointment Through the System
+            </div>
+            <span style="font-size:0.67rem;font-weight:700;background:var(--brand-blue,#1B4B8A);color:#fff;padding:2px 9px;border-radius:999px;letter-spacing:0.05em;white-space:nowrap;">START HERE</span>
+          </div>
+          <div style="font-size:0.875rem;color:var(--color-text-sub);line-height:1.75;margin-bottom:14px;">
+            Go to the <strong style="color:var(--color-text);">Meeting Calendar</strong> tab and click on an available date. Fill in all required fields — Event Name, Committee, Type, Venue, Date, Time, and Stakeholders — then click <em>Review &amp; Submit</em>. Review and agree to the Scheduling Policies before confirming.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:500;background:rgba(27,75,138,0.08);color:var(--brand-blue,#1B4B8A);padding:4px 11px;border-radius:7px;border:1px solid rgba(27,75,138,0.18);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Meeting Calendar tab
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:500;background:rgba(27,75,138,0.08);color:var(--brand-blue,#1B4B8A);padding:4px 11px;border-radius:7px;border:1px solid rgba(27,75,138,0.18);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Mon–Fri · 8:00 AM – 5:00 PM only
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div style="display:flex;gap:0;align-items:stretch;border-bottom:1px solid var(--color-border-soft);">
+        <div style="flex-shrink:0;width:72px;display:flex;flex-direction:column;align-items:center;padding:24px 0 24px;background:rgba(245,163,26,0.05);border-right:1px solid var(--color-border-soft);gap:10px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--brand-gold,#F5A31A);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1rem;font-family:var(--font-display);flex-shrink:0;">2</div>
+          <div style="flex:1;width:2px;background:var(--color-border-soft);border-radius:2px;min-height:12px;"></div>
+        </div>
+        <div style="flex:1;padding:24px 24px 24px 20px;">
+          <div style="display:flex;align-items:center;gap:7px;font-weight:700;font-size:1rem;color:var(--color-text);margin-bottom:8px;">
+            <div style="width:30px;height:30px;border-radius:8px;background:rgba(245,163,26,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--brand-gold,#F5A31A)" stroke-width="2.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            Download, Print, and Submit the Request Form
+          </div>
+          <div style="font-size:0.875rem;color:var(--color-text-sub);line-height:1.75;margin-bottom:14px;">
+            Once submitted, go to <strong style="color:var(--color-text);">My Meetings</strong> and locate your booking. Click <em>Export PDF</em> to download the request form. Print it and physically submit a signed copy to both the <strong style="color:var(--color-text);">SB Secretary's Office</strong> and the <strong style="color:var(--color-text);">Vice Mayor's Office</strong> for their signatures.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:500;background:rgba(245,163,26,0.10);color:var(--brand-gold-dark,#C97F0A);padding:4px 11px;border-radius:7px;border:1px solid rgba(245,163,26,0.25);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print the PDF form
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:500;background:rgba(245,163,26,0.10);color:var(--brand-gold-dark,#C97F0A);padding:4px 11px;border-radius:7px;border:1px solid rgba(245,163,26,0.25);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Submit to SB Sec &amp; VM Office
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div style="display:flex;gap:0;align-items:stretch;">
+        <div style="flex-shrink:0;width:72px;display:flex;flex-direction:column;align-items:center;padding:24px 0 24px;background:rgba(22,163,74,0.05);border-right:1px solid var(--color-border-soft);">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--brand-green,#16A34A);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:1rem;font-family:var(--font-display);flex-shrink:0;">3</div>
+        </div>
+        <div style="flex:1;padding:24px 24px 24px 20px;">
+          <div style="display:flex;align-items:center;gap:7px;font-weight:700;font-size:1rem;color:var(--color-text);margin-bottom:8px;">
+            <div style="width:30px;height:30px;border-radius:8px;background:rgba(22,163,74,0.10);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            </div>
+            Wait and Check for Approval in the System
+          </div>
+          <div style="font-size:0.875rem;color:var(--color-text-sub);line-height:1.75;margin-bottom:14px;">
+            Your request will remain <strong style="color:var(--color-text);">Pending</strong> while the admin reviews it. Monitor its status anytime under <strong style="color:var(--color-text);">My Meetings</strong>. Once reviewed, you'll receive a notification and the status will update to either <em>Approved</em> or <em>Rejected</em>.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:500;background:rgba(22,163,74,0.08);color:#166534;padding:4px 11px;border-radius:7px;border:1px solid rgba(22,163,74,0.22);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+              Check your notifications
+            </span>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:500;background:rgba(22,163,74,0.08);color:#166534;padding:4px 11px;border-radius:7px;border:1px solid rgba(22,163,74,0.22);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+              Monitor in My Meetings tab
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status legend -->
+      <div style="margin:0;padding:18px 24px;background:var(--color-surface-2,#F8FAFD);border-top:1px solid var(--color-border-soft);">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span style="font-size:0.72rem;font-weight:700;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:0.08em;">Meeting Status Guide</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;background:var(--color-surface,#fff);border:1px solid var(--color-border-soft);border-radius:7px;padding:5px 10px;color:var(--color-text-sub);">
+            <span style="width:8px;height:8px;border-radius:2px;background:#f59e0b;display:inline-block;flex-shrink:0;"></span>Pending
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;background:var(--color-surface,#fff);border:1px solid var(--color-border-soft);border-radius:7px;padding:5px 10px;color:var(--color-text-sub);">
+            <span style="width:8px;height:8px;border-radius:2px;background:#16a34a;display:inline-block;flex-shrink:0;"></span>Approved
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;background:var(--color-surface,#fff);border:1px solid var(--color-border-soft);border-radius:7px;padding:5px 10px;color:var(--color-text-sub);">
+            <span style="width:8px;height:8px;border-radius:2px;background:#dc2626;display:inline-block;flex-shrink:0;"></span>Rejected
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;background:var(--color-surface,#fff);border:1px solid var(--color-border-soft);border-radius:7px;padding:5px 10px;color:var(--color-text-sub);">
+            <span style="width:8px;height:8px;border-radius:2px;background:#3b82f6;display:inline-block;flex-shrink:0;"></span>Done
+          </span>
+          <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;background:var(--color-surface,#fff);border:1px solid var(--color-border-soft);border-radius:7px;padding:5px 10px;color:var(--color-text-sub);">
+            <span style="width:8px;height:8px;border-radius:2px;background:#f97316;display:inline-block;flex-shrink:0;"></span>Cancellation Requested
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Important Reminders card ── -->
+  <div class="card">
+    <div class="card-header" style="border-bottom:1px solid var(--color-border-soft);padding-bottom:18px;">
+      <div class="card-title-wrap">
+        <div class="card-title-icon" style="background:rgba(245,163,26,0.12);color:var(--brand-gold-dark,#C97F0A);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Important Reminders</div>
+          <div class="card-subtitle">Keep these policies in mind when using the system.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body" style="padding:8px 0 0;">
+
+      <!-- Reminder 1 -->
+      <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 24px;border-bottom:1px solid var(--color-border-soft);">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(27,75,138,0.08);border:1px solid rgba(27,75,138,0.15);display:flex;align-items:center;justify-content:center;margin-top:1px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue,#1B4B8A)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.88rem;color:var(--color-text);margin-bottom:3px;">Weekdays Only, Office Hours</div>
+          <div style="font-size:0.85rem;color:var(--color-text-sub);line-height:1.65;">Meetings can only be booked on <strong style="color:var(--color-text);">Monday–Friday</strong>, between <strong style="color:var(--color-text);">8:00 AM and 5:00 PM</strong>. Bookings on Philippine public holidays are not allowed.</div>
+        </div>
+      </div>
+
+      <!-- Reminder 2 -->
+      <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 24px;border-bottom:1px solid var(--color-border-soft);">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(245,163,26,0.08);border:1px solid rgba(245,163,26,0.20);display:flex;align-items:center;justify-content:center;margin-top:1px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-gold,#F5A31A)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.88rem;color:var(--color-text);margin-bottom:3px;">24-Hour Cancellation Window</div>
+          <div style="font-size:0.85rem;color:var(--color-text-sub);line-height:1.65;">You may cancel your request <strong style="color:var(--color-text);">within 24 hours</strong> of submission without needing admin approval. After 24 hours, a cancellation request must be submitted for admin review.</div>
+        </div>
+      </div>
+
+      <!-- Reminder 3 -->
+      <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 24px;border-bottom:1px solid var(--color-border-soft);">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(220,38,38,0.07);border:1px solid rgba(220,38,38,0.15);display:flex;align-items:center;justify-content:center;margin-top:1px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="18"/><line x1="14" y1="14" x2="10" y2="18"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.88rem;color:var(--color-text);margin-bottom:3px;">One Slot Per Time Block</div>
+          <div style="font-size:0.85rem;color:var(--color-text-sub);line-height:1.65;">Only <strong style="color:var(--color-text);">one meeting per time slot</strong> is allowed. If another meeting in the same time slot is approved first, your pending request may be automatically cancelled.</div>
+        </div>
+      </div>
+
+      <!-- Reminder 4 -->
+      <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 24px;">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(22,163,74,0.08);border:1px solid rgba(22,163,74,0.18);display:flex;align-items:center;justify-content:center;margin-top:1px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.88rem;color:var(--color-text);margin-bottom:3px;">Export Approved Meetings as PDF</div>
+          <div style="font-size:0.85rem;color:var(--color-text-sub);line-height:1.65;">Approved meetings can be <strong style="color:var(--color-text);">exported as a PDF</strong> from the My Meetings tab — useful for your records or for physical submission to the relevant offices.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+
           <footer class="app-global-footer">
             © 2026 LGU Scheduling System Website Developed by Alt165. For official government use only.
           </footer>
-        </main>
+        <!-- ══════════════════════════
+</main>
       </div>
     </div>
     <!-- ── Booking Modal ── -->
@@ -963,35 +1314,114 @@
     </div>
 
     <!-- Mobile bottom nav -->
-    <nav class="bottom-nav">
+    <nav class="bottom-nav" id="bottom-nav">
       <a href="#" class="bottom-nav-item bottom-nav-item-active" data-section="dashboard">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
         <span>Dashboard</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="calendar">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span>Meeting Calendar</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Calendar</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="my-meetings">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <span>Accounts</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>My Meetings</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="announcements">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
         <span>Announce</span>
       </a>
-      <a href="#" class="bottom-nav-item" data-section="document-dispatch">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="5" width="18" height="14" rx="2"/>
-          <path d="M3 7l9 6 9-6"/>
-        </svg>
-        <span>Dispatch</span>
-      </a>
-      <a href="#" class="bottom-nav-item" data-section="developers-profile">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        <span>Developers</span>
-      </a>
+      <button type="button" class="bottom-nav-item bottom-nav-more-btn" id="bottom-nav-more-btn" aria-label="More options">
+        <span class="bottom-nav-more-dots">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>
+        </span>
+        <span>More</span>
+      </button>
     </nav>
+
+    <!-- More drawer backdrop -->
+    <div class="bottom-nav-drawer-backdrop" id="bottom-nav-drawer-backdrop"></div>
+
+    <!-- More drawer -->
+    <div class="bottom-nav-drawer" id="bottom-nav-drawer">
+      <div class="bottom-nav-drawer-handle"></div>
+      <div class="bottom-nav-drawer-title">More</div>
+      <div class="bottom-nav-drawer-grid">
+        <a href="#" class="bottom-nav-drawer-item" data-section="document-dispatch">
+          <div class="bottom-nav-drawer-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+          </div>
+          <span>Dispatch</span>
+        </a>
+        <a href="#" class="bottom-nav-drawer-item" data-section="faq">
+          <div class="bottom-nav-drawer-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <span>FAQ & Help</span>
+        </a>
+        <a href="#" class="bottom-nav-drawer-item" data-section="developers-profile">
+          <div class="bottom-nav-drawer-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <span>Developers</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- More drawer logic -->
+    <script>
+      (function() {
+        var moreBtn  = document.getElementById('bottom-nav-more-btn');
+        var drawer   = document.getElementById('bottom-nav-drawer');
+        var backdrop = document.getElementById('bottom-nav-drawer-backdrop');
+        var drawerOpen = false;
+
+        function openDrawer() {
+          drawerOpen = true;
+          drawer.classList.add('bottom-nav-drawer-open');
+          backdrop.classList.add('bottom-nav-drawer-backdrop-open');
+          moreBtn.classList.add('bottom-nav-item-active');
+        }
+        function closeDrawer() {
+          drawerOpen = false;
+          drawer.classList.remove('bottom-nav-drawer-open');
+          backdrop.classList.remove('bottom-nav-drawer-backdrop-open');
+          moreBtn.classList.remove('bottom-nav-item-active');
+        }
+
+        moreBtn.addEventListener('click', function() {
+          drawerOpen ? closeDrawer() : openDrawer();
+        });
+        backdrop.addEventListener('click', closeDrawer);
+
+        // Drawer items navigate and close
+        drawer.querySelectorAll('.bottom-nav-drawer-item[data-section]').forEach(function(a) {
+          a.addEventListener('click', function(e) {
+            e.preventDefault();
+            closeDrawer();
+            if (typeof switchSection === 'function') switchSection(a.dataset.section, null, a);
+          });
+        });
+
+        // Watch active section to highlight drawer items + More btn
+        var DRAWER_SECTIONS = ['document-dispatch', 'faq', 'developers-profile'];
+        document.addEventListener('DOMContentLoaded', function() {
+          var drawerItems = drawer.querySelectorAll('.bottom-nav-drawer-item[data-section]');
+          var sectionsWrap = document.querySelector('.section-stack');
+          if (sectionsWrap) {
+            new MutationObserver(function() {
+              var active = document.querySelector('.user-section.active');
+              if (!active) return;
+              var key = active.id.replace('section-', '');
+              drawerItems.forEach(function(item) {
+                item.classList.toggle('bottom-nav-drawer-item-active', item.dataset.section === key);
+              });
+              moreBtn.classList.toggle('bottom-nav-item-active', DRAWER_SECTIONS.includes(key));
+            }).observe(sectionsWrap, { subtree: true, attributes: true, attributeFilter: ['class'] });
+          }
+        });
+      })();
+    </script>
 
 
     <script>
@@ -1033,18 +1463,18 @@
       })();
     </script>
     <!-- Scripts — defer keeps them non-blocking on mobile (parsed after HTML, executed in order) -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-    <script src="./firebase.js" defer></script>
+    <script src="./firebase.js"></script>
     <script src="./app.js" defer></script>
 
     <!-- Section navigation -->
     <script>
       (function () {
-        var SECTION_TITLES = { dashboard: 'Dashboard', calendar: 'Meeting Calendar', 'my-meetings': 'My Meetings', announcements: 'Announcements', 'document-dispatch': 'Document Dispatch', 'developers-profile': 'System Development Team' };
+        var SECTION_TITLES = { dashboard: 'Dashboard', calendar: 'Meeting Calendar', 'my-meetings': 'My Meetings', announcements: 'Announcements', 'document-dispatch': 'Document Dispatch', 'developers-profile': 'System Development Team', faq: 'FAQ & Help Guide' };
         function isFormDirty() {
           var form = document.getElementById('meeting-form');
           if (!form) return false;
@@ -1153,12 +1583,71 @@
         window.switchSection = switchSection;
 
         document.addEventListener('DOMContentLoaded', function () {
+          // Inter-Department role restrictions
+          var _icuRaw = null;
+          try { _icuRaw = JSON.parse(localStorage.getItem('sbp_current_user')); } catch(e) {}
+          var _isInterDept = _icuRaw && _icuRaw.role === 'Inter Department';
+          // my-meetings is hidden (no booking), but calendar is allowed (view-only via app.js isScheduleBookRestricted)
+          var _BLOCKED_SECTIONS = ['my-meetings'];
+          var _HIDDEN_SECTIONS  = ['my-meetings'];
+          if (_isInterDept) {
+            // Hide only my-meetings nav links; calendar is visible (view-only)
+            _HIDDEN_SECTIONS.forEach(function(s) {
+              var navLink = document.querySelector('.nav-link[data-section="' + s + '"]');
+              var botLink = document.querySelector('.bottom-nav-item[data-section="' + s + '"]');
+              if (navLink) navLink.style.display = 'none';
+              if (botLink) botLink.style.display = 'none';
+            });
+            // Update calendar nav subtitle to indicate view-only
+            var _calNavLink = document.querySelector('.nav-link[data-section="calendar"]');
+            if (_calNavLink) _calNavLink.title = 'View-only — you cannot schedule meetings';
+
+            // Hide quick-action buttons (Book Meeting / My Meetings)
+            var _qa = document.querySelector('.dash-quick-actions');
+            if (_qa) _qa.style.display = 'none';
+            // Hide regular stat row + meeting chart cards
+            var _regRow = document.getElementById('regular-dash-stat-row');
+            if (_regRow) _regRow.style.display = 'none';
+            ['user-type-bar-chart','user-donut-svg','dash-upcoming-list','user-activity-list'].forEach(function(id) {
+              var el = document.getElementById(id);
+              if (el) { var card = el.closest('.chart-card'); if (card) card.style.display = 'none'; }
+            });
+            // Show inter-dept dashboard and load its data
+            var _idDash = document.getElementById('interdept-dashboard');
+            if (_idDash) _idDash.style.display = '';
+            // Defer until after all deferred scripts (firebase.js, app.js, dispatch block)
+            // have executed and Firebase auth is ready, then call loadInterDeptDashboard.
+            window._sbpCallInterDeptDashboard = true;
+            function _tryLoadInterDept() {
+              if (typeof window.loadInterDeptDashboard === 'function') {
+                window.loadInterDeptDashboard();
+              } else {
+                // retry — dispatch block hasn't executed yet
+                setTimeout(_tryLoadInterDept, 80);
+              }
+            }
+            // Wait for window load (all deferred scripts done) then invoke
+            if (document.readyState === 'complete') {
+              _tryLoadInterDept();
+            } else {
+              window.addEventListener('load', function() { setTimeout(_tryLoadInterDept, 100); });
+            }
+          }
+
           // Register nav + bottom-nav click listeners after DOM is ready
           document.querySelectorAll('.nav-link[data-section]').forEach(function (a) {
-            a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section, null, a); });
+            a.addEventListener('click', function (e) {
+              e.preventDefault();
+              if (_isInterDept && _BLOCKED_SECTIONS.includes(a.dataset.section)) return;
+              switchSection(a.dataset.section, null, a);
+            });
           });
           document.querySelectorAll('.bottom-nav-item[data-section]').forEach(function (a) {
-            a.addEventListener('click', function (e) { e.preventDefault(); switchSection(a.dataset.section, null, a); });
+            a.addEventListener('click', function (e) {
+              e.preventDefault();
+              if (_isInterDept && _BLOCKED_SECTIONS.includes(a.dataset.section)) return;
+              switchSection(a.dataset.section, null, a);
+            });
           });
           initDirtyTracking('meeting-form');
           // Always land on dashboard when coming fresh from login
@@ -1169,6 +1658,8 @@
           } else {
             try {
               var saved = sessionStorage.getItem('user_section');
+              // Prevent inter-dept from restoring into a blocked section (my-meetings)
+              if (_isInterDept && _BLOCKED_SECTIONS.includes(saved)) saved = 'dashboard';
               if (saved && document.getElementById('section-' + saved)) { switchSection(saved); }
               else { switchSection('dashboard'); }
             } catch(e) { switchSection('dashboard'); }
@@ -1700,7 +2191,11 @@
       function uPurgeExpiredDispatchFiles(db) {
         try {
           var cutoff = firebase.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          var authUser = firebase.auth().currentUser;
+          if (!authUser) return; // need UID for ownership check
+          // Only delete files this user uploaded — avoids permission-denied on others' files
           db.collection("dispatch_files")
+            .where("uploadedBy", "==", authUser.uid)
             .where("timestamp", "<", cutoff)
             .limit(25)
             .get()
@@ -1905,14 +2400,25 @@
 
             var uUnsubPublic = null;
       var uUnsubInbox  = null;
+      var uUnsubSent   = null;
 
       function loadDispatchFiles() {
         var db = firebase.firestore();
+        // Get the app-level user doc ID (Firestore doc ID, NOT Firebase anon UID)
+        var appUser = null;
+        try { appUser = JSON.parse(localStorage.getItem("sbp_current_user")); } catch(e) {}
+        var appUserId = appUser ? (appUser.id || appUser.username) : null;
+
         uDdAttachListActions(uDdEl("u-dd-public-list"));
         uDdAttachListActions(uDdEl("u-dd-inbox-list"));
-        // Purge expired files is handled only by admins (in admin.html loadDispatchFiles)
+        uDdAttachListActions(uDdEl("u-dd-sent-list"));
+        // Purge expired files on every load — don't rely solely on admin login
+        var _uidReadyP = (window._firebaseUidReady && typeof window._firebaseUidReady.then === 'function')
+          ? window._firebaseUidReady : Promise.resolve();
+        _uidReadyP.then(function() { uPurgeExpiredDispatchFiles(db); });
         if (uUnsubPublic) { uUnsubPublic(); uUnsubPublic = null; }
         if (uUnsubInbox)  { uUnsubInbox();  uUnsubInbox  = null; }
+        if (uUnsubSent)   { uUnsubSent();   uUnsubSent   = null; }
 
         // ── Filter wiring ──────────────────────────────────────────────────
         function wireFilter(filterId, listId) {
@@ -1932,6 +2438,7 @@
         }
         wireFilter("u-dd-public-filter", "u-dd-public-list");
         wireFilter("u-dd-inbox-filter", "u-dd-inbox-list");
+        wireFilter("u-dd-sent-filter", "u-dd-sent-list");
 
         var emptyPublic = '<div style="text-align:center;padding:28px 0;color:var(--color-text-muted);font-size:0.88rem;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.4;display:block;margin:0 auto 8px;"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>No public files uploaded yet</div>';
         var emptyInbox  = '<div style="text-align:center;padding:28px 0;color:var(--color-text-muted);font-size:0.88rem;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.4;display:block;margin:0 auto 8px;"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>No private files for you yet</div>';
@@ -1971,19 +2478,18 @@
         }
         uUnsubPublic = subscribePublic(true);
 
-        // FIX: onAuthStateChanged fires immediately with null before
-        // signInAnonymously() resolves, making inbox stay empty permanently.
-        // Instead we wait for auth to settle before subscribing.
-        function subscribeInbox(uid) {
+        // Recipients are stored as stable Firestore doc IDs (appUser.id).
+        // This is session-independent and never changes, unlike the volatile anon Firebase UID.
+        function subscribeInbox(stableId) {
           if (uUnsubInbox) { uUnsubInbox(); uUnsubInbox = null; }
-          if (!uid) {
+          if (!stableId) {
             var list = uDdEl("u-dd-inbox-list");
             if (list) list.innerHTML = emptyInbox;
             return;
           }
           uUnsubInbox = db.collection("dispatch_files")
             .where("type","==","private")
-            .where("recipients","array-contains", uid)
+            .where("recipients","array-contains", stableId)
             .limit(50)
             .onSnapshot(function(snap) {
               var list = uDdEl("u-dd-inbox-list");
@@ -2001,19 +2507,45 @@
             }, function(e){ console.error("[U-DD] inbox error:", e); });
         }
 
-        // authStateReady() (Firebase 9.22+) resolves once auth state is known.
-        // Falls back to a one-shot onAuthStateChanged for older SDK versions.
-        var auth = firebase.auth();
-        if (auth.authStateReady) {
-          auth.authStateReady().then(function() {
-            subscribeInbox(auth.currentUser ? auth.currentUser.uid : null);
-          });
-        } else {
-          var _unsubAuth = auth.onAuthStateChanged(function(user) {
-            _unsubAuth(); // unsubscribe immediately — only need the first settled value
-            subscribeInbox(user ? user.uid : null);
-          });
+        // Sent tab — shows private files the current user uploaded (uploadedBy = Firebase anon UID)
+        var emptySent = '<div style="text-align:center;padding:28px 0;color:var(--color-text-muted);font-size:0.88rem;"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:.4;display:block;margin:0 auto 8px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>No private files sent yet</div>';
+        function subscribeSent(firebaseUid) {
+          if (uUnsubSent) { uUnsubSent(); uUnsubSent = null; }
+          var list = uDdEl("u-dd-sent-list");
+          if (!firebaseUid) { if (list) list.innerHTML = emptySent; return; }
+          uUnsubSent = db.collection("dispatch_files")
+            .where("type","==","private")
+            .where("uploadedBy","==", firebaseUid)
+            .limit(50)
+            .onSnapshot(function(snap) {
+              if (!list) return;
+              if (snap.empty) { list.innerHTML = emptySent; return; }
+              var docs = snap.docs.slice().sort(function(a,b){
+                var sa = a.data().timestamp ? (a.data().timestamp.seconds||0) : 0;
+                var sb = b.data().timestamp ? (b.data().timestamp.seconds||0) : 0;
+                return sb - sa;
+              });
+              list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), firebaseUid); }).join("");
+              var fi4 = document.getElementById("u-dd-sent-filter");
+              if (fi4 && fi4.value.trim()) fi4.dispatchEvent(new Event("input"));
+            }, function(e){ console.error("[U-DD] sent error:", e); });
         }
+
+        // Inbox uses stable Firestore doc ID — no auth wait needed.
+        // Sent uses Firebase UID (uploadedBy field) — needs ensureFirebaseAuthUser.
+        subscribeInbox(appUserId);
+        // Wait for firebaseUidReady so subscribeSent uses the settled anon UID.
+        var _uidReady = (window._firebaseUidReady && typeof window._firebaseUidReady.then === 'function')
+          ? window._firebaseUidReady : Promise.resolve();
+        _uidReady.then(function() {
+          ensureFirebaseAuthUser(
+            function(user) {
+              var fbUid = user ? user.uid : null;
+              subscribeSent(fbUid);
+            },
+            function(e) { console.warn('[U-DD] auth failed for sent:', e); }
+          );
+        });
       }
 
       // Expose immediately — not inside DOMContentLoaded
@@ -2084,7 +2616,14 @@
 
       function uFetchAllUsers() {
         firebase.firestore().collection("users").get()
-          .then(function(snap){ uAllUsers = snap.docs.map(function(d){ return Object.assign({uid:d.id},d.data()); }); })
+          .then(function(snap){
+            uAllUsers = snap.docs.map(function(d){
+              var data = d.data();
+              // uid = Firestore doc ID (used for display/dedup)
+              // firebaseUid = Firebase anon UID (used for recipient storage + rule matching)
+              return Object.assign({ uid: d.id }, data, { firebaseUid: data.firebaseUid || null });
+            });
+          })
           .catch(function(e){ console.warn("[U-DD] fetchUsers",e); });
       }
 
@@ -2110,7 +2649,7 @@
             if (uSelectedRecipients.length>=5){ uDdEl("u-dd-recipient-error").textContent="Maximum 5 recipients."; return; }
             var u = uAllUsers.find(function(x){ return x.uid===item.dataset.uid; });
             if (!u) return;
-            uSelectedRecipients.push({uid:u.uid, displayName:u.displayName||u.username||u.email});
+            uSelectedRecipients.push({uid:u.uid, firebaseUid:u.firebaseUid||null, displayName:u.displayName||u.username||u.email});
             uDdEl("u-dd-recipient-search").value="";
             dd.style.display="none";
             uDdEl("u-dd-recipient-error").textContent="";
@@ -2134,7 +2673,7 @@
       function uHandleSubmit() {
         var errEl = uDdEl("u-dd-upload-error");
         errEl.textContent = "";
-        if (!uSelectedFile) { errEl.textContent="Please select a PDF file."; return; }
+        if (!uSelectedFile) { errEl.textContent="Please select a file (PDF, Word, Excel, or PowerPoint)."; return; }
         var uDocTitle = uDdEl("u-dd-doc-title") ? uDdEl("u-dd-doc-title").value.trim() : "";
         var uDocSubject = uDdEl("u-dd-doc-subject") ? uDdEl("u-dd-doc-subject").value.trim() : "";
         if (!uDocTitle) { errEl.textContent="Please enter a title."; return; }
@@ -2191,7 +2730,7 @@
               type: isPrivate ? "private" : "public",
               uploadedBy: user.uid,
               uploadedByName: user.displayName || user.email || user.uid,
-              recipients: isPrivate ? uSelectedRecipients.map(function(r){ return r.uid; }) : [],
+              recipients: isPrivate ? uSelectedRecipients.map(function(r){ return r.firebaseUid || r.uid; }) : [],
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
               expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
             });
@@ -2221,6 +2760,138 @@
         });
       }
 
+      // ── Role-based dispatch UI setup ──────────────────────────────────────
+      // ---- Inter-Department dashboard loader ----
+      window.loadInterDeptDashboard = function() {
+        // Wait for firebaseUid to be written back before querying, preventing race condition.
+        var _uidReady = (window._firebaseUidReady && typeof window._firebaseUidReady.then === 'function')
+          ? window._firebaseUidReady : Promise.resolve();
+        _uidReady.then(function() {
+        ensureFirebaseAuthUser(function(authUser) {
+          var fbUid = authUser ? authUser.uid : null;
+          var db = firebase.firestore();
+          var appUser = null;
+          try { appUser = JSON.parse(localStorage.getItem('sbp_current_user')); } catch(e) {}
+          if (!appUser) return;
+
+          function fmtDate(ts) {
+            if (!ts) return '';
+            var d = ts.toDate ? ts.toDate() : new Date(ts);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+          }
+          function fileRow(doc) {
+            var d = doc.data();
+            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--color-border);">'
+              + '<div style="width:32px;height:32px;border-radius:8px;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">'
+              + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>'
+              + '<div style="flex:1;min-width:0;">'
+              + '<div style="font-size:0.85rem;font-weight:600;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.title || d.fileName || 'Untitled') + '</div>'
+              + '<div style="font-size:0.75rem;color:var(--color-text-muted);">' + fmtDate(d.timestamp) + '</div>'
+              + '</div></div>';
+          }
+          function meetingRow(doc) {
+            var d = doc.data();
+            var sColor = { Approved:'#10b981', Pending:'#f59e0b', Cancelled:'#ef4444', Completed:'#6366f1', Done:'#3b82f6' };
+            var color = sColor[d.status] || 'var(--color-text-muted)';
+            var dateStr = d.date ? new Date(d.date + 'T00:00:00').toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' }) : '';
+            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--color-border);">'
+              + '<div style="width:8px;height:8px;border-radius:50%;background:' + color + ';flex-shrink:0;"></div>'
+              + '<div style="flex:1;min-width:0;">'
+              + '<div style="font-size:0.85rem;font-weight:600;color:var(--color-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (d.eventName || d.title || d.type || 'Meeting') + '</div>'
+              + '<div style="font-size:0.75rem;color:var(--color-text-muted);">' + dateStr + (d.venue ? ' · ' + d.venue : '') + '</div>'
+              + '</div>'
+              + '<span style="font-size:0.72rem;font-weight:600;color:' + color + ';background:' + color + '1a;padding:2px 8px;border-radius:20px;white-space:nowrap;">' + (d.status || '') + '</span>'
+              + '</div>';
+          }
+          function emptyMsg(msg) {
+            return '<div style="text-align:center;padding:20px 0;color:var(--color-text-muted);font-size:0.83rem;">' + msg + '</div>';
+          }
+
+          // Files Sent (uploadedBy = Firebase anon UID) + Received (recipients = stable appUser.id)
+          // NOTE: 'recipients' uses the stable Firestore doc ID (appUser.id), NOT the volatile
+          // anonymous Firebase UID. This matches how subscribeInbox works in loadDispatchFiles.
+          var stableId = appUser ? appUser.id : null;
+          if (fbUid || stableId) {
+            if (fbUid) {
+              db.collection('dispatch_files').where('type','==','private').where('uploadedBy','==', fbUid)
+                .limit(20).get().then(function(snap) {
+                  var el = document.getElementById('idstat-sent'); if (el) el.textContent = snap.size;
+                  var li = document.getElementById('idstat-sent-list');
+                  var sorted = snap.docs.slice().sort(function(a,b){
+                    return (b.data().timestamp ? b.data().timestamp.seconds||0 : 0) - (a.data().timestamp ? a.data().timestamp.seconds||0 : 0);
+                  });
+                  if (li) li.innerHTML = snap.empty ? emptyMsg('No files sent yet') : sorted.map(fileRow).join('');
+                }).catch(function(e){ console.warn('[ID] sent error:', e); });
+            }
+
+            if (stableId) {
+              db.collection('dispatch_files').where('type','==','private').where('recipients','array-contains', stableId)
+                .limit(20).get().then(function(snap) {
+                  var el = document.getElementById('idstat-received'); if (el) el.textContent = snap.size;
+                  var li = document.getElementById('idstat-received-list');
+                  var sorted = snap.docs.slice().sort(function(a,b){
+                    return (b.data().timestamp ? b.data().timestamp.seconds||0 : 0) - (a.data().timestamp ? a.data().timestamp.seconds||0 : 0);
+                  });
+                  if (li) li.innerHTML = snap.empty ? emptyMsg('No files received yet') : sorted.map(fileRow).join('');
+                }).catch(function(e){ console.warn('[ID] received error:', e); });
+            }
+          } else {
+            var s = document.getElementById('idstat-sent'); if (s) s.textContent = '0';
+            var r = document.getElementById('idstat-received'); if (r) r.textContent = '0';
+            var sl = document.getElementById('idstat-sent-list'); if (sl) sl.innerHTML = emptyMsg('No files sent yet');
+            var rl = document.getElementById('idstat-received-list'); if (rl) rl.innerHTML = emptyMsg('No files received yet');
+          }
+
+          // Meetings (upcoming, view-only)
+          var todayStr = new Date().toISOString().slice(0, 10);
+          db.collection('meetings').orderBy('timestamp','desc').limit(50)
+            .get().then(function(snap) {
+              var upcomingDocs = snap.docs.filter(function(d) {
+                var dt = d.data().date || '';
+                var st = d.data().status || '';
+                return dt >= todayStr && st !== 'Cancelled' && st !== 'Rejected';
+              });
+              var el = document.getElementById('idstat-meetings'); if (el) el.textContent = upcomingDocs.length;
+              var li = document.getElementById('idstat-meetings-list');
+              if (li) li.innerHTML = upcomingDocs.length === 0 ? emptyMsg('No upcoming meetings') : upcomingDocs.slice(0,5).map(meetingRow).join('');
+            }).catch(function() {});
+
+          // Announcements
+          db.collection('announcements').orderBy('timestamp','desc').limit(3)
+            .get().then(function(snap) {
+              var li = document.getElementById('idstat-announce-preview'); if (!li) return;
+              if (snap.empty) { li.innerHTML = emptyMsg('No announcements yet'); return; }
+              li.innerHTML = snap.docs.map(function(d) {
+                var a = d.data();
+                return '<div style="padding:10px 4px;border-bottom:1px solid var(--color-border);">'
+                  + '<div style="font-size:0.85rem;font-weight:600;color:var(--color-text);">' + (a.title || 'Announcement') + '</div>'
+                  + '<div style="font-size:0.75rem;color:var(--color-text-muted);margin-top:2px;">' + fmtDate(a.timestamp) + '</div>'
+                  + (a.body ? '<div style="font-size:0.82rem;color:var(--color-text);margin-top:5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + a.body + '</div>' : '')
+                  + '</div>';
+              }).join('');
+            }).catch(function() {});
+
+        }, function(e) { console.warn('[ID] auth error:', e); });
+        }); // end _uidReady.then
+      }; // end window.loadInterDeptDashboard
+
+            // Only Secretary and Vice Mayor can send/upload files.
+      // Regular users (Councilor, Researcher, etc.) only see inbox + public.
+      (function() {
+        var _cu = null;
+        try { _cu = JSON.parse(localStorage.getItem("sbp_current_user")); } catch(e) {}
+        var _role = _cu ? (_cu.role || "") : "";
+        var _canSend = (_role === "Secretary" || _role === "Vice Mayor" || _role === "Inter Department");
+
+        // Show upload button only for senders
+        var _ubtn = uDdEl("u-dd-upload-btn");
+        if (_ubtn) _ubtn.style.display = _canSend ? "flex" : "none";
+
+        // Show/hide Sent Files card
+        var _sentCard = document.getElementById("u-dd-sent-card");
+        if (_sentCard) _sentCard.style.display = _canSend ? "" : "none";
+      })();
+
       // ── Bind events directly (script is at bottom of body, DOM is ready) ──
       var ubtn = uDdEl("u-dd-upload-btn");
       if (ubtn) ubtn.addEventListener("click", uOpenModal);
@@ -2248,8 +2919,9 @@
         udz.addEventListener("drop", function(e){
           e.preventDefault(); udz.style.borderColor=""; udz.style.background="";
           var f=e.dataTransfer.files[0];
-          if(f&&f.type==="application/pdf"){ uSelectedFile=f; uDdSetSelectedFileName(f.name); }
-          else { uDdEl("u-dd-upload-error").textContent="Only PDF files are accepted."; }
+          var uAllowedTypes=["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/vnd.ms-powerpoint","application/vnd.openxmlformats-officedocument.presentationml.presentation"]; var uAllowedExts=/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i;
+          if(f&&(uAllowedTypes.indexOf(f.type)!==-1||uAllowedExts.test(f.name))){ uSelectedFile=f; uDdSetSelectedFileName(f.name); }
+          else { uDdEl("u-dd-upload-error").textContent="Only PDF, Word, Excel, or PowerPoint files are accepted."; }
         });
       }
 
@@ -2285,7 +2957,7 @@
       console.error("uLoadDispatchFiles is not defined or not a function.");
     }
   });
-</script>
+</script> 
 
   </body>
 </html>

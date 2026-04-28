@@ -3616,6 +3616,193 @@
                 </div>
               </div>
             </div>
+
+            <!-- ── PDF DOCUMENT SETTINGS ─────────────────────────── -->
+            <div class="card" style="margin-top: 18px;">
+              <div class="card-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                      <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="card-title">PDF Document Settings</div>
+                    <div class="card-subtitle">Configure the Addressee and NOTED signatory for exported PDF documents.</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card-body" style="padding: 20px;">
+                <div style="max-width: 580px;">
+                  <p style="font-size: 12px; color: var(--color-text-muted); margin: 0 0 18px; line-height: 1.6;">
+                    Configure which signatories appear in exported PDF documents. Toggle each one on/off, edit their name and title inline, and choose who appears as the <strong>Addressee</strong> at the top of the letter.
+                  </p>
+
+                  <!-- ── Signatory rows ── -->
+                  <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+
+                    <!-- Secretary row -->
+                    <div class="pdf-sig-row" id="pdf-sig-row-secretary" style="border: 1.5px solid var(--color-border); border-radius: 12px; padding: 14px 16px; background: var(--color-bg); transition: border-color .2s, background .2s;">
+                      <div style="display: flex; align-items: center; gap: 12px;">
+                        <!-- Toggle -->
+                        <label class="pdf-sig-toggle-wrap" title="Include in PDF">
+                          <input type="checkbox" id="pdf-sig-secretary-enabled" class="pdf-sig-checkbox" data-role="secretary" checked style="display:none;">
+                          <span class="pdf-sig-toggle"></span>
+                        </label>
+                        <!-- Info -->
+                        <div style="flex:1; min-width:0;">
+                          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); margin-bottom: 2px;">Secretary</div>
+                          <div id="pdf-sig-secretary-display" style="font-weight: 600; font-size: 0.9rem; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">NORBERTO S. SABAYBAY</div>
+                          <div id="pdf-sig-secretary-title-display" style="font-size: 0.76rem; color: var(--color-text-muted);">Secretary</div>
+                        </div>
+                        <!-- Edit button -->
+                        <button type="button" class="btn btn-ghost btn-sm pdf-sig-edit-btn" data-target="secretary" style="flex-shrink:0; font-size: 0.78rem; padding: 5px 10px;">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                          Edit
+                        </button>
+                      </div>
+                      <!-- Inline edit form (hidden by default) -->
+                      <div class="pdf-sig-edit-form" id="pdf-sig-secretary-form" style="display:none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border-soft); display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                          <div>
+                            <label class="field-label" style="font-size:11px;">Full Name</label>
+                            <input id="pdf-sig-secretary-name-input" class="field" placeholder="e.g. NORBERTO S. SABAYBAY" value="NORBERTO S. SABAYBAY" style="font-size:0.85rem;">
+                          </div>
+                          <div>
+                            <label class="field-label" style="font-size:11px;">Title / Position</label>
+                            <input id="pdf-sig-secretary-title-input" class="field" placeholder="e.g. Secretary" value="Secretary" style="font-size:0.85rem;">
+                          </div>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                          <button type="button" class="btn btn-primary btn-sm pdf-sig-save-row-btn" data-target="secretary" style="font-size:0.8rem; padding:5px 14px;">Apply</button>
+                          <button type="button" class="btn btn-ghost btn-sm pdf-sig-cancel-row-btn" data-target="secretary" style="font-size:0.8rem; padding:5px 14px;">Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Vice Mayor row -->
+                    <div class="pdf-sig-row" id="pdf-sig-row-vicemayor" style="border: 1.5px solid var(--color-border); border-radius: 12px; padding: 14px 16px; background: var(--color-bg); transition: border-color .2s, background .2s;">
+                      <div style="display: flex; align-items: center; gap: 12px;">
+                        <label class="pdf-sig-toggle-wrap" title="Include in PDF">
+                          <input type="checkbox" id="pdf-sig-vicemayor-enabled" class="pdf-sig-checkbox" data-role="vicemayor" checked style="display:none;">
+                          <span class="pdf-sig-toggle"></span>
+                        </label>
+                        <div style="flex:1; min-width:0;">
+                          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); margin-bottom: 2px;">Vice Mayor</div>
+                          <div id="pdf-sig-vicemayor-display" style="font-weight: 600; font-size: 0.9rem; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">HON. CHERILIE MELLA-SAMPAL</div>
+                          <div id="pdf-sig-vicemayor-title-display" style="font-size: 0.76rem; color: var(--color-text-muted);">Vice Mayor</div>
+                        </div>
+                        <button type="button" class="btn btn-ghost btn-sm pdf-sig-edit-btn" data-target="vicemayor" style="flex-shrink:0; font-size: 0.78rem; padding: 5px 10px;">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                          Edit
+                        </button>
+                      </div>
+                      <div class="pdf-sig-edit-form" id="pdf-sig-vicemayor-form" style="display:none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border-soft);">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                          <div>
+                            <label class="field-label" style="font-size:11px;">Full Name</label>
+                            <input id="pdf-sig-vicemayor-name-input" class="field" placeholder="e.g. HON. CHERILIE MELLA-SAMPAL" value="HON. CHERILIE MELLA-SAMPAL" style="font-size:0.85rem;">
+                          </div>
+                          <div>
+                            <label class="field-label" style="font-size:11px;">Title / Position</label>
+                            <input id="pdf-sig-vicemayor-title-input" class="field" placeholder="e.g. Vice Mayor" value="Vice Mayor" style="font-size:0.85rem;">
+                          </div>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                          <button type="button" class="btn btn-primary btn-sm pdf-sig-save-row-btn" data-target="vicemayor" style="font-size:0.8rem; padding:5px 14px;">Apply</button>
+                          <button type="button" class="btn btn-ghost btn-sm pdf-sig-cancel-row-btn" data-target="vicemayor" style="font-size:0.8rem; padding:5px 14px;">Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- ── Addressee radio ── -->
+                  <div style="background: var(--color-surface-alt, var(--color-bg)); border: 1px solid var(--color-border-soft); border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;">
+                    <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); margin-bottom: 10px;">Addressee (top of letter)</div>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                      <label style="display:flex; align-items:center; gap:7px; cursor:pointer; font-size:0.86rem; color:var(--color-text); font-weight:500;">
+                        <input type="radio" name="pdf-addressee" id="pdf-addressee-secretary" value="secretary" checked style="accent-color: var(--color-primary); width:15px; height:15px;">
+                        Secretary
+                      </label>
+                      <label style="display:flex; align-items:center; gap:7px; cursor:pointer; font-size:0.86rem; color:var(--color-text); font-weight:500;">
+                        <input type="radio" name="pdf-addressee" id="pdf-addressee-vicemayor" value="vicemayor" style="accent-color: var(--color-primary); width:15px; height:15px;">
+                        Vice Mayor
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- ── Save + feedback ── -->
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="btn btn-primary btn-sm" id="pdf-signatory-save-btn" style="padding: 8px 18px;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                      </svg>
+                      Save Settings
+                    </button>
+                    <span id="pdf-signatory-saved-msg" style="font-size: 12px; color: var(--color-success, #16a34a); display: none; align-items: center; gap: 4px;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                      Settings saved!
+                    </span>
+                  </div>
+
+                  <!-- ── Live PDF Preview ── -->
+                  <div id="pdf-signatory-preview" style="margin-top: 20px; border: 1px solid var(--color-border-soft); border-radius: 10px; overflow: hidden; font-size: 12px; color: var(--color-text-muted);">
+                    <div style="background: var(--color-surface-alt, var(--color-bg)); padding: 8px 14px; border-bottom: 1px solid var(--color-border-soft); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); display:flex; align-items:center; gap:6px;">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      PDF Preview
+                    </div>
+                    <div style="padding: 18px 20px; background: var(--color-bg); font-family: 'Times New Roman', serif; line-height: 1.7; color: var(--color-text);">
+                      <div style="text-align:right; font-size: 11px; color: var(--color-text-muted); margin-bottom:10px;">[Date]</div>
+                      <div style="font-weight:700; font-size:12px; text-transform:uppercase;" id="pdf-preview-addressee-block">
+                        <div id="pdf-preview-name" style="margin-bottom:1px;"></div>
+                        <div id="pdf-preview-title" style="font-weight:400; font-size:11px;"></div>
+                        <div style="font-size:11px; font-weight:400; color: var(--color-text-muted);">Sangguniang Bayan ng Polangui</div>
+                      </div>
+                      <div style="margin-top:10px; font-size:11.5px;">Dear <span id="pdf-preview-salutation" style="font-weight:700;"></span>,</div>
+                      <div style="margin-top:8px; font-size:11px; color: var(--color-text-muted); font-style:italic;">[Letter body…]</div>
+                      <div style="margin-top:18px; display:flex; justify-content:space-between; align-items:flex-end; font-size:11px;">
+                        <div>
+                          <div style="font-weight:700; font-size:11px; margin-bottom:2px; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.04em;">Noted:</div>
+                          <div id="pdf-preview-noted" style="font-weight:700; font-size:12px; text-transform:uppercase;"></div>
+                          <div id="pdf-preview-noted-title" style="font-size:11px;"></div>
+                        </div>
+                        <div style="font-size:11px; color:var(--color-text-muted); text-align:right;">
+                          <div style="font-weight:700; color:var(--color-text);">NORBERTO S. SABAYBAY</div>
+                          <div>Secretary</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Toggle CSS -->
+                  <style>
+                    .pdf-sig-toggle-wrap { display:inline-flex; align-items:center; cursor:pointer; flex-shrink:0; }
+                    .pdf-sig-toggle {
+                      display: inline-block; width: 40px; height: 22px; border-radius: 999px;
+                      background: var(--color-border, #d1d5db); position: relative;
+                      transition: background .2s; flex-shrink: 0;
+                    }
+                    .pdf-sig-toggle::after {
+                      content: ''; position: absolute; top: 3px; left: 3px;
+                      width: 16px; height: 16px; border-radius: 50%;
+                      background: #fff; transition: transform .2s, box-shadow .2s;
+                      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+                    }
+                    .pdf-sig-checkbox:checked + .pdf-sig-toggle { background: var(--color-primary, #2563eb); }
+                    .pdf-sig-checkbox:checked + .pdf-sig-toggle::after { transform: translateX(18px); }
+                    .pdf-sig-row.pdf-sig-disabled { opacity: 0.45; }
+                    .pdf-sig-row.pdf-sig-active { border-color: var(--color-primary, #2563eb) !important; background: rgba(37,99,235,0.03) !important; }
+                  </style>
+                </div>
+              </div>
+            </div>
+
           </div>
 
           <!-- ══════════════════════════
@@ -3883,7 +4070,7 @@
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="1.5" style="margin-bottom:10px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   <div style="font-weight:600;color:var(--color-text);margin-bottom:4px;">Drag &amp; Drop PDF here</div>
                   <div style="font-size:0.82rem;color:var(--color-text-muted);margin-bottom:14px;">or click to browse</div>
-                  <input type="file" id="dd-file-input" accept=".pdf" style="display:none;">
+                  <input type="file" id="dd-file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" style="display:none;">
                   <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('dd-file-input').click()">Browse File</button>
                 </div>
                 <div id="dd-file-name" style="margin-top:10px;font-size:0.84rem;color:var(--color-primary);font-weight:600;min-height:18px;text-align:center;"></div>
@@ -5242,99 +5429,114 @@
 
 
     <!-- Mobile bottom nav -->
-    <nav class="bottom-nav">
-      <a
-        href="#"
-        class="bottom-nav-item bottom-nav-item-active"
-        data-section="dashboard"
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <rect x="3" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="3" width="7" height="7" rx="1" />
-          <rect x="14" y="14" width="7" height="7" rx="1" />
-          <rect x="3" y="14" width="7" height="7" rx="1" />
-        </svg>
+    <nav class="bottom-nav" id="bottom-nav">
+      <a href="#" class="bottom-nav-item bottom-nav-item-active" data-section="dashboard">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
         <span>Dashboard</span>
       </a>
-      <a href="#" class="bottom-nav-item" data-section="announcements">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M3 11l19-9-9 19-2-8-8-2z" />
-        </svg>
-        <span>Announce</span>
-      </a>
       <a href="#" class="bottom-nav-item" data-section="meeting-logs">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>Meetings</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="user-management">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-        </svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
         <span>Accounts</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="admin-management">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14" />
-        </svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>
         <span>Settings</span>
       </a>
-      <a href="#" class="bottom-nav-item" data-section="document-dispatch">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="5" width="18" height="14" rx="2"/>
-          <path d="M3 7l9 6 9-6"/>
-        </svg>
-        <span>Dispatch</span>
-      </a>
-      <a href="#" class="bottom-nav-item" data-section="developers-profile">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="16 18 22 12 16 6" />
-          <polyline points="8 6 2 12 8 18" />
-        </svg>
-        <span>Developers</span>
-      </a>
+      <button type="button" class="bottom-nav-item bottom-nav-more-btn" id="bottom-nav-more-btn" aria-label="More options">
+        <span class="bottom-nav-more-dots">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>
+        </span>
+        <span>More</span>
+      </button>
     </nav>
+
+    <!-- More drawer backdrop -->
+    <div class="bottom-nav-drawer-backdrop" id="bottom-nav-drawer-backdrop"></div>
+
+    <!-- More drawer -->
+    <div class="bottom-nav-drawer" id="bottom-nav-drawer">
+      <div class="bottom-nav-drawer-handle"></div>
+      <div class="bottom-nav-drawer-title">More</div>
+      <div class="bottom-nav-drawer-grid">
+        <a href="#" class="bottom-nav-drawer-item" data-section="announcements">
+          <div class="bottom-nav-drawer-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+          </div>
+          <span>Announce</span>
+        </a>
+        <a href="#" class="bottom-nav-drawer-item" data-section="document-dispatch">
+          <div class="bottom-nav-drawer-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+          </div>
+          <span>Dispatch</span>
+        </a>
+        <a href="#" class="bottom-nav-drawer-item" data-section="developers-profile">
+          <div class="bottom-nav-drawer-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          </div>
+          <span>Developers</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- More drawer logic -->
+    <script>
+      (function() {
+        var moreBtn  = document.getElementById('bottom-nav-more-btn');
+        var drawer   = document.getElementById('bottom-nav-drawer');
+        var backdrop = document.getElementById('bottom-nav-drawer-backdrop');
+        var drawerOpen = false;
+
+        function openDrawer() {
+          drawerOpen = true;
+          drawer.classList.add('bottom-nav-drawer-open');
+          backdrop.classList.add('bottom-nav-drawer-backdrop-open');
+          moreBtn.classList.add('bottom-nav-item-active');
+        }
+        function closeDrawer() {
+          drawerOpen = false;
+          drawer.classList.remove('bottom-nav-drawer-open');
+          backdrop.classList.remove('bottom-nav-drawer-backdrop-open');
+          moreBtn.classList.remove('bottom-nav-item-active');
+        }
+
+        moreBtn.addEventListener('click', function() {
+          drawerOpen ? closeDrawer() : openDrawer();
+        });
+        backdrop.addEventListener('click', closeDrawer);
+
+        // Drawer items navigate and close
+        drawer.querySelectorAll('.bottom-nav-drawer-item[data-section]').forEach(function(a) {
+          a.addEventListener('click', function(e) {
+            e.preventDefault();
+            closeDrawer();
+            if (typeof switchSection === 'function') switchSection(a.dataset.section, null, a);
+          });
+        });
+
+        // Watch active section to highlight drawer items + More btn
+        var DRAWER_SECTIONS = ['announcements', 'document-dispatch', 'developers-profile'];
+        document.addEventListener('DOMContentLoaded', function() {
+          var drawerItems = drawer.querySelectorAll('.bottom-nav-drawer-item[data-section]');
+          var sectionsWrap = document.querySelector('.section-stack');
+          if (sectionsWrap) {
+            new MutationObserver(function() {
+              var active = document.querySelector('.admin-section.active');
+              if (!active) return;
+              var key = active.id.replace('section-', '');
+              drawerItems.forEach(function(item) {
+                item.classList.toggle('bottom-nav-drawer-item-active', item.dataset.section === key);
+              });
+              moreBtn.classList.toggle('bottom-nav-item-active', DRAWER_SECTIONS.includes(key));
+            }).observe(sectionsWrap, { subtree: true, attributes: true, attributeFilter: ['class'] });
+          }
+        });
+      })();
+    </script>
 
     <script>
       // MutationObserver — clears skeleton rows the instant app.js writes real content
@@ -7029,7 +7231,7 @@
       function handleSubmit() {
         var errEl = ddEl("dd-upload-error");
         errEl.textContent = "";
-        if (!selectedFile) { errEl.textContent = "Please select a PDF file."; return; }
+        if (!selectedFile) { errEl.textContent = "Please select a file (PDF, Word, Excel, or PowerPoint)."; return; }
         var docTitle = (ddEl("dd-doc-title") ? ddEl("dd-doc-title").value.trim() : "");
         var docSubject = (ddEl("dd-doc-subject") ? ddEl("dd-doc-subject").value.trim() : "");
         if (!docTitle) { errEl.textContent = "Please enter a title."; return; }
@@ -7128,8 +7330,9 @@
         dz.addEventListener("drop", function(e){
           e.preventDefault(); dz.style.borderColor=""; dz.style.background="";
           var f = e.dataTransfer.files[0];
-          if (f && f.type==="application/pdf") { selectedFile=f; ddSetSelectedFileName(f.name); }
-          else { ddEl("dd-upload-error").textContent="Only PDF files are accepted."; }
+          var allowedTypes=["application/pdf","application/msword","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.ms-excel","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/vnd.ms-powerpoint","application/vnd.openxmlformats-officedocument.presentationml.presentation"]; var allowedExts=/\.(pdf|doc|docx|xls|xlsx|ppt|pptx)$/i;
+          if(f&&(allowedTypes.indexOf(f.type)!==-1||allowedExts.test(f.name))){ selectedFile=f; ddSetSelectedFileName(f.name); }
+          else { ddEl("dd-upload-error").textContent="Only PDF, Word, Excel, or PowerPoint files are accepted."; }
         });
       }
 
@@ -7302,6 +7505,253 @@
           );
         }
       });
+
+    })();
+
+    // ── PDF Signature Configuration (toggle-based panel) ─────────────────────
+    (function () {
+      var SKEY      = "sbp_pdf_sig_config";
+      var FS_DOC    = "settings/pdf_signatures"; // Firestore path
+
+      // Default config
+      var defaultCfg = {
+        secretary: { enabled: true,  name: "NORBERTO S. SABAYBAY",       title: "Secretary"  },
+        vicemayor: { enabled: true,  name: "HON. CHERILIE MELLA-SAMPAL", title: "Vice Mayor" },
+        addressee: "secretary"
+      };
+
+      // ── Persist to localStorage (instant, device-local) ───────────────────
+      function saveCfgLocal(cfg) {
+        try { localStorage.setItem(SKEY, JSON.stringify(cfg)); } catch(e) {}
+      }
+
+      // ── Persist to Firestore (cross-device) ───────────────────────────────
+      function saveCfgFirestore(cfg) {
+        try {
+          var db = firebase.firestore();
+          db.doc(FS_DOC).set({
+            secretary: cfg.secretary,
+            vicemayor: cfg.vicemayor,
+            addressee: cfg.addressee,
+            updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
+          }).catch(function(e){ console.warn("[PDFSig] Firestore save error:", e); });
+        } catch(e) { console.warn("[PDFSig] Firestore unavailable:", e); }
+      }
+
+      // ── Load: Firestore first, fallback to localStorage ───────────────────
+      function deepMerge(loaded) {
+        ["secretary","vicemayor"].forEach(function(role) {
+          if (!loaded[role]) loaded[role] = Object.assign({}, defaultCfg[role]);
+          else loaded[role] = Object.assign({}, defaultCfg[role], loaded[role]);
+        });
+        if (!loaded.addressee) loaded.addressee = defaultCfg.addressee;
+        return loaded;
+      }
+
+      function loadCfgLocal() {
+        try { return deepMerge(Object.assign({}, defaultCfg, JSON.parse(localStorage.getItem(SKEY) || "{}"))); }
+        catch(e) { return deepMerge(Object.assign({}, defaultCfg)); }
+      }
+
+      // Start with localStorage so UI is instant, then Firestore overrides if available
+      var cfg = loadCfgLocal();
+
+      window.addEventListener("load", function() {
+        try {
+          firebase.firestore().doc(FS_DOC).get().then(function(snap) {
+            if (snap.exists) {
+              var data = snap.data();
+              cfg = deepMerge(Object.assign({}, defaultCfg, data));
+              saveCfgLocal(cfg); // keep local cache in sync
+              syncAll();
+            }
+          }).catch(function(e){ console.warn("[PDFSig] Firestore load error:", e); });
+        } catch(e) {}
+      });
+
+      // ── Helpers ────────────────────────────────────────────────────────────
+      function el(id) { return document.getElementById(id); }
+
+      // ── Addressee radio disable logic: grey out radios for disabled signatories
+      function syncAddresseeRadioStates() {
+        ["secretary","vicemayor"].forEach(function(role) {
+          var rad   = el("pdf-addressee-" + role);
+          var label = rad ? rad.closest("label") : null;
+          if (!rad) return;
+          var disabled = !cfg[role].enabled;
+          rad.disabled = disabled;
+          if (label) {
+            label.style.opacity = disabled ? "0.4" : "";
+            label.style.cursor  = disabled ? "not-allowed" : "pointer";
+            label.title         = disabled ? "Enable this signatory first" : "";
+          }
+          // If the currently selected addressee just got disabled, switch to the other one
+          if (disabled && cfg.addressee === role) {
+            var other = (role === "secretary") ? "vicemayor" : "secretary";
+            if (cfg[other].enabled) {
+              cfg.addressee = other;
+              var otherRad = el("pdf-addressee-" + other);
+              if (otherRad) otherRad.checked = true;
+              rad.checked = false;
+            }
+          }
+        });
+      }
+
+      function applyRowState(role) {
+        var row   = el("pdf-sig-row-" + role);
+        var chk   = el("pdf-sig-" + role + "-enabled");
+        var disp  = el("pdf-sig-" + role + "-display");
+        var tdisp = el("pdf-sig-" + role + "-title-display");
+        if (!row || !chk) return;
+        chk.checked = cfg[role].enabled;
+        if (disp)  disp.textContent  = cfg[role].name;
+        if (tdisp) tdisp.textContent = cfg[role].title;
+        row.classList.toggle("pdf-sig-disabled", !cfg[role].enabled);
+        row.classList.toggle("pdf-sig-active",    cfg[role].enabled);
+      }
+
+      function applyAddresseeRadio() {
+        var secRad = el("pdf-addressee-secretary");
+        var vmRad  = el("pdf-addressee-vicemayor");
+        if (secRad) secRad.checked = (cfg.addressee === "secretary");
+        if (vmRad)  vmRad.checked  = (cfg.addressee === "vicemayor");
+        syncAddresseeRadioStates();
+      }
+
+      function updatePreview() {
+        var addrRole = cfg.addressee;
+        var addrData = cfg[addrRole] || cfg.secretary;
+        var noted    = (addrRole === "secretary") ? cfg.vicemayor : cfg.secretary;
+
+        var pname  = el("pdf-preview-name");
+        var ptitl  = el("pdf-preview-title");
+        var psal   = el("pdf-preview-salutation");
+        var pnoted = el("pdf-preview-noted");
+        var pntitl = el("pdf-preview-noted-title");
+
+        if (pname)  pname.textContent  = addrData.name;
+        if (ptitl)  ptitl.textContent  = addrData.title;
+        if (psal)   psal.textContent   = addrData.name.replace(/^HON\.\s*/i,"").split(" ").slice(-1)[0];
+        if (pnoted) pnoted.textContent = noted.name;
+        if (pntitl) pntitl.textContent = noted.title;
+      }
+
+      function syncAll() {
+        applyRowState("secretary");
+        applyRowState("vicemayor");
+        applyAddresseeRadio();
+        updatePreview();
+      }
+
+      // ── Toggle checkboxes ──────────────────────────────────────────────────
+      ["secretary","vicemayor"].forEach(function(role) {
+        var chk = el("pdf-sig-" + role + "-enabled");
+        if (!chk) return;
+        chk.addEventListener("change", function() {
+          cfg[role].enabled = chk.checked;
+          applyRowState(role);
+          syncAddresseeRadioStates();
+          updatePreview();
+        });
+      });
+
+      // ── Edit / Cancel buttons ──────────────────────────────────────────────
+      document.querySelectorAll(".pdf-sig-edit-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+          var role = btn.getAttribute("data-target");
+          var form = el("pdf-sig-" + role + "-form");
+          var nameInp  = el("pdf-sig-" + role + "-name-input");
+          var titleInp = el("pdf-sig-" + role + "-title-input");
+          if (!form) return;
+          if (nameInp)  nameInp.value  = cfg[role].name;
+          if (titleInp) titleInp.value = cfg[role].title;
+          // Clear any previous validation error
+          var errEl = el("pdf-sig-" + role + "-name-err");
+          if (errEl) errEl.remove();
+          ["secretary","vicemayor"].forEach(function(r) {
+            if (r !== role) {
+              var f = el("pdf-sig-" + r + "-form");
+              if (f) f.style.display = "none";
+            }
+          });
+          form.style.display = form.style.display === "none" ? "block" : "none";
+        });
+      });
+
+      document.querySelectorAll(".pdf-sig-cancel-row-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+          var role = btn.getAttribute("data-target");
+          var form = el("pdf-sig-" + role + "-form");
+          if (form) form.style.display = "none";
+          var errEl = el("pdf-sig-" + role + "-name-err");
+          if (errEl) errEl.remove();
+        });
+      });
+
+      // ── Apply (save-row) with empty-name validation ────────────────────────
+      document.querySelectorAll(".pdf-sig-save-row-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+          var role     = btn.getAttribute("data-target");
+          var nameInp  = el("pdf-sig-" + role + "-name-input");
+          var titleInp = el("pdf-sig-" + role + "-title-input");
+          var form     = el("pdf-sig-" + role + "-form");
+
+          // Remove old error
+          var oldErr = el("pdf-sig-" + role + "-name-err");
+          if (oldErr) oldErr.remove();
+
+          // Validate: name must not be blank
+          var nameVal = nameInp ? nameInp.value.trim() : "";
+          if (!nameVal) {
+            var errMsg = document.createElement("div");
+            errMsg.id = "pdf-sig-" + role + "-name-err";
+            errMsg.style.cssText = "color:var(--color-danger,#dc2626);font-size:0.78rem;margin-top:5px;display:flex;align-items:center;gap:4px;";
+            errMsg.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Name cannot be empty.';
+            if (nameInp) nameInp.parentNode.appendChild(errMsg);
+            if (nameInp) nameInp.focus();
+            return;
+          }
+
+          cfg[role].name  = nameVal.toUpperCase();
+          if (titleInp && titleInp.value.trim()) cfg[role].title = titleInp.value.trim();
+          applyRowState(role);
+          updatePreview();
+          if (form) form.style.display = "none";
+        });
+      });
+
+      // ── Addressee radios ───────────────────────────────────────────────────
+      document.querySelectorAll("input[name='pdf-addressee']").forEach(function(r) {
+        r.addEventListener("change", function() {
+          if (!r.disabled) {
+            cfg.addressee = r.value;
+            updatePreview();
+          }
+        });
+      });
+
+      // ── Save Settings → localStorage + Firestore ───────────────────────────
+      var saveBtn = el("pdf-signatory-save-btn");
+      var msgEl   = el("pdf-signatory-saved-msg");
+      if (saveBtn) {
+        saveBtn.addEventListener("click", function() {
+          saveCfgLocal(cfg);
+          saveCfgFirestore(cfg);
+          // Legacy key for app.js PDF generation
+          var addrData = cfg[cfg.addressee] || cfg.secretary;
+          try { localStorage.setItem("sbp_pdf_signatory", addrData.name + "|" + addrData.title); } catch(e) {}
+          if (msgEl) {
+            msgEl.style.display = "inline-flex";
+            setTimeout(function() { msgEl.style.display = "none"; }, 2500);
+          }
+          if (typeof showToast === "function") showToast("PDF settings saved!", "success");
+        });
+      }
+
+      // ── Init ───────────────────────────────────────────────────────────────
+      syncAll();
+      el("pdf-signatory-preview").style.display = "block";
 
     })();
     </script>
