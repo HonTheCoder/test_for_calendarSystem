@@ -67,6 +67,7 @@
               </svg>
             </span>
             <span>Document Dispatch</span>
+            <span class="nav-notif-badge" id="dispatch-nav-badge" style="display:none"></span>
           </a>
 
           <div class="sidebar-section-divider" aria-hidden="true"></div>
@@ -83,8 +84,7 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </span>
             <span>My Meetings</span>
-            <!-- Bug Fix #4: pending-badge now exists on user page so updateNotificationBadge() can update it -->
-            <span class="nav-notif-badge" id="pending-badge" style="display:none">0</span>
+            <span class="nav-notif-badge" id="pending-badge" style="display:none"></span>
           </a>
 
           <div class="sidebar-section-divider" aria-hidden="true"></div>
@@ -1320,19 +1320,23 @@
         <span>Dashboard</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="calendar">
+        <span class="bottom-nav-notif-dot" id="mobile-calendar-dot"></span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>Calendar</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="my-meetings">
+        <span class="bottom-nav-notif-count" id="mobile-pending-count"></span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span>My Meetings</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="announcements">
+        <span class="bottom-nav-notif-dot" id="mobile-ann-dot"></span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
         <span>Announce</span>
       </a>
       <button type="button" class="bottom-nav-item bottom-nav-more-btn" id="bottom-nav-more-btn" aria-label="More options">
-        <span class="bottom-nav-more-dots">
+        <span class="bottom-nav-more-dots" style="position:relative;">
+          <span class="bottom-nav-notif-dot" id="mobile-more-dot" style="top:-2px;right:-2px;"></span>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>
         </span>
         <span>More</span>
@@ -1347,7 +1351,8 @@
       <div class="bottom-nav-drawer-handle"></div>
       <div class="bottom-nav-drawer-title">More</div>
       <div class="bottom-nav-drawer-grid">
-        <a href="#" class="bottom-nav-drawer-item" data-section="document-dispatch">
+        <a href="#" class="bottom-nav-drawer-item" data-section="document-dispatch" style="position:relative;">
+          <span class="bottom-nav-notif-dot" id="mobile-dispatch-dot" style="top:6px;right:6px;"></span>
           <div class="bottom-nav-drawer-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
           </div>
@@ -1531,7 +1536,18 @@
             if (key === 'announcements') {
               var badge = document.getElementById('new-ann-badge');
               if (badge) badge.style.display = 'none';
+              var mobileAnnDot = document.getElementById('mobile-ann-dot');
+              if (mobileAnnDot) mobileAnnDot.classList.remove('visible');
               try { localStorage.setItem('sbp_ann_seen', Date.now().toString()); } catch(e) {}
+            }
+            if (key === 'document-dispatch') {
+              var dBadge = document.getElementById('dispatch-nav-badge');
+              if (dBadge) dBadge.style.display = 'none';
+              var mobileDispatchDot = document.getElementById('mobile-dispatch-dot');
+              if (mobileDispatchDot) mobileDispatchDot.classList.remove('visible');
+              var mobileMoreDot = document.getElementById('mobile-more-dot');
+              if (mobileMoreDot) mobileMoreDot.classList.remove('visible');
+              try { localStorage.setItem('sbp_dispatch_seen', Date.now().toString()); } catch(e) {}
             }
             try { sessionStorage.setItem('user_section', key); } catch(e) {}
 
@@ -2480,6 +2496,9 @@
 
         // Recipients are stored as stable Firestore doc IDs (appUser.id).
         // This is session-independent and never changes, unlike the volatile anon Firebase UID.
+        // Track which dispatch file IDs we already bell-notified this session
+        var _notifiedDispatchIds = new Set();
+
         function subscribeInbox(stableId) {
           if (uUnsubInbox) { uUnsubInbox(); uUnsubInbox = null; }
           if (!stableId) {
@@ -2504,6 +2523,35 @@
               list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), viewerUid); }).join("");
               var fi3 = document.getElementById("u-dd-inbox-filter");
               if (fi3 && fi3.value.trim()) fi3.dispatchEvent(new Event("input"));
+              // Update dispatch nav badge
+              try { if (typeof updateDispatchBadge === "function") updateDispatchBadge(snap.docs, stableId); } catch(_) {}
+
+              // Push bell notification + toast for newly dispatched files
+              if (typeof addNotification === "function" && typeof currentUser !== "undefined" && currentUser) {
+                var userId = currentUser.id || currentUser.username;
+                snap.docChanges().forEach(function(change) {
+                  if (change.type !== "added") return;
+                  var docId = change.doc.id;
+                  if (_notifiedDispatchIds.has(docId)) return;
+                  _notifiedDispatchIds.add(docId);
+                  var d = change.doc.data();
+                  // Skip files older than 30s (existed before this session)
+                  var tsMs = d.timestamp ? (d.timestamp.seconds ? d.timestamp.seconds * 1000 : (d.timestamp.toMillis ? d.timestamp.toMillis() : 0)) : 0;
+                  if (Date.now() - tsMs > 30000) return;
+                  var title = d.title || d.fileName || "a document";
+                  var from  = d.postedBy || d.uploadedByName || "Admin";
+                  addNotification(
+                    userId,
+                    "<strong>" + from + "</strong> sent you: <strong>" + title + "</strong>",
+                    "info",
+                    "document-dispatch",
+                    docId
+                  );
+                  if (typeof showToast === "function") {
+                    showToast("📄 New file from " + from + ": " + title, "info");
+                  }
+                });
+              }
             }, function(e){ console.error("[U-DD] inbox error:", e); });
         }
 
@@ -2730,7 +2778,7 @@
               type: isPrivate ? "private" : "public",
               uploadedBy: user.uid,
               uploadedByName: user.displayName || user.email || user.uid,
-              recipients: isPrivate ? uSelectedRecipients.map(function(r){ return r.firebaseUid || r.uid; }) : [],
+              recipients: isPrivate ? uSelectedRecipients.map(function(r){ return r.uid; }) : [],
               timestamp: firebase.firestore.FieldValue.serverTimestamp(),
               expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
             });
@@ -2957,7 +3005,58 @@
       console.error("uLoadDispatchFiles is not defined or not a function.");
     }
   });
-</script> 
+</script>
+
+  <script>
+  // ── Load PDF signatory settings from Firestore so user Export PDF
+  //    uses the same config the admin configured in System Settings ──────────
+  (function() {
+    var FS_DOC   = "settings/pdf_signatures";
+    var SKEY_CFG = "sbp_pdf_sig_config";
+    var SKEY_LEG = "sbp_pdf_signatory"; // legacy key read by generateMeetingPdf
+
+    var defaultCfg = {
+      secretary: { enabled: true,  name: "NORBERTO S. SABAYBAY",       title: "Secretary"  },
+      vicemayor: { enabled: true,  name: "HON. CHERILIE MELLA-SAMPAL", title: "Vice Mayor" },
+      addressee: "secretary"
+    };
+
+    function applyConfig(cfg) {
+      try { localStorage.setItem(SKEY_CFG, JSON.stringify(cfg)); } catch(e) {}
+      var addrRole = cfg.addressee || "secretary";
+      var addrData = cfg[addrRole] || cfg.secretary || defaultCfg.secretary;
+      var legacyVal = (addrData.name || "") + "|" + (addrData.title || "");
+      try { localStorage.setItem(SKEY_LEG, legacyVal); } catch(e) {}
+    }
+
+    function deepMerge(loaded) {
+      ["secretary","vicemayor"].forEach(function(role) {
+        if (!loaded[role]) loaded[role] = Object.assign({}, defaultCfg[role]);
+        else loaded[role] = Object.assign({}, defaultCfg[role], loaded[role]);
+      });
+      if (!loaded.addressee) loaded.addressee = defaultCfg.addressee;
+      return loaded;
+    }
+
+    // Apply localStorage cache immediately
+    try {
+      var cached = JSON.parse(localStorage.getItem(SKEY_CFG) || "{}");
+      applyConfig(deepMerge(Object.assign({}, defaultCfg, cached)));
+    } catch(e) {}
+
+    // Then fetch from Firestore and override
+    window.addEventListener("load", function() {
+      try {
+        firebase.firestore().doc(FS_DOC).get().then(function(snap) {
+          if (snap.exists) {
+            var cfg = deepMerge(Object.assign({}, defaultCfg, snap.data()));
+            applyConfig(cfg);
+          }
+        }).catch(function(e){ console.warn("[PDFSig] Firestore load error:", e); });
+      } catch(e) { console.warn("[PDFSig] Firestore unavailable:", e); }
+    });
+  })();
+  </script>
 
   </body>
 </html>

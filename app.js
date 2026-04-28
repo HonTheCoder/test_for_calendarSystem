@@ -369,7 +369,7 @@ function updateNotificationBadge(userId) {
   const lastSeen = getNotificationLastSeen(userId);
   const unread = getNotifications(userId).filter(n => isNotifUnread(n, lastSeen)).length;
   badge.textContent = unread > 9 ? "9+" : String(unread);
-  badge.style.display = unread > 0 ? "flex" : "none";
+  badge.style.display = unread > 0 ? "inline-flex" : "none";
 
   // Update pending badge on nav link.
   // On admin page: counts all pending meetings system-wide (meeting-logs nav).
@@ -403,8 +403,14 @@ function updateNotificationBadge(userId) {
     }
 
     // Always keep the badge hidden when count is 0 — never show "0"
-    pendingBadge.textContent = String(pendingCount);
-    pendingBadge.style.display = pendingCount > 0 ? "flex" : "none";
+    pendingBadge.textContent = pendingCount > 9 ? "9+" : String(pendingCount);
+    pendingBadge.style.display = pendingCount > 0 ? "inline-flex" : "none";
+    // Mirror to mobile bottom-nav count badge
+    const mobilePendingCount = document.getElementById("mobile-pending-count");
+    if (mobilePendingCount) {
+      mobilePendingCount.textContent = pendingCount > 9 ? "9+" : String(pendingCount);
+      mobilePendingCount.classList.toggle("visible", pendingCount > 0);
+    }
     // Also mirror the count into the admin Meeting Requests subtab badge if available
     try { if (typeof window.syncSubtabBadge === "function") window.syncSubtabBadge(); } catch(_) {}
   }
@@ -426,8 +432,55 @@ function updateNotificationBadge(userId) {
                m.researcher === cu.name;
       });
       calNavBadge.style.display = hasUpcoming ? "inline-flex" : "none";
+      // Mirror to mobile calendar dot
+      const mobileCalDot = document.getElementById("mobile-calendar-dot");
+      if (mobileCalDot) mobileCalDot.classList.toggle("visible", hasUpcoming);
     }
   }
+}
+
+// ── Update dispatch badge based on unread private inbox files ─────────────────
+// Called by the dispatch inbox subscription whenever files change.
+function updateDispatchBadge(inboxDocs, stableUserId) {
+  try {
+    const lastSeen = parseInt(localStorage.getItem("sbp_dispatch_seen") || "0", 10);
+    // Count files whose timestamp > lastSeen and have this user as recipient
+    const unread = inboxDocs.filter(function(doc) {
+      const data = doc.data ? doc.data() : doc;
+      const ts = data.timestamp ? (data.timestamp.seconds || data.timestamp.toMillis && data.timestamp.toMillis() / 1000 || 0) * 1000 : 0;
+      return ts > lastSeen;
+    }).length;
+
+    const inDispatch = document.getElementById("section-document-dispatch") &&
+      document.getElementById("section-document-dispatch").classList.contains("active");
+
+    const show = unread > 0 && !inDispatch;
+
+    // Sidebar badge
+    const dispatchBadge = document.getElementById("dispatch-nav-badge");
+    if (dispatchBadge) {
+      dispatchBadge.textContent = unread > 9 ? "9+" : String(unread);
+      dispatchBadge.style.display = show ? "inline-flex" : "none";
+    }
+
+    // Mobile dispatch dot (in drawer)
+    const mobileDispatchDot = document.getElementById("mobile-dispatch-dot");
+    if (mobileDispatchDot) mobileDispatchDot.classList.toggle("visible", show);
+
+    // Mobile "More" button dot — lights up if any drawer item has a notification
+    updateMoreButtonDot();
+  } catch(e) {}
+}
+
+// Light up the mobile "More" button dot if any drawer section has an active notification
+function updateMoreButtonDot() {
+  const mobileMoreDot = document.getElementById("mobile-more-dot");
+  if (!mobileMoreDot) return;
+  const dispatchDot   = document.getElementById("mobile-dispatch-dot");
+  const annDot        = document.getElementById("mobile-ann-dot");
+  const anyActive = (dispatchDot && dispatchDot.classList.contains("visible")) ||
+                    (annDot && annDot.classList.contains("visible"));
+  mobileMoreDot.classList.toggle("visible", anyActive);
 }
 
 function renderNotificationPanel(userId) {
@@ -3230,10 +3283,32 @@ function _generateMeetingPdfInner(mtg, docType, autoPrint) {
     y += LINE_H * 1.8;
 
     // ── Addressee ─────────────────────────────────────────────────────────────
-    const _pdfSig = (localStorage.getItem(STORAGE_KEYS.PDF_SIGNATORY) || "").trim();
-    const _sigParts = _pdfSig ? _pdfSig.split("|") : [];
-    const _sigName  = _sigParts[0] || "HON. CHERILIE MELLA-SAMPAL";
-    const _sigTitle = _sigParts[1] || "Vice Mayor";
+    // Read full signatory config (set by admin in System Settings → PDF Document Settings)
+    const _defaultSig = {
+      secretary: { enabled: true, name: "NORBERTO S. SABAYBAY",       title: "Secretary"  },
+      vicemayor: { enabled: true, name: "HON. CHERILIE MELLA-SAMPAL", title: "Vice Mayor" },
+      addressee: "secretary"
+    };
+    let _sigCfg = _defaultSig;
+    try {
+      const _raw = localStorage.getItem("sbp_pdf_sig_config");
+      if (_raw) {
+        const _parsed = JSON.parse(_raw);
+        _sigCfg = {
+          secretary: Object.assign({}, _defaultSig.secretary, _parsed.secretary || {}),
+          vicemayor: Object.assign({}, _defaultSig.vicemayor, _parsed.vicemayor || {}),
+          addressee: _parsed.addressee || _defaultSig.addressee
+        };
+      }
+    } catch(e) {}
+    const _addrRole  = _sigCfg.addressee || "secretary";
+    const _notedRole = (_addrRole === "secretary") ? "vicemayor" : "secretary";
+    const _addrData  = _sigCfg[_addrRole]  || _defaultSig[_addrRole];
+    const _notedData = _sigCfg[_notedRole] || _defaultSig[_notedRole];
+    const _sigName   = _addrData.name  || _defaultSig[_addrRole].name;
+    const _sigTitle  = _addrData.title || _defaultSig[_addrRole].title;
+    const _notedName  = _notedData.enabled ? (_notedData.name  || _defaultSig[_notedRole].name)  : "";
+    const _notedTitle = _notedData.enabled ? (_notedData.title || _defaultSig[_notedRole].title) : "";
     doc.setFont("times", "bold");
     doc.text(_sigName, INDENT, y); y += LINE_H;
     doc.setFont("times", "normal");
@@ -3341,10 +3416,10 @@ function _generateMeetingPdfInner(mtg, docType, autoPrint) {
     doc.line(INDENT, y, INDENT + 75, y);
     y += LINE_H * 0.8;
     doc.setFont("times", "bold");
-    doc.text(_sigName, INDENT, y);
+    doc.text(_notedName || _sigName, INDENT, y);
     y += LINE_H;
     doc.setFont("times", "normal");
-    doc.text(_sigTitle, INDENT, y);
+    doc.text(_notedTitle || _sigTitle, INDENT, y);
 
     // ── Official note above footer ────────────────────────────────────────────
     doc.setFontSize(7);
@@ -6830,7 +6905,13 @@ function renderUserAnnouncements(list) {
       badge.textContent = "New";
       // Only show if currently NOT in the announcements section
       const inAnnSection = document.getElementById("section-announcements")?.classList.contains("active");
-      badge.style.display = (hasNew && !inAnnSection) ? "inline-flex" : "none";
+      const showBadge = hasNew && !inAnnSection;
+      badge.style.display = showBadge ? "inline-flex" : "none";
+      // Mirror to mobile dot
+      const mobileAnnDot = document.getElementById("mobile-ann-dot");
+      if (mobileAnnDot) mobileAnnDot.classList.toggle("visible", showBadge);
+      // Update More button dot
+      if (typeof updateMoreButtonDot === "function") updateMoreButtonDot();
       // If user is already viewing announcements, stamp seen immediately
       if (inAnnSection) {
         try { localStorage.setItem("sbp_ann_seen", String(Date.now())); } catch(_) {}
@@ -6993,6 +7074,11 @@ function initAdminAnnouncements() {
       if (badge) {
         badge.textContent = list.length;
         badge.style.display = list.length ? "inline-flex" : "none";
+        // Mirror to mobile dot only if NOT already on announcements section
+        const inAnnSection = document.getElementById("section-announcements")?.classList.contains("active");
+        const mobileAnnDot = document.getElementById("mobile-ann-dot");
+        if (mobileAnnDot) mobileAnnDot.classList.toggle("visible", list.length > 0 && !inAnnSection);
+        if (typeof updateMoreButtonDot === "function") updateMoreButtonDot();
       }
     });
   }

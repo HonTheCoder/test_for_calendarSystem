@@ -115,6 +115,7 @@
               </svg>
             </span>
             <span>Document Dispatch</span>
+            <span class="nav-notif-badge" id="dispatch-nav-badge" style="display:none"></span>
           </a>
 
           <div class="sidebar-section-divider" aria-hidden="true"></div>
@@ -141,7 +142,7 @@
               </svg>
             </span>
             <span>Meeting Logs</span>
-            <span class="nav-notif-badge" id="pending-badge" style="display: inline-flex">6</span>
+            <span class="nav-notif-badge" id="pending-badge" style="display:none"></span>
           </a>
           <a href="#" class="nav-link" data-section="user-management">
             <span class="nav-link-icon">
@@ -3666,7 +3667,7 @@
                         </button>
                       </div>
                       <!-- Inline edit form (hidden by default) -->
-                      <div class="pdf-sig-edit-form" id="pdf-sig-secretary-form" style="display:none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border-soft); display: none;">
+                      <div class="pdf-sig-edit-form" id="pdf-sig-secretary-form" style="display:none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border-soft);">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                           <div>
                             <label class="field-label" style="font-size:11px;">Full Name</label>
@@ -3755,28 +3756,56 @@
                   <div id="pdf-signatory-preview" style="margin-top: 20px; border: 1px solid var(--color-border-soft); border-radius: 10px; overflow: hidden; font-size: 12px; color: var(--color-text-muted);">
                     <div style="background: var(--color-surface-alt, var(--color-bg)); padding: 8px 14px; border-bottom: 1px solid var(--color-border-soft); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--color-text-muted); display:flex; align-items:center; gap:6px;">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      PDF Preview
+                      Live PDF Preview — mirrors the actual exported document
                     </div>
-                    <div style="padding: 18px 20px; background: var(--color-bg); font-family: 'Times New Roman', serif; line-height: 1.7; color: var(--color-text);">
-                      <div style="text-align:right; font-size: 11px; color: var(--color-text-muted); margin-bottom:10px;">[Date]</div>
-                      <div style="font-weight:700; font-size:12px; text-transform:uppercase;" id="pdf-preview-addressee-block">
-                        <div id="pdf-preview-name" style="margin-bottom:1px;"></div>
+                    <div style="padding: 22px 26px; background: #fff; font-family: 'Times New Roman', serif; line-height: 1.75; color: #141414;">
+                      <!-- Date -->
+                      <div style="text-align:right; font-size: 11px; color: #888; margin-bottom:14px;">Date: [Auto-filled on export]</div>
+
+                      <!-- Addressee block -->
+                      <div style="font-size:12px; margin-bottom:12px;">
+                        <div id="pdf-preview-name" style="font-weight:700; text-transform:uppercase; margin-bottom:1px;"></div>
                         <div id="pdf-preview-title" style="font-weight:400; font-size:11px;"></div>
-                        <div style="font-size:11px; font-weight:400; color: var(--color-text-muted);">Sangguniang Bayan ng Polangui</div>
+                        <div style="font-size:11px; color:#555;">Municipality of Polangui</div>
                       </div>
-                      <div style="margin-top:10px; font-size:11.5px;">Dear <span id="pdf-preview-salutation" style="font-weight:700;"></span>,</div>
-                      <div style="margin-top:8px; font-size:11px; color: var(--color-text-muted); font-style:italic;">[Letter body…]</div>
-                      <div style="margin-top:18px; display:flex; justify-content:space-between; align-items:flex-end; font-size:11px;">
-                        <div>
-                          <div style="font-weight:700; font-size:11px; margin-bottom:2px; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.04em;">Noted:</div>
-                          <div id="pdf-preview-noted" style="font-weight:700; font-size:12px; text-transform:uppercase;"></div>
-                          <div id="pdf-preview-noted-title" style="font-size:11px;"></div>
-                        </div>
-                        <div style="font-size:11px; color:var(--color-text-muted); text-align:right;">
-                          <div style="font-weight:700; color:var(--color-text);">NORBERTO S. SABAYBAY</div>
-                          <div>Secretary</div>
-                        </div>
+
+                      <!-- Salutation -->
+                      <div style="font-size:11.5px; margin-bottom:8px;">Dear <span id="pdf-preview-salutation" style="font-weight:700;"></span>,</div>
+
+                      <!-- Body placeholder -->
+                      <div style="font-size:11px; color:#aaa; font-style:italic; margin-bottom:16px; border-left:2px solid #e5e7eb; padding-left:10px; line-height:1.6;">
+                        We respectfully request your approval to conduct a [Meeting Type] of the [Committee], which will be held to discuss matters within the committee's jurisdiction…
                       </div>
+
+                      <!-- Details placeholder -->
+                      <div style="font-size:10.5px; color:#bbb; margin-bottom:20px; padding-left:8px; line-height:1.9;">
+                        <div><span style="font-weight:700; color:#999;">Event/Title:</span> [Event Name]</div>
+                        <div><span style="font-weight:700; color:#999;">Date:</span> [Meeting Date]</div>
+                        <div><span style="font-weight:700; color:#999;">Venue:</span> [Venue]</div>
+                      </div>
+
+                      <!-- Closing -->
+                      <div style="font-size:11px; color:#aaa; font-style:italic; margin-bottom:24px;">
+                        …We respectfully seek your approval for the conduct of the said meeting. Thank you.
+                      </div>
+
+                      <!-- Signature block — mirrors app.js exactly -->
+                      <div style="font-size:11px; margin-bottom:6px;">Respectfully yours,</div>
+                      <div style="margin-bottom:22px;">
+                        <div style="width:140px; border-bottom: 1px solid #555; margin-bottom:4px; margin-top:28px;"></div>
+                        <div style="font-size:11px;">Municipal Councilor</div>
+                      </div>
+
+                      <!-- NOTED block -->
+                      <div style="font-size:11px; font-weight:700; text-transform:uppercase; margin-bottom:6px;">Noted:</div>
+                      <div style="width:160px; border-bottom: 1px solid #555; margin-bottom:4px; margin-top:28px;"></div>
+                      <div id="pdf-preview-noted" style="font-weight:700; font-size:12px; text-transform:uppercase; margin-bottom:1px;"></div>
+                      <div id="pdf-preview-noted-title" style="font-size:11px; color:#555;"></div>
+                    </div>
+                    <!-- Dark-mode overlay note -->
+                    <div style="background: var(--color-surface-alt, var(--color-bg)); padding: 6px 14px; border-top: 1px solid var(--color-border-soft); font-size: 10.5px; color: var(--color-text-muted); display:flex; align-items:center; gap:5px;">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                      The actual PDF always uses a white background regardless of dark mode.
                     </div>
                   </div>
 
@@ -5435,6 +5464,7 @@
         <span>Dashboard</span>
       </a>
       <a href="#" class="bottom-nav-item" data-section="meeting-logs">
+        <span class="bottom-nav-notif-count" id="mobile-pending-count"></span>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span>Meetings</span>
       </a>
@@ -5447,7 +5477,8 @@
         <span>Settings</span>
       </a>
       <button type="button" class="bottom-nav-item bottom-nav-more-btn" id="bottom-nav-more-btn" aria-label="More options">
-        <span class="bottom-nav-more-dots">
+        <span class="bottom-nav-more-dots" style="position:relative;">
+          <span class="bottom-nav-notif-dot" id="mobile-more-dot" style="top:-2px;right:-2px;"></span>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>
         </span>
         <span>More</span>
@@ -5462,13 +5493,15 @@
       <div class="bottom-nav-drawer-handle"></div>
       <div class="bottom-nav-drawer-title">More</div>
       <div class="bottom-nav-drawer-grid">
-        <a href="#" class="bottom-nav-drawer-item" data-section="announcements">
+        <a href="#" class="bottom-nav-drawer-item" data-section="announcements" style="position:relative;">
+          <span class="bottom-nav-notif-dot" id="mobile-ann-dot" style="top:6px;right:6px;"></span>
           <div class="bottom-nav-drawer-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
           </div>
           <span>Announce</span>
         </a>
-        <a href="#" class="bottom-nav-drawer-item" data-section="document-dispatch">
+        <a href="#" class="bottom-nav-drawer-item" data-section="document-dispatch" style="position:relative;">
+          <span class="bottom-nav-notif-dot" id="mobile-dispatch-dot" style="top:6px;right:6px;"></span>
           <div class="bottom-nav-drawer-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
           </div>
@@ -5796,6 +5829,25 @@
             // Load Document Dispatch data when entering that section
             if (key === "document-dispatch" && typeof window.loadDispatchFiles === "function") {
               window.loadDispatchFiles();
+            }
+            // Stamp dispatch seen + clear badges
+            if (key === "document-dispatch") {
+              var dBadge = document.getElementById("dispatch-nav-badge");
+              if (dBadge) dBadge.style.display = "none";
+              var mobileDispatchDot = document.getElementById("mobile-dispatch-dot");
+              if (mobileDispatchDot) mobileDispatchDot.classList.remove("visible");
+              var mobileMoreDot = document.getElementById("mobile-more-dot");
+              if (mobileMoreDot) mobileMoreDot.classList.remove("visible");
+              try { localStorage.setItem("sbp_dispatch_seen", Date.now().toString()); } catch(e) {}
+            }
+            // Stamp announcements seen + clear badges
+            if (key === "announcements") {
+              var annBadge = document.getElementById("announce-count-badge");
+              // Don't hide announce-count-badge — it shows total count, not unread
+              var mobileAnnDot = document.getElementById("mobile-ann-dot");
+              if (mobileAnnDot) mobileAnnDot.classList.remove("visible");
+              var mobileMoreDotA = document.getElementById("mobile-more-dot");
+              if (mobileMoreDotA) mobileMoreDotA.classList.remove("visible");
             }
 
             // If a targetId is provided, try to find and scroll to it
@@ -7092,6 +7144,8 @@
               list.innerHTML = docs.map(function(d){ return renderFileCard(d.id, d.data(), viewerUid, currentIsAdmin); }).join("");
               var fi = document.getElementById("dd-inbox-filter");
               if (fi && fi.value.trim()) fi.dispatchEvent(new Event("input"));
+              // Update dispatch nav badge
+              try { if (typeof updateDispatchBadge === "function") updateDispatchBadge(snap.docs, uid); } catch(_) {}
             }, function(err) { console.error("[DD] inbox error:", err); });
         }
 
@@ -7620,9 +7674,10 @@
       }
 
       function updatePreview() {
-        var addrRole = cfg.addressee;
-        var addrData = cfg[addrRole] || cfg.secretary;
-        var noted    = (addrRole === "secretary") ? cfg.vicemayor : cfg.secretary;
+        var addrRole  = cfg.addressee;
+        var notedRole = (addrRole === "secretary") ? "vicemayor" : "secretary";
+        var addrData  = cfg[addrRole]  || cfg.secretary;
+        var notedData = cfg[notedRole] || cfg.vicemayor;
 
         var pname  = el("pdf-preview-name");
         var ptitl  = el("pdf-preview-title");
@@ -7633,8 +7688,15 @@
         if (pname)  pname.textContent  = addrData.name;
         if (ptitl)  ptitl.textContent  = addrData.title;
         if (psal)   psal.textContent   = addrData.name.replace(/^HON\.\s*/i,"").split(" ").slice(-1)[0];
-        if (pnoted) pnoted.textContent = noted.name;
-        if (pntitl) pntitl.textContent = noted.title;
+
+        // Noted-by = the OTHER signatory (only if enabled)
+        if (notedData.enabled) {
+          if (pnoted) pnoted.textContent = notedData.name;
+          if (pntitl) pntitl.textContent = notedData.title;
+        } else {
+          if (pnoted) pnoted.textContent = "—";
+          if (pntitl) pntitl.textContent = "(disabled)";
+        }
       }
 
       function syncAll() {
