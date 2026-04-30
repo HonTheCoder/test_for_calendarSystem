@@ -8,8 +8,13 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthed()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+        && exists(/databases/$(database)/documents/user_roles/$(request.auth.uid))
+        && get(/databases/$(database)/documents/user_roles/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    match /user_roles/{docId} {
+      allow read:   if isAuthed();
+      allow write:  if isAuthed() && request.auth.uid == docId;
     }
 
     match /admin_audit_logs/{doc} {
@@ -94,13 +99,12 @@ service cloud.firestore {
             && resource.data.timestamp < request.time - duration.value(7, 'd')));
     }
 
-    // PDF signature config — readable by all authed users, writable only by admins.
     match /settings/{docId} {
       allow read:  if isAuthed();
       allow write: if isAdmin();
     }
 
-        match /{document=**} {
+    match /{document=**} {
       allow read, write: if false;
     }
   }

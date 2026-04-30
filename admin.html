@@ -1267,13 +1267,26 @@
                   <label for="special-password" class="field-label"
                     >Password</label
                   >
-                  <input
-                    id="special-password"
-                    type="password"
-                    class="field"
-                    required
-                    placeholder="Min. 6 characters"
-                  />
+                  <div class="pw-wrap">
+                    <input
+                      id="special-password"
+                      type="password"
+                      class="field"
+                      required
+                      placeholder="Min. 6 characters"
+                      style="padding-right: 40px"
+                    />
+                    <button type="button" class="pw-toggle" id="special-pw-t1" aria-label="Show/hide">
+                      <svg id="special-pw-t1-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg id="special-pw-t1-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    </button>
+                  </div>
                   <div
                     class="pwd-strength-wrap"
                     id="special-pwd-strength"
@@ -1295,13 +1308,26 @@
                   <label for="special-confirm" class="field-label"
                     >Confirm Password</label
                   >
-                  <input
-                    id="special-confirm"
-                    type="password"
-                    class="field"
-                    required
-                    placeholder="Re-enter password"
-                  />
+                  <div class="pw-wrap">
+                    <input
+                      id="special-confirm"
+                      type="password"
+                      class="field"
+                      required
+                      placeholder="Re-enter password"
+                      style="padding-right: 40px"
+                    />
+                    <button type="button" class="pw-toggle" id="special-pw-t2" aria-label="Show/hide">
+                      <svg id="special-pw-t2-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg id="special-pw-t2-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label for="special-role" class="field-label">Role</label>
@@ -1550,13 +1576,26 @@
                   <label for="user-password" class="field-label"
                     >Password</label
                   >
-                  <input
-                    id="user-password"
-                    type="password"
-                    class="field"
-                    required
-                    placeholder="Min. 6 characters"
-                  />
+                  <div class="pw-wrap">
+                    <input
+                      id="user-password"
+                      type="password"
+                      class="field"
+                      required
+                      placeholder="Min. 6 characters"
+                      style="padding-right: 40px"
+                    />
+                    <button type="button" class="pw-toggle" id="user-pw-t1" aria-label="Show/hide">
+                      <svg id="user-pw-t1-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg id="user-pw-t1-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    </button>
+                  </div>
                   <div
                     class="pwd-strength-wrap"
                     id="user-pwd-strength"
@@ -1572,20 +1611,32 @@
                   <label for="user-confirm" class="field-label"
                     >Confirm Password</label
                   >
-                  <input
-                    id="user-confirm"
-                    type="password"
-                    class="field"
-                    required
-                    placeholder="Re-enter password"
-                  />
+                  <div class="pw-wrap">
+                    <input
+                      id="user-confirm"
+                      type="password"
+                      class="field"
+                      required
+                      placeholder="Re-enter password"
+                      style="padding-right: 40px"
+                    />
+                    <button type="button" class="pw-toggle" id="user-pw-t2" aria-label="Show/hide">
+                      <svg id="user-pw-t2-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg id="user-pw-t2-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label for="user-role" class="field-label">Role</label>
                   <select id="user-role" class="field">
                     <option value="Councilor">Councilor</option>
                     <option value="Researcher">Researcher</option>
-                    <option value="Staff">Staff</option>
                   </select>
                 </div>
                 <div style="display: flex; align-items: flex-end">
@@ -1928,13 +1979,26 @@
                   <label for="inter-dept-password" class="field-label"
                     >Password</label
                   >
-                  <input
-                    id="inter-dept-password"
-                    type="password"
-                    class="field"
-                    required
-                    placeholder="Min. 6 characters"
-                  />
+                  <div class="pw-wrap">
+                    <input
+                      id="inter-dept-password"
+                      type="password"
+                      class="field"
+                      required
+                      placeholder="Min. 6 characters"
+                      style="padding-right: 40px"
+                    />
+                    <button type="button" class="pw-toggle" id="inter-dept-pw-t1" aria-label="Show/hide">
+                      <svg id="inter-dept-pw-t1-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg id="inter-dept-pw-t1-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    </button>
+                  </div>
                   <div
                     class="pwd-strength-wrap"
                     id="inter-dept-pwd-strength"
@@ -1956,13 +2020,26 @@
                   <label for="inter-dept-confirm" class="field-label"
                     >Confirm Password</label
                   >
-                  <input
-                    id="inter-dept-confirm"
-                    type="password"
-                    class="field"
-                    required
-                    placeholder="Re-enter password"
-                  />
+                  <div class="pw-wrap">
+                    <input
+                      id="inter-dept-confirm"
+                      type="password"
+                      class="field"
+                      required
+                      placeholder="Re-enter password"
+                      style="padding-right: 40px"
+                    />
+                    <button type="button" class="pw-toggle" id="inter-dept-pw-t2" aria-label="Show/hide">
+                      <svg id="inter-dept-pw-t2-show" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                      <svg id="inter-dept-pw-t2-hide" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label for="inter-dept-role" class="field-label">Role</label>
@@ -6537,6 +6614,13 @@
         wireEye("my-pw-t1", "my-pw-current", "my-pw-t1-show", "my-pw-t1-hide");
         wireEye("my-pw-t2", "my-pw-new", "my-pw-t2-show", "my-pw-t2-hide");
         wireEye("my-pw-t3", "my-pw-confirm", "my-pw-t3-show", "my-pw-t3-hide");
+        // Account creation eye toggles
+        wireEye("special-pw-t1", "special-password", "special-pw-t1-show", "special-pw-t1-hide");
+        wireEye("special-pw-t2", "special-confirm", "special-pw-t2-show", "special-pw-t2-hide");
+        wireEye("user-pw-t1", "user-password", "user-pw-t1-show", "user-pw-t1-hide");
+        wireEye("user-pw-t2", "user-confirm", "user-pw-t2-show", "user-pw-t2-hide");
+        wireEye("inter-dept-pw-t1", "inter-dept-password", "inter-dept-pw-t1-show", "inter-dept-pw-t1-hide");
+        wireEye("inter-dept-pw-t2", "inter-dept-confirm", "inter-dept-pw-t2-show", "inter-dept-pw-t2-hide");
 
         // ── strength meter ───────────────────────────────────────────────────────
         var newInp = document.getElementById("my-pw-new");

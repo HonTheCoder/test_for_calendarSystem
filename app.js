@@ -6861,7 +6861,7 @@ function _renderAnnCard(ann, isAdmin, isOwner) {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>${_annTimeAgo(ann.createdAt)}</span>
           ${ann.postedBy ? `<span class="ann-meta-dot">·</span><span class="ann-meta-author">${h(ann.postedBy)}</span>` : ""}
-          ${ann.postedByRole && ann.postedByRole !== "Admin" ? `<span class="ann-role-badge" style="color:#6d28d9;background:rgba(109,40,217,0.09);border-color:rgba(109,40,217,0.18);">${h(ann.postedByRole)}</span>` : ""}
+          ${ann.postedByRole && ann.postedByRole !== "Admin" ? `<span class="ann-role-badge" style="color:#6d28d9;background:rgba(109,40,217,0.09);border-color:rgba(109,40,217,0.18);">${h(ann.postedByRole === "Secretary" ? "Staff" : ann.postedByRole)}</span>` : ""}
         </div>
         ${isLong ? `<button onclick="event.stopPropagation();_openAnnModal(window.__annStore&&window.__annStore['${ann.id}']||{})" class="ann-read-btn" style="color:${meta.color};background:${meta.bg};border-color:${meta.color}33;">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Read more</button>` : ""}

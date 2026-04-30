@@ -53,14 +53,21 @@
         window._firebaseUidReady = firebase.auth(app).signInAnonymously().then(function(cred) {
           // After anon sign-in, write the Firebase UID back to the user's
           // Firestore doc so Firestore rules can match recipients by Firebase UID.
+          // Also mirror role into user_roles/{firebaseUid} so isAdmin() rule works.
           try {
             var raw = localStorage.getItem("sbp_current_user");
             if (raw) {
               var appUser = JSON.parse(raw);
               if (appUser && appUser.id && cred && cred.user) {
-                return db.collection("users").doc(appUser.id)
-                  .update({ firebaseUid: cred.user.uid })
+                var firebaseUid = cred.user.uid;
+                db.collection("users").doc(appUser.id)
+                  .update({ firebaseUid: firebaseUid })
                   .catch(function() {});
+                if (appUser.role) {
+                  return db.collection("user_roles").doc(firebaseUid)
+                    .set({ role: appUser.role, appUserId: appUser.id })
+                    .catch(function() {});
+                }
               }
             }
           } catch(e) {}
