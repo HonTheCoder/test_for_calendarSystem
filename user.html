@@ -565,54 +565,71 @@
                     </div>
                   </div>
                 </div>
-                <form id="special-ann-form" autocomplete="off" style="padding:16px 20px 20px;display:flex;flex-direction:column;gap:12px;">
-                  <div>
-                    <label for="special-ann-title" class="field-label">Title <span style="color:#ef4444">*</span></label>
-                    <input id="special-ann-title" class="field" required placeholder="e.g. Session Reminder" maxlength="120" />
-                  </div>
-                  <div>
-                    <label for="special-ann-body" class="field-label">Message <span style="color:#ef4444">*</span></label>
-                    <textarea id="special-ann-body" class="field" required placeholder="Write your announcement here…" rows="4" style="resize:vertical;min-height:80px;font-family:inherit"></textarea>
-                  </div>
-                  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-                    <div style="flex:1;min-width:160px">
-                      <label for="special-ann-type" class="field-label">Type</label>
-                      <select id="special-ann-type" class="field">
-                        <option value="general">General</option>
-                        <option value="urgent">Urgent</option>
-                        <option value="reminder">Reminder</option>
-                        <option value="event">Event</option>
-                      </select>
+                <form id="special-ann-form" autocomplete="off" style="padding:16px 20px 20px;">
+                  <div class="ann-compose-wrap">
+                    <div class="ann-compose-grid">
+                      <div>
+                        <label for="special-ann-title" class="field-label">Title <span style="color:#ef4444">*</span></label>
+                        <input id="special-ann-title" class="field" required placeholder="e.g. Session Reminder" maxlength="120" />
+                      </div>
+                      <div>
+                        <label for="special-ann-type" class="field-label">Type</label>
+                        <select id="special-ann-type" class="field">
+                          <option value="general">General</option>
+                          <option value="important">Urgent</option>
+                          <option value="reminder">Reminder</option>
+                          <option value="event">Event</option>
+                        </select>
+                      </div>
                     </div>
-                    <button id="special-ann-submit-btn" type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#6d28d9,#7c3aed);white-space:nowrap;flex-shrink:0;">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                      Post Announcement
-                    </button>
+                    <div>
+                      <label for="special-ann-body" class="field-label">Message <span style="color:#ef4444">*</span></label>
+                      <textarea id="special-ann-body" class="field" required placeholder="Write your announcement here…" rows="4" style="resize:vertical;min-height:80px;font-family:inherit"></textarea>
+                    </div>
+                    <div class="ann-compose-options">
+                      <div id="special-ann-msg" class="helper-text" style="color:#ef4444;min-height:16px;flex:1;"></div>
+                      <button id="special-ann-submit-btn" type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#6d28d9,#7c3aed);white-space:nowrap;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        Post Announcement
+                      </button>
+                    </div>
                   </div>
-                  <div id="special-ann-msg" class="helper-text" style="color:#ef4444;min-height:16px"></div>
                 </form>
               </div>
             </div>
 
-            <!-- Search + filter bar -->
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-              <div class="search-bar-wrap" style="flex:1;min-width:160px">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input id="ann-search" class="field" placeholder="Search announcements…" style="padding-left:32px" />
+            <!-- Announcements List Card -->
+            <div class="card ann-section-card">
+              <div class="card-header ann-list-header">
+                <div class="card-title-wrap">
+                  <div class="card-title-icon" style="background:rgba(245,158,11,0.1);color:#d97706;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+                  </div>
+                  <div>
+                    <div class="card-title">Announcements</div>
+                    <div class="card-subtitle">Stay updated with the latest notices from the office.</div>
+                  </div>
+                </div>
+                <div class="ann-filter-wrap">
+                  <div class="search-bar-wrap" style="flex:1;min-width:160px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input id="ann-search" class="field" placeholder="Search announcements…" style="padding-left:32px" />
+                  </div>
+                  <select id="ann-filter-type" class="field" style="width:auto;min-width:130px;flex-shrink:0">
+                    <option value="">All Types</option>
+                    <option value="general">General</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="reminder">Reminder</option>
+                    <option value="event">Event</option>
+                  </select>
+                </div>
               </div>
-              <select id="ann-filter-type" class="field" style="width:auto;min-width:130px;flex-shrink:0">
-                <option value="">All Types</option>
-                <option value="general">General</option>
-                <option value="urgent">Urgent</option>
-                <option value="reminder">Reminder</option>
-                <option value="event">Event</option>
-              </select>
-            </div>
-            <div id="user-announce-list" style="display:flex;flex-direction:column;gap:14px">
-              <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
-              <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
-              <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
-              <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+              <div id="user-announce-list" class="ann-list-body">
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+                <div class="skeleton-announce-item"><div class="skeleton-announce-header"><span class="skeleton skeleton-announce-avatar"></span><div class="skeleton-announce-meta"><span class="skeleton skeleton-announce-title" style="width:55%"></span><span class="skeleton skeleton-announce-date"></span></div></div><span class="skeleton skeleton-announce-body"></span><span class="skeleton skeleton-announce-body-short"></span></div>
+              </div>
             </div>
           </div>
 

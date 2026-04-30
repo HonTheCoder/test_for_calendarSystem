@@ -2385,7 +2385,16 @@ function meetingBelongsToUser(meeting, user) {
   return false;
 }
 
+let renderMyMeetingsTableTimeout;
 function renderMyMeetingsTable(currentUser, targetId) {
+  // Debounce to prevent double rendering from status actions + Firestore snapshots
+  if (renderMyMeetingsTableTimeout) clearTimeout(renderMyMeetingsTableTimeout);
+  renderMyMeetingsTableTimeout = setTimeout(() => {
+    _renderMyMeetingsTableNow(currentUser, targetId);
+  }, 80);
+}
+
+function _renderMyMeetingsTableNow(currentUser, targetId) {
   const tbody = $("#my-meetings-body");
   if (!tbody || !currentUser) return;
 
@@ -2530,7 +2539,16 @@ function _startCancelCountdownTick(currentUser) {
   }, 60000); // tick every 1 minute
 }
 
+let renderAdminMeetingsTableTimeout;
 function renderAdminMeetingsTable(targetId) {
+  // Debounce to prevent double rendering from status actions + Firestore snapshots
+  if (renderAdminMeetingsTableTimeout) clearTimeout(renderAdminMeetingsTableTimeout);
+  renderAdminMeetingsTableTimeout = setTimeout(() => {
+    _renderAdminMeetingsTableNow(targetId);
+  }, 80);
+}
+
+function _renderAdminMeetingsTableNow(targetId) {
   const tbody = $("#admin-meetings-body");
   if (!tbody) return;
 
@@ -4297,10 +4315,12 @@ function openMeetingModal(isoDate) {
   }
 }
 
-function closeMeetingModal() {
+function closeMeetingModal(preserveEditingId = false) {
   const backdrop = $("#meeting-modal");
   if (backdrop) backdrop.classList.remove("modal-open");
-  _editingMeetingId = null;
+  if (!preserveEditingId) {
+    _editingMeetingId = null;
+  }
   // Reset modal title back to default
   const titleEl = $("#meeting-modal-title");
   if (titleEl) titleEl.textContent = "Schedule Meeting";
@@ -4754,12 +4774,9 @@ function handleMeetingSubmit(e) {
     showToast(`Note: "${conflictingPending.eventName}" is also pending for this time. If both approved, yours may be auto-cancelled.`, "warning");
   }
 
-  // All validation passed — preserve editing ID before closeMeetingModal() clears it,
-  // then pass it into the policy modal payload so the edit path works correctly.
+  // All validation passed — close modal while preserving editing ID for policy modal
   msg.textContent = "";
-  const _editIdSnapshot = _editingMeetingId;
-  closeMeetingModal();
-  _editingMeetingId = _editIdSnapshot; // restore after closeMeetingModal() nulled it
+  closeMeetingModal(true); // preserve _editingMeetingId
 
   // ── iOS Fix: wait for first modal dismissal before opening policy ──
   // Prevents the second modal from being swallowed or layout-glitched on mobile
@@ -4841,7 +4858,16 @@ function renderUpcomingMeetingsPreview() {
   }).join("");
 }
 
+let updateStatisticsTimeout;
 function updateStatistics() {
+  // Debounce chart rendering to prevent flicker (same as renderCalendar pattern)
+  if (updateStatisticsTimeout) clearTimeout(updateStatisticsTimeout);
+  updateStatisticsTimeout = setTimeout(() => {
+    _updateStatisticsNow();
+  }, 80);
+}
+
+function _updateStatisticsNow() {
   const totalEl = $("#stat-total-meetings");
   const pendingEl = $("#stat-pending-meetings");
   const activeUsersEl = $("#stat-active-users");
@@ -6814,42 +6840,41 @@ function _renderAnnCard(ann, isAdmin, isOwner) {
   const preview  = isLong ? bodyText.slice(0, 180).trimEnd() + "…" : bodyText;
   if (!window.__annStore) window.__annStore = {};
   window.__annStore[ann.id] = ann;
-  return `<div class="ann-card" data-id="${ann.id}" style="border:1px solid var(--color-border-soft);border-radius:14px;background:var(--color-surface);overflow:hidden;transition:box-shadow 0.2s,transform 0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.05);"
-    onmouseover="this.style.boxShadow='0 6px 20px rgba(0,0,0,0.09)';this.style.transform='translateY(-1px)'"
-    onmouseout="this.style.boxShadow='0 1px 4px rgba(0,0,0,0.05)';this.style.transform='translateY(0)'">
-    <div style="height:4px;background:linear-gradient(90deg,${meta.color},${meta.color}77);"></div>
-    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px;">
-      <div style="display:flex;align-items:flex-start;gap:12px;">
-        <div style="width:38px;height:38px;border-radius:10px;background:${meta.bg};border:1px solid ${meta.color}22;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${meta.color};">${meta.icon}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
-            <span style="font-size:0.66rem;font-weight:700;letter-spacing:0.07em;color:${meta.color};text-transform:uppercase;background:${meta.bg};padding:2px 8px;border-radius:999px;border:1px solid ${meta.color}22;">${meta.label}</span>
+  const clickable = isLong ? `onclick="event.stopPropagation();_openAnnModal(window.__annStore&&window.__annStore['${ann.id}']||{})" style="cursor:pointer;"` : "";
+  return `<div class="ann-card ann-card-v2" data-id="${ann.id}" ${clickable}>
+    <div class="ann-card-accent" style="background:linear-gradient(135deg,${meta.color},${meta.color}88);"></div>
+    <div class="ann-card-inner">
+      <div class="ann-card-top">
+        <div class="ann-card-icon-wrap" style="background:${meta.bg};border:1.5px solid ${meta.color}28;color:${meta.color};">${meta.icon}</div>
+        <div class="ann-card-head">
+          <div class="ann-card-badges">
+            <span class="ann-type-badge" style="color:${meta.color};background:${meta.bg};border-color:${meta.color}28;">${meta.label}</span>
             ${pinHtml}${expBadge}
           </div>
-          <div style="font-weight:700;font-size:0.96rem;color:var(--color-text);line-height:1.35;word-break:break-word;">${h(ann.title)}</div>
+          <div class="ann-card-title" title="${h(ann.title)}">${h(ann.title)}</div>
         </div>
-        ${(canEdit || canDelete) ? `<div style="display:flex;gap:2px;flex-shrink:0;">${editHtml}${deleteHtml}</div>` : ""}
+        ${(canEdit || canDelete) ? `<div class="ann-card-actions">${editHtml}${deleteHtml}</div>` : ""}
       </div>
-      <div style="height:1px;background:var(--color-border-soft);"></div>
-      <div style="font-size:0.855rem;color:var(--color-text-muted);line-height:1.7;word-break:break-word;">${h(preview)}</div>
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-        <div style="display:flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--color-text-muted);">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          ${_annTimeAgo(ann.createdAt)}${ann.postedBy ? ` · <strong style="color:var(--color-text-muted);font-weight:600;">${h(ann.postedBy)}</strong>` : ""}${ann.postedByRole && ann.postedByRole !== "Admin" ? ` <span style="font-size:0.62rem;font-weight:700;letter-spacing:0.04em;color:#6d28d9;background:rgba(109,40,217,0.09);padding:1px 7px;border-radius:999px;border:1px solid rgba(109,40,217,0.18);">${h(ann.postedByRole)}</span>` : ""}
+      <div class="ann-card-body">${h(preview)}</div>
+      <div class="ann-card-footer">
+        <div class="ann-card-meta">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>${_annTimeAgo(ann.createdAt)}</span>
+          ${ann.postedBy ? `<span class="ann-meta-dot">·</span><span class="ann-meta-author">${h(ann.postedBy)}</span>` : ""}
+          ${ann.postedByRole && ann.postedByRole !== "Admin" ? `<span class="ann-role-badge" style="color:#6d28d9;background:rgba(109,40,217,0.09);border-color:rgba(109,40,217,0.18);">${h(ann.postedByRole)}</span>` : ""}
         </div>
-        ${isLong ? `<button onclick="event.stopPropagation();_openAnnModal(window.__annStore&&window.__annStore['${ann.id}']||{})" style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:0.75rem;font-weight:600;color:${meta.color};background:${meta.bg};border:1px solid ${meta.color}33;padding:5px 13px;border-radius:999px;cursor:pointer;transition:opacity 0.15s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Read full</button>` : ""}
+        ${isLong ? `<button onclick="event.stopPropagation();_openAnnModal(window.__annStore&&window.__annStore['${ann.id}']||{})" class="ann-read-btn" style="color:${meta.color};background:${meta.bg};border-color:${meta.color}33;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>Read more</button>` : ""}
       </div>
     </div>
   </div>`;
 }
-function h(str) {
-  if (!str) return "";
-  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-}
 
 // ── Admin: render full announcements list ──────────────────────────────────
 function renderAdminAnnouncements(list) {
+  // Clear announcement store to prevent memory leak
+  window.__annStore = {};
+  
   const el = document.getElementById("admin-announce-list");
   if (!el) return;
   const badge = document.getElementById("ann-total-badge");
@@ -6868,11 +6893,14 @@ function renderAdminAnnouncements(list) {
       <p>No announcements posted yet.</p></div>`;
     return;
   }
-  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:10px;padding:16px">${sorted.map(a => _renderAnnCard(a, true)).join("")}</div>`;
+  el.innerHTML = sorted.map(a => _renderAnnCard(a, true)).join("");
 }
 
 // ── User: render announcements page + dashboard preview ────────────────────
 function renderUserAnnouncements(list) {
+  // Clear announcement store to prevent memory leak
+  window.__annStore = {};
+  
   const el = document.getElementById("user-announce-list");
   if (!el) return;
   const sorted = list.slice().sort((a, b) => {

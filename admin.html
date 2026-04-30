@@ -3916,110 +3916,40 @@
               </div>
               <div class="card-body">
                 <form id="announce-form">
-                  <div class="form-grid-2" style="margin-bottom: 14px">
-                    <div>
-                      <label class="field-label" for="ann-title"
-                        >Title
-                        <span style="color: var(--color-danger)">*</span></label
-                      >
-                      <input
-                        id="ann-title"
-                        class="field"
-                        placeholder="e.g. Schedule Change for March Sessions"
-                        maxlength="120"
-                      />
+                  <div class="ann-compose-wrap">
+                    <div class="ann-compose-grid">
+                      <div>
+                        <label class="field-label" for="ann-title">Title <span style="color:var(--color-danger)">*</span></label>
+                        <input id="ann-title" class="field" placeholder="e.g. Schedule Change for March Sessions" maxlength="120" />
+                      </div>
+                      <div>
+                        <label class="field-label" for="ann-type">Category</label>
+                        <select id="ann-type" class="field">
+                          <option value="general">General Info</option>
+                          <option value="important">Important Notice</option>
+                          <option value="reminder">Reminder</option>
+                          <option value="event">Upcoming Event</option>
+                        </select>
+                      </div>
                     </div>
                     <div>
-                      <label class="field-label" for="ann-type">Category</label>
-                      <select id="ann-type" class="field">
-                        <option value="general">General Info</option>
-                        <option value="important">Important Notice</option>
-                        <option value="reminder">Reminder</option>
-                        <option value="event">Upcoming Event</option>
-                      </select>
+                      <label class="field-label" for="ann-body">Message <span style="color:var(--color-danger)">*</span></label>
+                      <textarea id="ann-body" class="field" rows="4" style="resize:vertical;min-height:96px;font-family:inherit;" placeholder="Write your announcement here…"></textarea>
                     </div>
-                  </div>
-                  <div style="margin-bottom: 14px">
-                    <label class="field-label" for="ann-body"
-                      >Message
-                      <span style="color: var(--color-danger)">*</span></label
-                    >
-                    <textarea
-                      id="ann-body"
-                      class="field"
-                      rows="4"
-                      style="resize: vertical; min-height: 96px"
-                      placeholder="Write your announcement here…"
-                    ></textarea>
-                  </div>
-                  <div
-                    style="
-                      display: flex;
-                      align-items: center;
-                      gap: 16px;
-                      flex-wrap: wrap;
-                    "
-                  >
-                    <label
-                      style="
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        cursor: pointer;
-                        font-size: 0.85rem;
-                        color: var(--color-text);
-                        user-select: none;
-                      "
-                    >
-                      <input
-                        type="checkbox"
-                        id="ann-pinned"
-                        style="
-                          width: 15px;
-                          height: 15px;
-                          accent-color: #d97706;
-                          cursor: pointer;
-                        "
-                      />
-                      <svg
-                        width="13"
-                        height="13"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.2"
-                        style="color: #d97706; flex-shrink: 0"
-                      >
-                        <path
-                          d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"
-                        />
-                        <circle cx="12" cy="10" r="3" />
-                      </svg>
-                      <span>Pin to top of announcements</span>
-                    </label>
-                    <div
-                      id="ann-msg"
-                      class="helper-text"
-                      style="color: var(--color-danger); flex: 1"
-                    ></div>
-                    <button
-                      type="submit"
-                      id="ann-submit-btn"
-                      class="btn btn-primary"
-                    >
-                      <svg
-                        width="13"
-                        height="13"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.2"
-                      >
-                        <line x1="22" y1="2" x2="11" y2="13" />
-                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                      </svg>
-                      Post Announcement
-                    </button>
+                    <div class="ann-compose-options">
+                      <label class="ann-pin-label">
+                        <input type="checkbox" id="ann-pinned" style="width:15px;height:15px;accent-color:#d97706;cursor:pointer;" />
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2" style="flex-shrink:0"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        <span>Pin to top</span>
+                      </label>
+                      <div style="display:flex;align-items:center;gap:10px;flex:1;justify-content:flex-end;flex-wrap:wrap;">
+                        <div id="ann-msg" class="helper-text" style="color:var(--color-danger);min-width:0;"></div>
+                        <button type="submit" id="ann-submit-btn" class="btn btn-primary" style="white-space:nowrap;">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                          Post Announcement
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -4060,12 +3990,7 @@
               </div>
               <div
                 id="admin-announce-list"
-                style="
-                  display: flex;
-                  flex-direction: column;
-                  padding: 12px 16px;
-                  gap: 10px;
-                "
+                class="ann-list-body ann-admin-list"
               >
                 <div class="skeleton-announce-item">
                   <div class="skeleton-announce-header">
